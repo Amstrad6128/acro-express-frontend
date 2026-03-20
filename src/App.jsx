@@ -1,0 +1,903 @@
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Routes, Route, useParams, useNavigate } from "react-router-dom";
+import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, getAuth } from "./services/api";
+import { useSignalR } from "./hooks/useSignalR";
+import { useLobbyHub } from "./hooks/useLobbyHub";
+
+// ── Design tokens ──────────────────────────────────────────────
+const C = {
+  bgApp:       "#070b14",
+  bgPanel:     "#131A2E",
+  bgPanel2:    "#1A233B",
+  border:      "#2B3758",
+  textPrimary: "#F3F4F8",
+  textSecond:  "#C7CEE0",
+  textMuted:   "#94A0BE",
+  brand:       "#F26A5E",
+  brandHover:  "#FF7A6B",
+  teal:        "#6FB7C8",
+  tealLight:   "#8FD0DE",
+  lavender:    "#B7B3E6",
+  ivory:       "#F2E6D8",
+  success:     "#4FAF8F",
+  navy2:       "#24314D",
+  navy3:       "#2C3B5F",
+};
+
+// ── Reusable styled components ─────────────────────────────────
+const Panel = ({ children, style = {}, className = "" }) => (
+  <div className={className} style={{ background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 12, ...style }}>
+    {children}
+  </div>
+);
+
+const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, style = {}, disabled = false }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: hovered ? hoverColor : color,
+        color: "#FFF8F6",
+        border: "none",
+        borderRadius: 8,
+        padding: "6px 14px",
+        fontsize : 16,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.6 : 1,
+        fontFamily: "inherit",
+        transition: "background 0.15s",
+        ...style
+      }}>
+      {children}
+    </button>
+  );
+};
+
+const BtnSecondary = ({ children, onClick, style = {} }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: hovered ? C.navy3 : C.navy2,
+        color: C.teal,
+        border: `1px solid ${C.teal}`,
+        borderRadius: 8,
+        padding: "6px 14px",
+        fontsize : 16,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        transition: "background 0.15s",
+        ...style
+      }}>
+      {children}
+    </button>
+  );
+};
+
+const Input = ({ id, value, onChange, onKeyDown, placeholder, type = "text", style = {}, autoFocus = false }) => (
+  <input
+    id={id}
+    type={type}
+    value={value}
+    onChange={onChange}
+    onKeyDown={onKeyDown}
+    placeholder={placeholder}
+    autoFocus={autoFocus}
+    style={{
+      background: C.bgApp,
+      border: `1px solid ${C.border}`,
+      borderRadius: 8,
+      padding: "8px 12px",
+      color: C.textPrimary,
+      fontsize : 16,
+      outline: "none",
+      width: "100%",
+      fontFamily: "inherit",
+      textAlign: "center",
+      ...style
+    }}
+  />
+);
+
+// ── Lobby ──────────────────────────────────────────────────────
+function Lobby() {
+  const [status, setStatus] = useState("loading...");
+  const [roomList, setRoomList] = useState([]);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [auth, setAuth] = useState(() => {
+    const saved = localStorage.getItem("acro.auth");
+    return saved ? JSON.parse(saved) : null;
+  });
+  const navigate = useNavigate();
+  const { players, messages, sendMessage } = useLobbyHub();
+  const [chatInput, setChatInput] = useState("");
+  const lobbyBottomRef = useRef(null);
+
+  async function doRegister() {
+    try {
+      const { register } = await import("./services/api");
+      const data = await register(username.trim(), password);
+      localStorage.setItem("acro.auth", JSON.stringify(data));
+      setAuth(data); setUsername(""); setPassword("");
+    } catch (e) { alert(e.message || e); }
+  }
+
+  async function doLogin() {
+    try {
+      const { login } = await import("./services/api");
+      const data = await login(username.trim(), password);
+      localStorage.setItem("acro.auth", JSON.stringify(data));
+      setAuth(data); setUsername(""); setPassword("");
+    } catch (e) { alert(e.message || e); }
+  }
+
+  function doLogout() {
+    localStorage.removeItem("acro.auth");
+    setAuth(null);
+  }
+
+  useEffect(() => {
+    fetchHealth()
+      .then(d => setStatus(`API: ${d.status}`))
+      .catch(e => setStatus(`Error: ${e.message}`));
+  }, []);
+
+  useEffect(() => {
+    async function loadRooms() {
+      try {
+        const { fetchRooms } = await import("./services/api");
+        const rooms = await fetchRooms();
+        setRoomList(rooms || []);
+      } catch (e) { console.error(e); }
+    }
+    loadRooms();
+    const iv = setInterval(loadRooms, 5000);
+    return () => clearInterval(iv);
+  }, []);
+
+  useEffect(() => {
+    lobbyBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  async function handleCreate() {
+    if (!auth) { alert("Please log in first!"); return; }
+    const name = window.prompt("Name your room:", "");
+    if (!name || !name.trim()) return;
+    try {
+      const data = await createRoom(name.trim());
+      const id = data?.id || data?.roomId;
+      if (!id) throw new Error("No room id");
+      navigate(`/room/${encodeURIComponent(id)}`);
+    } catch (e) { alert(`Error: ${e.message}`); }
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", color: C.textPrimary }}>
+      {/* Header */}
+      <div style={{ borderBottom: `1px solid ${C.border}`, padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand, margin: 0, letterSpacing: "-0.5px" }}>Acro Express</h1>
+        <span style={{ color: C.textMuted, fontsize : 15 }}>{status}</span>
+      </div>
+
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 24px" }}>
+
+        {/* Welcome */}
+        {auth && (
+          <Panel style={{ padding: "16px 20px", marginBottom: 20, borderColor: C.teal }}>
+            <p style={{ color: C.teal, fontWeight: 600, margin: 0 }}>Welcome aboard Acro Express.</p>
+            <p style={{ color: C.textSecond, fontsize : 15, margin: "4px 0 0" }}>
+              This is the first public stop on the journey. A working version with more style, features, and surprises still to come.
+            </p>
+          </Panel>
+        )}
+
+        {/* Auth */}
+        <Panel style={{ padding: 16, marginBottom: 20 }}>
+          <h2 style={{ margin: "0 0 12px", fontSize: 16, color: C.textPrimary }}>
+            {auth ? `Welcome, ${auth.username}!` : "Sign in to play"}
+          </h2>
+          {auth ? (
+            <Btn onClick={doLogout} color="#8B2020" hoverColor="#A52828">Log out</Btn>
+          ) : (
+            <>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <Input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} style={{ textAlign: "left" }} />
+                <Input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} style={{ textAlign: "left" }} />
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn onClick={doRegister}>Register</Btn>
+                <BtnSecondary onClick={doLogin}>Log in</BtnSecondary>
+              </div>
+            </>
+          )}
+        </Panel>
+
+        {/* Rooms — only shown when logged in */}
+        {auth && <Panel style={{ padding: 16, marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h2 style={{ margin: 0, fontSize: 16, color: C.textPrimary }}>Game Rooms</h2>
+            <Btn onClick={handleCreate}>+ Create Room</Btn>
+          </div>
+          {roomList.length === 0 ? (
+            <p style={{ color: C.textMuted, fontsize : 15, margin: 0 }}>No rooms yet. Create one!</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {roomList.map(room => (
+                <div key={room.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px" }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 600, color: C.textPrimary }}>{room.name}</p>
+                    <p style={{ margin: 0, fontsize : 14, color: C.textMuted }}>{room.playerCount}/{room.maxPlayers} players · {room.status}</p>
+                  </div>
+                  <BtnSecondary onClick={() => navigate(`/room/${room.id}`)}>Join</BtnSecondary>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>}
+
+        {/* Players + Chat */}
+        {auth && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 3fr", gap: 16 }}>
+            <Panel style={{ padding: 16 }}>
+              <h2 style={{ margin: "0 0 10px", fontsize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                Online Players ({players.length})
+              </h2>
+              {players.length === 0 ? (
+                <p style={{ color: C.textMuted, fontsize : 15, margin: 0 }}>No one else here yet</p>
+              ) : (
+                <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
+                  {players.map((p, i) => (
+                    <li key={i} style={{ fontsize : 15, color: C.textSecond, padding: "4px 8px", background: C.bgApp, borderRadius: 6 }}>
+                      <span style={{ color: C.success }}>●</span> {p}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+
+            <Panel style={{ padding: 16, display: "flex", flexDirection: "column" }}>
+              <h2 style={{ margin: "0 0 10px", fontsize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                Lobby Chat
+              </h2>
+              <div style={{ flex: 1, overflowY: "auto", maxHeight: 180, display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
+                {messages.length === 0 ? (
+                  <p style={{ color: C.textMuted, fontsize : 15, margin: 0 }}>No messages yet</p>
+                ) : (
+                  messages.map((m, i) => (
+                    <div key={i} style={{ fontsize : 15 }}>
+                      <span style={{ color: C.teal, fontWeight: 600 }}>{m.username}: </span>
+                      <span style={{ color: C.textSecond }}>{m.message}</span>
+                    </div>
+                  ))
+                )}
+                <div ref={lobbyBottomRef} />
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontsize : 15, outline: "none", fontFamily: "inherit" }}
+                  placeholder="Say something..."
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } }}
+                />
+                <Btn onClick={() => { if (chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } }}>Send</Btn>
+              </div>
+            </Panel>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Voting Screen ──────────────────────────────────────────────
+function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
+  const [voted, setVoted] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [closed, setClosed] = useState(false);
+
+  const [textPair] = useState(() => {
+    const pairs = [
+      { title: "🗳️ Which one is your favorite?", subtitle: "A brief parade of wit, chaos, and ambition." },
+      { title: "🗳️ The platform is open for voting", subtitle: "Several tiny masterpieces, one looming decision." },
+      { title: "🗳️ Now presenting the entries", subtitle: "A fine display of compact wit and acro craftsmanship." },
+    ];
+    return pairs[Math.floor(Math.random() * pairs.length)];
+  });
+
+  async function handleVote(entryId) {
+    if (voted || !entryId) return;
+    try {
+      const auth = getAuth();
+      await castVote(roomId, auth.username, entryId);
+      setSelected(entryId);
+      setVoted(true);
+      if (onVoted) onVoted();
+    } catch (e) { alert(`Vote failed: ${e.message}`); }
+  }
+
+  if (closed) return null;
+
+  const auth = getAuth();
+  const visibleEntries = entries.filter(e =>
+    typeof e === "string" ? true : e.playerId?.toString() !== auth?.userId?.toString()
+  );
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ width: "100%", maxWidth: 520, background: C.bgPanel, border: `1px solid ${C.brand}`, borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+        <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${C.border}` }}>
+          <h2 style={{ margin: 0, fontSize: 20, color: C.ivory, fontFamily: "Fredoka, sans-serif" }}>{textPair.title}</h2>
+        </div>
+        <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 8, maxHeight: 380, overflowY: "auto" }}>
+          {visibleEntries.length === 0 ? (
+            <p style={{ color: C.textMuted, fontsize : 15, textAlign: "center" }}>No entries to vote on this round...</p>
+          ) : (
+            visibleEntries.map((entry, i) => (
+              <button key={i}
+                onClick={() => handleVote(entry.id)}
+                disabled={voted}
+                style={{
+                  width: "100%", textAlign: "left", padding: "12px 16px",
+                  background: selected === entry.id ? `${C.brand}22` : C.bgPanel2,
+                  border: `1px solid ${selected === entry.id ? C.brand : C.border}`,
+                  borderRadius: 10, color: selected === entry.id ? C.ivory : C.textSecond,
+                  fontsize : 16, cursor: voted ? "not-allowed" : "pointer",
+                  opacity: voted && selected !== entry.id ? 0.6 : 1,
+                  fontFamily: "inherit", transition: "all 0.15s"
+                }}>
+                {typeof entry === "string" ? entry : entry.sentence}
+              </button>
+            ))
+          )}
+        </div>
+        <div style={{ padding: "12px 24px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <p style={{ margin: 0, fontsize : 15, color: voted ? C.success : C.textMuted, fontStyle: voted ? "normal" : "italic" }}>
+            {voted ? "✓ Vote recorded! Waiting for others..." : textPair.subtitle}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {timer !== null && timer > 0 && (
+              <span style={{ fontWeight: 700, fontSize: 22, color: timer <= 10 ? C.brand : C.ivory, fontFamily: "Fredoka, sans-serif" }}>
+                {timer}s
+              </span>
+            )}
+            <BtnSecondary onClick={() => setClosed(true)}>I'm done voting!</BtnSecondary>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Results Screen ─────────────────────────────────────────────
+function ResultsScreen({ scores, winningAcro }) {
+  const sorted = Object.entries(scores || {}).sort((a, b) => b[1] - a[1]);
+  return (
+    <Panel style={{ padding: 16 }}>
+      <h2 style={{ margin: "0 0 12px", color: C.ivory, fontFamily: "Fredoka, sans-serif", fontSize: 20 }}>🏆 Round Results</h2>
+      {winningAcro && (
+        <div style={{ background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", marginBottom: 12 }}>
+          <p style={{ margin: 0, fontSize: 11, color: C.teal, textTransform: "uppercase", letterSpacing: "0.1em" }}>Winning Entry</p>
+          <p style={{ margin: "4px 0 0", color: C.ivory, fontWeight: 600 }}>"{winningAcro}"</p>
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {sorted.map(([name, score], i) => (
+          <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.bgApp, borderRadius: 6, padding: "8px 12px" }}>
+            <span style={{ color: C.textSecond }}>{i === 0 ? "👑 " : `${i + 1}. `}{name}</span>
+            <span style={{ fontWeight: 700, color: C.teal }}>{score} pts</span>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+// ── Room ───────────────────────────────────────────────────────
+function Room() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const auth = JSON.parse(localStorage.getItem("acro.auth") || "null");
+
+  const [state, setState] = useState({ loading: true, error: null, data: null });
+  const [myDraft, setMyDraft] = useState("");
+  const [phase, setPhase] = useState("Waiting");
+  const [currentRound, setCurrentRound] = useState(1);
+  const [letters, setLetters] = useState([]);
+  const [entries, setEntries] = useState([]);
+  const [scores, setScores] = useState({});
+  const [winningAcro, setWinningAcro] = useState(null);
+  const [timer, setTimer] = useState(null);
+  const [submittedAcro, setSubmittedAcro] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const [roomMessages, setRoomMessages] = useState([]);
+  const [roomChatInput, setRoomChatInput] = useState("");
+  const chatBottomRef = useRef(null);
+
+  const [privateChat, setPrivateChat] = useState(null);
+  const [privateChatInput, setPrivateChatInput] = useState("");
+  const [unreadFrom, setUnreadFrom] = useState({});
+  const privateChatBottomRef = useRef(null);
+
+  const myDraftRef = useRef("");
+  const submittedAcroRef = useRef(null);
+  const handleSubmitAcroRef = useRef(null);
+  const audioRef = useRef(null);
+  const votingAudioRef = useRef(null);
+
+  function postSystemMessage(text) {
+    setRoomMessages(prev => [...prev, { nickname: "•", message: text, system: true, time: new Date() }]);
+  }
+
+  const signalRHandlers = {
+    onRoundStarted: useCallback((roundNumber, lettersStr, seconds) => {
+      setLetters(typeof lettersStr === "string" ? lettersStr.split("") : lettersStr);
+      setPhase("Submitting");
+      setTimer(seconds);
+      setEntries([]);
+      setWinningAcro(null);
+      setSubmittedAcro(null);
+      submittedAcroRef.current = null;
+      setIsEditing(false);
+      setMyDraft("");
+      myDraftRef.current = "";
+      setCurrentRound(roundNumber);
+      postSystemMessage(`Round ${roundNumber} has begun.`);
+      setTimeout(() => document.getElementById("acroInput")?.focus(), 100);
+      if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
+      setTimeout(() => {
+        audioRef.current = new Audio("/AcroExpress_tunes.m4a");
+        audioRef.current.loop = false;
+        audioRef.current.muted = false;
+        audioRef.current.play().catch(() => {});
+      }, 200);
+    }, []),
+
+    onVotingStarted: useCallback((acroEntries, votingSeconds) => {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      setEntries(acroEntries || []);
+      setPhase("Voting");
+      setTimer(votingSeconds || 20);
+    }, []),
+
+onRoundEnded: useCallback((roundScores, winning) => {
+  if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+  
+  const drumroll = new Audio("/AcroExpress_drumroll.m4a");
+  votingAudioRef.current = drumroll;
+  
+  drumroll.play().catch(() => {});
+
+  // Show results exactly when drumroll ends — 4.18 seconds
+  setTimeout(() => {
+    setScores(roundScores || {});
+    setWinningAcro(winning);
+    setPhase("Results");
+    setTimer(15);
+  }, 4180);
+}, []),
+
+    onGameOver: useCallback((winner) => {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
+      const msgs = [
+        `⚡ ${winner}'s supernatural acro skills leave the whole station in awe.`,
+        `🏆 Final stop: victory. ${winner} arrives first at glory.`,
+        `🚂 ${winner} pulls into the winner's platform in style.`,
+        `🎖️ Next station: triumph. ${winner} has arrived.`,
+        `🚉 The signals are clear — ${winner} wins the game.`,
+        `✨ ${winner} leaves the rest of the field behind and claims the line.`,
+        `🌟 ${winner} takes the express route straight to victory.`,
+        `🎉 Attention passengers: ${winner} is today's champion.`,
+        `🔔 Please mind the gap between ${winner} and everyone else.`,
+        `👑 ${winner} has officially taken command of the rails.`,
+        `📣 Service update: ${winner} has arrived at greatness.`,
+        `🚄 No delays, no doubt — ${winner} wins.`,
+        `🥇 ${winner} makes a flawless arrival at the platform of champions.`,
+        `🎟️ One ticket to glory, stamped and claimed by ${winner}.`
+      ];
+      alert(msgs[Math.floor(Math.random() * msgs.length)]);
+      navigate("/");
+    }, [navigate]),
+
+    onTopicSet: useCallback((topic) => {
+      postSystemMessage(`Topic for this round: "${topic}"`);
+    }, []),
+
+    onPrivateMessage: useCallback((senderNickname, message) => {
+      setPrivateChat(prev => {
+        if (prev?.nickname === senderNickname) {
+          return { ...prev, messages: [...prev.messages, { nickname: senderNickname, message, time: new Date() }] };
+        }
+        return prev;
+      });
+      setUnreadFrom(prev => ({ ...prev, [senderNickname]: (prev[senderNickname] || 0) + 1 }));
+    }, []),
+
+    onRoomMessage: useCallback((nickname, message) => {
+      setRoomMessages(prev => [...prev, { nickname, message, time: new Date() }]);
+    }, []),
+
+    onPlayerJoined: useCallback((playerId) => {
+      refreshRoomState();
+      setState(prev => {
+        const playerName = (prev.data?.players || []).find(p => p.id === playerId)?.nickname;
+        if (playerName && playerName !== auth?.username) {
+          setRoomMessages(msgs => [...msgs, { nickname: "•", message: `${playerName} has entered the room.`, system: true, time: new Date() }]);
+        }
+        return prev;
+      });
+    }, []),
+
+    onPlayerLeft: useCallback(() => {
+      refreshRoomState();
+      postSystemMessage("A player has left the room.");
+    }, []),
+
+    onChatMessage: useCallback(() => {}, []),
+  };
+
+  const { disconnect, connectionRef } = useSignalR(id, signalRHandlers);
+
+  useEffect(() => { chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [roomMessages]);
+  useEffect(() => { privateChatBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [privateChat?.messages]);
+
+  async function sendRoomMessage() {
+    const text = roomChatInput.trim();
+    if (!text || !auth) return;
+    try {
+      const conn = connectionRef.current;
+      if (conn) { await conn.invoke("SendRoomMessage", id, auth.username, text); setRoomChatInput(""); }
+    } catch (e) { console.error(e); }
+  }
+
+  async function sendPrivateMessage() {
+    const text = privateChatInput.trim();
+    if (!text || !auth || !privateChat) return;
+    try {
+      const conn = connectionRef.current;
+      if (conn) {
+        await conn.invoke("SendPrivateMessage", privateChat.userId, auth.username, text);
+        setPrivateChat(prev => ({ ...prev, messages: [...prev.messages, { nickname: auth.username, message: text, time: new Date() }] }));
+        setPrivateChatInput("");
+      }
+    } catch (e) { console.error(e); }
+  }
+
+  async function handleLeaveRoom() {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
+    try {
+      const { leaveRoom } = await import("./services/api");
+      if (auth?.userId) await leaveRoom(id, auth.userId);
+    } catch (e) { console.error(e); }
+    await disconnect();
+    navigate("/");
+  }
+
+  useEffect(() => {
+    window.addEventListener("beforeunload", handleLeaveRoom);
+    return () => window.removeEventListener("beforeunload", handleLeaveRoom);
+  }, []);
+
+  useEffect(() => {
+    if (!auth) { navigate("/"); return; }
+    joinRoom(id, { id: auth.userId, nickname: auth.username, score: 0 }).catch(e => console.warn(e));
+  }, [id]);
+
+  async function refreshRoomState() {
+    try {
+      const { fetchRoomState } = await import("./services/api");
+      const data = await fetchRoomState(id);
+      setState({ loading: false, error: null, data });
+      if (data?.letters) setLetters(typeof data.letters === "string" ? data.letters.split("") : data.letters);
+      setPhase(prev => {
+        if (prev === "Submitting" || prev === "Voting" || prev === "Results") return prev;
+        return data?.phase || prev;
+      });
+    } catch (err) { setState({ loading: false, error: String(err?.message || err), data: null }); }
+  }
+
+  useEffect(() => {
+    refreshRoomState();
+    const iv = setInterval(refreshRoomState, 3000);
+    return () => clearInterval(iv);
+  }, [id]);
+
+  useEffect(() => {
+    if (timer === null || timer <= 0) return;
+    const currentPhase = phase;
+    const iv = setInterval(() => {
+      setTimer(t => {
+        if (t <= 1) {
+          clearInterval(iv);
+          if (currentPhase === "Submitting" && myDraftRef.current.trim() && !submittedAcroRef.current) {
+            handleSubmitAcroRef.current?.();
+          }
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [timer]);
+
+  async function handleSubmitAcro() {
+    const text = myDraftRef.current.trim();
+    if (!text || !auth) return;
+    try {
+      if (isEditing && text === submittedAcro) {
+        setIsEditing(false);
+        if (audioRef.current) audioRef.current.muted = true;
+        setTimeout(() => document.getElementById("chatInput")?.focus(), 100);
+        return;
+      }
+      await submitAcro(id, auth.userId, text);
+      setSubmittedAcro(text);
+      submittedAcroRef.current = text;
+      setIsEditing(false);
+      setMyDraft("");
+      myDraftRef.current = "";
+      if (audioRef.current) audioRef.current.muted = true;
+      setTimeout(() => document.getElementById("chatInput")?.focus(), 100);
+    } catch (e) {
+      if (e.message?.includes("SINGLE_LETTER")) {
+        alert("😄 Come on, you can do better than that! Each word needs more than one letter.");
+      } else {
+        alert(`Submit failed: ${e.message}`);
+      }
+    }
+  }
+
+  handleSubmitAcroRef.current = handleSubmitAcro;
+
+  async function handleStartRound() {
+    try {
+      const started = await startRound(id);
+      const rawLetters = started.letters;
+      setLetters(Array.isArray(rawLetters) ? rawLetters : rawLetters.split(""));
+      setPhase("Submitting");
+      setTimer(started.seconds || 30);
+    } catch (e) { alert(`Start failed: ${e.message}`); }
+  }
+
+  if (state.loading) return <div style={{ minHeight: "100vh", background: C.bgApp, color: C.textPrimary, padding: 24 }}>Loading room...</div>;
+  if (state.error) return (
+    <div style={{ minHeight: "100vh", background: C.bgApp, color: C.textPrimary, padding: 24 }}>
+      <p style={{ color: C.brand }}>Error: {state.error}</p>
+      <Btn onClick={() => navigate("/")}>Back to Lobby</Btn>
+    </div>
+  );
+
+  const data = state.data || {};
+  const players = data.players || [];
+
+  return (
+    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: 24 }}>
+
+      {/* Voting overlay */}
+      {phase === "Voting" && (
+        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => {}} timer={timer} />
+      )}
+
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || `Room #${id}`}</h1>
+          <p style={{ margin: "4px 0 0", fontsize : 15, color: C.textMuted }}>
+            Round <span style={{ color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
+            {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase}</span>
+            {timer !== null && timer > 0 &&
+              <span style={{ marginLeft: 12, color: C.ivory, fontFamily: "Fredoka, sans-serif", fontSize: 26, fontWeight: 700 }}>{timer}s</span>}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {phase === "Waiting" && <Btn onClick={handleStartRound}>Start Round</Btn>}
+          <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
+        </div>
+      </div>
+
+      {/* Letters — large, Fredoka, no box */}
+      {letters.length > 0 && (
+        <div style={{ textAlign: "center", padding: "24px 0" }}>
+          {data.currentTopic && (
+            <p style={{ color: C.lavender, fontsize : 16, fontStyle: "italic", marginBottom: 12 }}>
+              Topic: {data.currentTopic}
+            </p>
+          )}
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+            {letters.map((l, i) => (
+              <span key={i} style={{
+                fontFamily: "'Bowlby One SC', serif",
+                fontSize: "6rem",
+                lineHeight: 1,
+                color: C.brand,
+                textShadow: `3px 3px 0px rgba(0,0,0,0.5)`,
+                fontWeight: 400
+              }}>
+                {l}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Acro input */}
+      {phase === "Submitting" && (
+        <Panel style={{ padding: 16, marginBottom: 16 }}>
+          <h2 style={{ margin: "0 0 8px", fontSize: 20, color: C.textPrimary }}>Your Acro</h2>
+          {submittedAcro && !isEditing ? (
+            <>
+              <p style={{ margin: "0 0 10px", fontsize : 15, color: C.textMuted }}>Your entry is on its way.</p>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 20}}>
+                  {submittedAcro}
+                </div>
+                <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
+                  setMyDraft(submittedAcro);
+                  setIsEditing(true);
+                  if (audioRef.current) audioRef.current.muted = false;
+                }}>Edit</Btn>
+              </div>
+            </>
+          ) : (
+            <>
+              <p style={{ margin: "0 0 10px", fontsize : 15, color: C.textMuted }}>
+                Type a sentence where each word starts with the letters above.
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  id="acroInput"
+                  style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 20, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+                  placeholder="Type your acro..."
+                  value={myDraft}
+                  onChange={e => { setMyDraft(e.target.value); myDraftRef.current = e.target.value; }}
+                  onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
+                  autoFocus
+                />
+                <Btn onClick={handleSubmitAcro}>{isEditing ? "Update" : "Submit"}</Btn>
+                {isEditing && <BtnSecondary onClick={() => setIsEditing(false)}>Cancel</BtnSecondary>}
+              </div>
+            </>
+          )}
+        </Panel>
+      )}
+
+      {/* Results */}
+      {phase === "Results" && <div style={{ marginBottom: 16 }}><ResultsScreen scores={scores} winningAcro={winningAcro} /></div>}
+
+      {/* Waiting */}
+      {phase === "Waiting" && (
+        <Panel style={{ padding: 16, marginBottom: 16, textAlign: "center" }}>
+          <p style={{ color: C.textMuted, margin: 0 }}>Waiting for the game to start...</p>
+        </Panel>
+      )}
+
+      {/* Bottom: players | chat | private chat */}
+      <div style={{ display: "grid", gridTemplateColumns: privateChat ? "1fr 2fr 1fr" : "1fr 3fr", gap: 16 }}>
+
+        {/* Players */}
+        <Panel style={{ padding: 16 }}>
+          <h2 style={{ margin: "0 0 10px", fontsize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Players</h2>
+          {players.length === 0 ? (
+            <p style={{ color: C.textMuted, fontsize : 15, margin: 0 }}>No players yet</p>
+          ) : (
+            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
+              {[...players].sort((a, b) => b.score - a.score).map(p => (
+                <li key={p.id}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontsize : 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
+                  onDoubleClick={() => {
+                    if (p.id !== auth?.userId) {
+                      setPrivateChat({ userId: p.id, nickname: p.nickname, messages: [] });
+                      setUnreadFrom(prev => ({ ...prev, [p.nickname]: 0 }));
+                    }
+                  }}>
+                  <span style={{ color: C.textSecond }}>
+                    {p.nickname}
+                    {p.id === auth?.userId && <span style={{ color: C.teal, marginLeft: 4 }}>(you)</span>}
+                    {unreadFrom[p.nickname] > 0 && (
+                      <span style={{ marginLeft: 6, background: C.brand, color: "#fff", fontSize: 10, borderRadius: 999, padding: "1px 6px" }}>
+                        {unreadFrom[p.nickname]}
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ color: C.teal, fontWeight: 700 }}>{p.score}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        {/* Room chat */}
+        <Panel style={{ padding: 0, display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}` }}>
+            <h2 style={{ margin: 0, fontsize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Room Chat</h2>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+            {roomMessages.length === 0 ? (
+              <p style={{ color: C.textMuted, fontsize : 15, margin: 0 }}>No messages yet...</p>
+            ) : (
+              roomMessages.map((m, i) => (
+                m.system ? (
+                  <div key={i} style={{ fontsize : 14, color: C.textMuted, fontStyle: "italic", textAlign: "center", padding: "2px 0" }}>{m.message}</div>
+                ) : (
+                  <div key={i} style={{ fontsize : 15 }}>
+                    <span style={{ color: C.teal, fontWeight: 600 }}>{m.nickname}: </span>
+                    <span style={{ color: C.textSecond }}>{m.message}</span>
+                  </div>
+                )
+              ))
+            )}
+            <div ref={chatBottomRef} />
+          </div>
+          <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
+            <input
+              id="chatInput"
+              style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontsize : 15, outline: "none", fontFamily: "inherit" }}
+              placeholder="Say something..."
+              value={roomChatInput}
+              onChange={e => setRoomChatInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") sendRoomMessage(); }}
+            />
+            <Btn onClick={sendRoomMessage}>Send</Btn>
+          </div>
+        </Panel>
+
+        {/* Private chat */}
+        {privateChat && (
+          <Panel style={{ padding: 0, display: "flex", flexDirection: "column", borderColor: C.lavender }}>
+            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ margin: 0, fontsize : 14, color: C.lavender, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                Private · {privateChat.nickname}
+              </h2>
+              <button onClick={() => setPrivateChat(null)} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+              {privateChat.messages.length === 0 ? (
+                <p style={{ color: C.textMuted, fontsize : 15, margin: 0 }}>Start a private conversation...</p>
+              ) : (
+                privateChat.messages.map((m, i) => (
+                  <div key={i} style={{ fontsize : 15 }}>
+                    <span style={{ color: m.nickname === auth?.username ? C.teal : C.lavender, fontWeight: 600 }}>{m.nickname}: </span>
+                    <span style={{ color: C.textSecond }}>{m.message}</span>
+                  </div>
+                ))
+              )}
+              <div ref={privateChatBottomRef} />
+            </div>
+            <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
+              <input
+                id="privateChatInput"
+                style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontsize : 15, outline: "none", fontFamily: "inherit" }}
+                placeholder={`Message ${privateChat.nickname}...`}
+                value={privateChatInput}
+                onChange={e => setPrivateChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") sendPrivateMessage(); }}
+                autoFocus
+              />
+              <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.lavender, border: `1px solid ${C.lavender}` }} onClick={sendPrivateMessage}>Send</Btn>
+            </div>
+          </Panel>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Lobby />} />
+      <Route path="/room/:id" element={<Room />} />
+    </Routes>
+  );
+}
