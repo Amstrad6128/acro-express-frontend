@@ -1,3 +1,12 @@
+@import "tailwindcss";
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   background-color: #070b14;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320' viewBox='0 0 320 320'%3E%3Cg stroke='%23c8d2e6' stroke-opacity='0.09' stroke-width='1' stroke-linecap='round'%3E%3Cline x1='22' y1='24' x2='26' y2='31'/%3E%3Cline x1='68' y1='82' x2='72' y2='89'/%3E%3Cline x1='104' y1='46' x2='108' y2='53'/%3E%3Cline x1='142' y1='121' x2='146' y2='128'/%3E%3Cline x1='186' y1='61' x2='190' y2='68'/%3E%3Cline x1='224' y1='144' x2='228' y2='151'/%3E%3Cline x1='262' y1='96' x2='266' y2='103'/%3E%3Cline x1='291' y1='38' x2='295' y2='45'/%3E%3Cline x1='41' y1='176' x2='45' y2='183'/%3E%3Cline x1='83' y1='232' x2='87' y2='239'/%3E%3Cline x1='127' y1='189' x2='131' y2='196'/%3E%3Cline x1='165' y1='257' x2='169' y2='264'/%3E%3Cline x1='207' y1='214' x2='211' y2='221'/%3E%3Cline x1='246' y1='281' x2='250' y2='288'/%3E%3Cline x1='286' y1='205' x2='290' y2='212'/%3E%3Cline x1='61' y1='294' x2='65' y2='301'/%3E%3C/g%3E%3C/svg%3E");
@@ -7,3 +16,9 @@ body {
   font-family: 'Nunito', sans-serif;
   font-size: 16px;
 }
+
+/* Styled scrollbars — dark and subtle */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2B3758; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #6FB7C8; }

@@ -23,6 +23,17 @@ async function j(res) {
   try { return JSON.parse(text); }
   catch { return text; }
 }
+export async function setTopic(roomId, topic) {
+  const res = await authFetch(
+    `${API_URL}/api/room/${encodeURIComponent(roomId)}/topic`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic }),
+    }
+  );
+  return j(res);
+}
 
 // --- auth storage (localStorage) ---
 const LS_TOKEN = "acro.token";
@@ -127,11 +138,16 @@ export async function fetchRoomState(roomId) {
 }
 
 export async function startRound(roomId) {
+  const { userId } = getAuth();
   const res = await authFetch(
     `${API_URL}/api/room/${encodeURIComponent(roomId)}/round/start`,
-    { method: "POST" }
+    { 
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ creatorId: userId })
+    }
   );
-  return j(res); // { roundNumber, letters }
+  return j(res);
 }
 
 // Minimal join: BE expects { id, nickname, score? }

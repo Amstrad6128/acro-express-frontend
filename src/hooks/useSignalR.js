@@ -55,6 +55,14 @@ export function useSignalR(roomId, handlers = {}) {
     if (handlers.onPlayerLeft)
       connection.on("PlayerLeft", handlers.onPlayerLeft);
 
+    // Topic requested — creator needs to set topic before round begins
+if (handlers.onPlayerLeft)
+      connection.on("PlayerLeft", handlers.onPlayerLeft);
+
+    // Topic requested — creator needs to set topic before round begins
+    if (handlers.onTopicRequested)
+      connection.on("TopicRequested", handlers.onTopicRequested);
+
     try {
       await connection.start();
       const auth = getAuth();
@@ -79,7 +87,7 @@ export function useSignalR(roomId, handlers = {}) {
     connectionRef.current = null;
   }, [roomId]);
 
-  useEffect(() => {
+useEffect(() => {
     connect();
 
     // Handle browser X button / tab close

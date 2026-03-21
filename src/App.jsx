@@ -45,7 +45,7 @@ const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, st
         border: "none",
         borderRadius: 8,
         padding: "6px 14px",
-        fontsize : 16,
+        fontSize : 16,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
         fontFamily: "inherit",
@@ -70,7 +70,7 @@ const BtnSecondary = ({ children, onClick, style = {} }) => {
         border: `1px solid ${C.teal}`,
         borderRadius: 8,
         padding: "6px 14px",
-        fontsize : 16,
+        fontSize : 16,
         cursor: "pointer",
         fontFamily: "inherit",
         transition: "background 0.15s",
@@ -96,7 +96,7 @@ const Input = ({ id, value, onChange, onKeyDown, placeholder, type = "text", sty
       borderRadius: 8,
       padding: "8px 12px",
       color: C.textPrimary,
-      fontsize : 16,
+      fontSize : 16,
       outline: "none",
       width: "100%",
       fontFamily: "inherit",
@@ -180,11 +180,11 @@ function Lobby() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", color: C.textPrimary }}>
+    <div style={{ height: "100vh", overflowY: "auto", color: C.textPrimary }}>
       {/* Header */}
       <div style={{ borderBottom: `1px solid ${C.border}`, padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand, margin: 0, letterSpacing: "-0.5px" }}>Acro Express</h1>
-        <span style={{ color: C.textMuted, fontsize : 15 }}>{status}</span>
+        <span style={{ color: C.textMuted, fontSize : 15 }}>{status}</span>
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 24px" }}>
@@ -193,7 +193,7 @@ function Lobby() {
         {auth && (
           <Panel style={{ padding: "16px 20px", marginBottom: 20, borderColor: C.teal }}>
             <p style={{ color: C.teal, fontWeight: 600, margin: 0 }}>Welcome aboard Acro Express.</p>
-            <p style={{ color: C.textSecond, fontsize : 15, margin: "4px 0 0" }}>
+            <p style={{ color: C.textSecond, fontSize : 15, margin: "4px 0 0" }}>
               This is the first public stop on the journey. A working version with more style, features, and surprises still to come.
             </p>
           </Panel>
@@ -227,14 +227,14 @@ function Lobby() {
             <Btn onClick={handleCreate}>+ Create Room</Btn>
           </div>
           {roomList.length === 0 ? (
-            <p style={{ color: C.textMuted, fontsize : 15, margin: 0 }}>No rooms yet. Create one!</p>
+            <p style={{ color: C.textMuted, fontSize : 15, margin: 0 }}>No rooms yet. Create one!</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {roomList.map(room => (
                 <div key={room.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px" }}>
                   <div>
                     <p style={{ margin: 0, fontWeight: 600, color: C.textPrimary }}>{room.name}</p>
-                    <p style={{ margin: 0, fontsize : 14, color: C.textMuted }}>{room.playerCount}/{room.maxPlayers} players · {room.status}</p>
+                    <p style={{ margin: 0, fontSize : 14, color: C.textMuted }}>{room.playerCount}/{room.maxPlayers} players · {room.status}</p>
                   </div>
                   <BtnSecondary onClick={() => navigate(`/room/${room.id}`)}>Join</BtnSecondary>
                 </div>
@@ -247,15 +247,15 @@ function Lobby() {
         {auth && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 3fr", gap: 16 }}>
             <Panel style={{ padding: 16 }}>
-              <h2 style={{ margin: "0 0 10px", fontsize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              <h2 style={{ margin: "0 0 10px", fontSize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Online Players ({players.length})
               </h2>
               {players.length === 0 ? (
-                <p style={{ color: C.textMuted, fontsize : 15, margin: 0 }}>No one else here yet</p>
+                <p style={{ color: C.textMuted, fontSize : 15, margin: 0 }}>No one else here yet</p>
               ) : (
                 <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
                   {players.map((p, i) => (
-                    <li key={i} style={{ fontsize : 15, color: C.textSecond, padding: "4px 8px", background: C.bgApp, borderRadius: 6 }}>
+                    <li key={i} style={{ fontSize : 15, color: C.textSecond, padding: "4px 8px", background: C.bgApp, borderRadius: 6 }}>
                       <span style={{ color: C.success }}>●</span> {p}
                     </li>
                   ))}
@@ -264,15 +264,15 @@ function Lobby() {
             </Panel>
 
             <Panel style={{ padding: 16, display: "flex", flexDirection: "column" }}>
-              <h2 style={{ margin: "0 0 10px", fontsize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              <h2 style={{ margin: "0 0 10px", fontSize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Lobby Chat
               </h2>
               <div style={{ flex: 1, overflowY: "auto", maxHeight: 180, display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
                 {messages.length === 0 ? (
-                  <p style={{ color: C.textMuted, fontsize : 15, margin: 0 }}>No messages yet</p>
+                  <p style={{ color: C.textMuted, fontSize : 15, margin: 0 }}>No messages yet</p>
                 ) : (
                   messages.map((m, i) => (
-                    <div key={i} style={{ fontsize : 15 }}>
+                    <div key={i} style={{ fontSize : 15 }}>
                       <span style={{ color: C.teal, fontWeight: 600 }}>{m.username}: </span>
                       <span style={{ color: C.textSecond }}>{m.message}</span>
                     </div>
@@ -282,9 +282,11 @@ function Lobby() {
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <input
-                  style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontsize : 15, outline: "none", fontFamily: "inherit" }}
-                  placeholder="Say something..."
-                  value={chatInput}
+  id="lobbyChatInput"
+  name="lobbyChatInput"
+  style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize : 15, outline: "none", fontFamily: "inherit" }}
+  placeholder="Say something..."
+  value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } }}
                 />
@@ -339,7 +341,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
         </div>
         <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 8, maxHeight: 380, overflowY: "auto" }}>
           {visibleEntries.length === 0 ? (
-            <p style={{ color: C.textMuted, fontsize : 15, textAlign: "center" }}>No entries to vote on this round...</p>
+            <p style={{ color: C.textMuted, fontSize : 15, textAlign: "center" }}>No entries to vote on this round...</p>
           ) : (
             visibleEntries.map((entry, i) => (
               <button key={i}
@@ -350,7 +352,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
                   background: selected === entry.id ? `${C.brand}22` : C.bgPanel2,
                   border: `1px solid ${selected === entry.id ? C.brand : C.border}`,
                   borderRadius: 10, color: selected === entry.id ? C.ivory : C.textSecond,
-                  fontsize : 16, cursor: voted ? "not-allowed" : "pointer",
+                  fontSize : 16, cursor: voted ? "not-allowed" : "pointer",
                   opacity: voted && selected !== entry.id ? 0.6 : 1,
                   fontFamily: "inherit", transition: "all 0.15s"
                 }}>
@@ -360,7 +362,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
           )}
         </div>
         <div style={{ padding: "12px 24px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <p style={{ margin: 0, fontsize : 15, color: voted ? C.success : C.textMuted, fontStyle: voted ? "normal" : "italic" }}>
+          <p style={{ margin: 0, fontSize : 15, color: voted ? C.success : C.textMuted, fontStyle: voted ? "normal" : "italic" }}>
             {voted ? "✓ Vote recorded! Waiting for others..." : textPair.subtitle}
           </p>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -423,6 +425,11 @@ function Room() {
   const [roomChatInput, setRoomChatInput] = useState("");
   const chatBottomRef = useRef(null);
 
+  // Tracks if this player is the room creator being asked to set a topic
+const [topicRequested, setTopicRequested] = useState(false);
+const [topicDraft, setTopicDraft] = useState("");
+const [topicTimer, setTopicTimer] = useState(null);
+
   const [privateChat, setPrivateChat] = useState(null);
   const [privateChatInput, setPrivateChatInput] = useState("");
   const [unreadFrom, setUnreadFrom] = useState({});
@@ -433,6 +440,7 @@ function Room() {
   const handleSubmitAcroRef = useRef(null);
   const audioRef = useRef(null);
   const votingAudioRef = useRef(null);
+  const topicRequestedRef = useRef(false);
 
   function postSystemMessage(text) {
     setRoomMessages(prev => [...prev, { nickname: "•", message: text, system: true, time: new Date() }]);
@@ -440,27 +448,32 @@ function Room() {
 
   const signalRHandlers = {
     onRoundStarted: useCallback((roundNumber, lettersStr, seconds) => {
-      setLetters(typeof lettersStr === "string" ? lettersStr.split("") : lettersStr);
-      setPhase("Submitting");
-      setTimer(seconds);
-      setEntries([]);
-      setWinningAcro(null);
-      setSubmittedAcro(null);
-      submittedAcroRef.current = null;
-      setIsEditing(false);
-      setMyDraft("");
-      myDraftRef.current = "";
-      setCurrentRound(roundNumber);
-      postSystemMessage(`Round ${roundNumber} has begun.`);
-      setTimeout(() => document.getElementById("acroInput")?.focus(), 100);
-      if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
-      setTimeout(() => {
-        audioRef.current = new Audio("/AcroExpress_tunes.m4a");
-        audioRef.current.loop = false;
-        audioRef.current.muted = false;
-        audioRef.current.play().catch(() => {});
-      }, 200);
-    }, []),
+  setLetters(typeof lettersStr === "string" ? lettersStr.split("") : lettersStr);
+  setPhase("Submitting");
+  setTimer(seconds);
+  setEntries([]);
+  setWinningAcro(null);
+  setSubmittedAcro(null);
+  submittedAcroRef.current = null;
+  setIsEditing(false);
+  setMyDraft("");
+  myDraftRef.current = "";
+  setCurrentRound(roundNumber);
+  postSystemMessage(`Round ${roundNumber} has begun.`);
+
+  // Only focus acro input if topic prompt is not showing
+  if (!topicRequestedRef.current) {
+    setTimeout(() => document.getElementById("acroInput")?.focus(), 100);
+  }
+
+  if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
+  setTimeout(() => {
+    audioRef.current = new Audio("/AcroExpress_tunes.m4a");
+    audioRef.current.loop = false;
+    audioRef.current.muted = false;
+    audioRef.current.play().catch(() => {});
+  }, 200);
+}, []),
 
     onVotingStarted: useCallback((acroEntries, votingSeconds) => {
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
@@ -468,6 +481,23 @@ function Room() {
       setPhase("Voting");
       setTimer(votingSeconds || 20);
     }, []),
+
+    onTopicRequested: useCallback((creatorUserId) => {
+  console.log("TopicRequested:", creatorUserId, "my id:", auth?.userId, "match:", auth?.userId === creatorUserId);
+  if (auth?.userId === creatorUserId) {
+    setTopicRequested(true);
+    topicRequestedRef.current = true;
+    setTopicTimer(15);
+  } else {
+    postSystemMessage("Waiting for the host to set a topic...");
+  }
+
+  console.log("All localStorage:", {
+  acroAuth: localStorage.getItem("acro.auth"),
+  acroUserid: localStorage.getItem("acro.userid"),
+});
+
+}, [auth]),
 
 onRoundEnded: useCallback((roundScores, winning) => {
   if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
@@ -510,8 +540,14 @@ onRoundEnded: useCallback((roundScores, winning) => {
     }, [navigate]),
 
     onTopicSet: useCallback((topic) => {
-      postSystemMessage(`Topic for this round: "${topic}"`);
-    }, []),
+  setTopicRequested(false);
+  topicRequestedRef.current = false;
+  setTopicDraft("");
+  setTopicTimer(null);
+  postSystemMessage(`Topic for this round: "${topic}"`);
+}, []),
+
+
 
     onPrivateMessage: useCallback((senderNickname, message) => {
       setPrivateChat(prev => {
@@ -551,6 +587,18 @@ onRoundEnded: useCallback((roundScores, winning) => {
   useEffect(() => { chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [roomMessages]);
   useEffect(() => { privateChatBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [privateChat?.messages]);
 
+  // Topic selection countdown — 15 seconds for creator to set topic
+useEffect(() => {
+  if (topicTimer === null || topicTimer <= 0) return;
+  const iv = setInterval(() => {
+    setTopicTimer(t => {
+      if (t <= 1) { clearInterval(iv); return 0; }
+      return t - 1;
+    });
+  }, 1000);
+  return () => clearInterval(iv);
+}, [topicTimer]);
+
   async function sendRoomMessage() {
     const text = roomChatInput.trim();
     if (!text || !auth) return;
@@ -584,10 +632,11 @@ onRoundEnded: useCallback((roundScores, winning) => {
     navigate("/");
   }
 
-  useEffect(() => {
-    window.addEventListener("beforeunload", handleLeaveRoom);
-    return () => window.removeEventListener("beforeunload", handleLeaveRoom);
-  }, []);
+useEffect(() => {
+  // pagehide is the modern replacement for beforeunload
+  window.addEventListener("pagehide", handleLeaveRoom);
+  return () => window.removeEventListener("pagehide", handleLeaveRoom);
+}, []);
 
   useEffect(() => {
     if (!auth) { navigate("/"); return; }
@@ -661,14 +710,13 @@ onRoundEnded: useCallback((roundScores, winning) => {
   handleSubmitAcroRef.current = handleSubmitAcro;
 
   async function handleStartRound() {
-    try {
-      const started = await startRound(id);
-      const rawLetters = started.letters;
-      setLetters(Array.isArray(rawLetters) ? rawLetters : rawLetters.split(""));
-      setPhase("Submitting");
-      setTimer(started.seconds || 30);
-    } catch (e) { alert(`Start failed: ${e.message}`); }
-  }
+  try {
+    // Just call the API — don't set phase or timer locally
+    // The server will broadcast TopicRequested via SignalR
+    // which will show the topic prompt, then RoundStarted will fire
+    await startRound(id);
+  } catch (e) { alert(`Start failed: ${e.message}`); }
+}
 
   if (state.loading) return <div style={{ minHeight: "100vh", background: C.bgApp, color: C.textPrimary, padding: 24 }}>Loading room...</div>;
   if (state.error) return (
@@ -682,7 +730,7 @@ onRoundEnded: useCallback((roundScores, winning) => {
   const players = data.players || [];
 
   return (
-    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: 24 }}>
+    <div style={{ height: "100vh", overflowY: "auto", color: C.textPrimary, padding: 24 }}>
 
       {/* Voting overlay */}
       {phase === "Voting" && (
@@ -693,7 +741,7 @@ onRoundEnded: useCallback((roundScores, winning) => {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || `Room #${id}`}</h1>
-          <p style={{ margin: "4px 0 0", fontsize : 15, color: C.textMuted }}>
+          <p style={{ margin: "4px 0 0", fontSize : 15, color: C.textMuted }}>
             Round <span style={{ color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
             {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase}</span>
             {timer !== null && timer > 0 &&
@@ -701,16 +749,56 @@ onRoundEnded: useCallback((roundScores, winning) => {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          {phase === "Waiting" && <Btn onClick={handleStartRound}>Start Round</Btn>}
+          {phase === "Waiting" && <Btn onClick={handleStartRound}>Start Game</Btn>}
           <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
         </div>
       </div>
 
-      {/* Letters — large, Fredoka, no box */}
-      {letters.length > 0 && (
+      {/* Topic selection prompt — shown to room creator before round begins */}
+{topicRequested && (
+  <Panel style={{ padding: 20, marginBottom: 16, borderColor: C.teal, textAlign: "center" }}>
+    <h2 style={{ margin: "0 0 8px", fontFamily: "Fredoka, sans-serif", fontSize: 22, color: C.teal }}>
+      Set the topic for this round
+    </h2>
+    <p style={{ margin: "0 0 16px", color: C.textMuted, fontSize: 15 }}>
+      You have <span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span> — or it defaults to General Acro.
+    </p>
+    <div style={{ display: "flex", gap: 8, maxWidth: 500, margin: "0 auto" }}>
+      <input
+        id="topicInput"
+        autoFocus
+        style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 18, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+        placeholder="Type a topic..."
+        value={topicDraft}
+        onChange={e => setTopicDraft(e.target.value)}
+        onKeyDown={async e => {
+          if (e.key === "Enter" && topicDraft.trim()) {
+            const { setTopic } = await import("./services/api");
+            await setTopic(id, topicDraft.trim());
+            setTopicRequested(false);
+            setTopicDraft("");
+            setTopicTimer(null);
+          }
+        }}
+      />
+      <Btn onClick={async () => {
+        if (topicDraft.trim()) {
+          const { setTopic } = await import("./services/api");
+          await setTopic(id, topicDraft.trim());
+          setTopicRequested(false);
+          setTopicDraft("");
+          setTopicTimer(null);
+        }
+      }}>Set Topic</Btn>
+    </div>
+  </Panel>
+)}
+
+      {/* Letters — large, Bowlby One SC, no box */}
+      {letters.length > 0 && !topicRequested && (
         <div style={{ textAlign: "center", padding: "24px 0" }}>
           {data.currentTopic && (
-            <p style={{ color: C.lavender, fontsize : 16, fontStyle: "italic", marginBottom: 12 }}>
+            <p style={{ color: C.lavender, fontSize : 16, fontStyle: "italic", marginBottom: 12 }}>
               Topic: {data.currentTopic}
             </p>
           )}
@@ -731,13 +819,13 @@ onRoundEnded: useCallback((roundScores, winning) => {
         </div>
       )}
 
-      {/* Acro input */}
-      {phase === "Submitting" && (
+      {/* Acro input — only show after topic is set */}
+{phase === "Submitting" && !topicRequested && (
         <Panel style={{ padding: 16, marginBottom: 16 }}>
           <h2 style={{ margin: "0 0 8px", fontSize: 20, color: C.textPrimary }}>Your Acro</h2>
           {submittedAcro && !isEditing ? (
             <>
-              <p style={{ margin: "0 0 10px", fontsize : 15, color: C.textMuted }}>Your entry is on its way.</p>
+              <p style={{ margin: "0 0 10px", fontSize : 15, color: C.textMuted }}>Your entry is on its way.</p>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <div style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 20}}>
                   {submittedAcro}
@@ -751,7 +839,7 @@ onRoundEnded: useCallback((roundScores, winning) => {
             </>
           ) : (
             <>
-              <p style={{ margin: "0 0 10px", fontsize : 15, color: C.textMuted }}>
+              <p style={{ margin: "0 0 10px", fontSize : 15, color: C.textMuted }}>
                 Type a sentence where each word starts with the letters above.
               </p>
               <div style={{ display: "flex", gap: 8 }}>
@@ -762,7 +850,7 @@ onRoundEnded: useCallback((roundScores, winning) => {
                   value={myDraft}
                   onChange={e => { setMyDraft(e.target.value); myDraftRef.current = e.target.value; }}
                   onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
-                  autoFocus
+                  //autoFocus
                 />
                 <Btn onClick={handleSubmitAcro}>{isEditing ? "Update" : "Submit"}</Btn>
                 {isEditing && <BtnSecondary onClick={() => setIsEditing(false)}>Cancel</BtnSecondary>}
@@ -787,14 +875,14 @@ onRoundEnded: useCallback((roundScores, winning) => {
 
         {/* Players */}
         <Panel style={{ padding: 16 }}>
-          <h2 style={{ margin: "0 0 10px", fontsize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Players</h2>
+          <h2 style={{ margin: "0 0 10px", fontSize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Players</h2>
           {players.length === 0 ? (
-            <p style={{ color: C.textMuted, fontsize : 15, margin: 0 }}>No players yet</p>
+            <p style={{ color: C.textMuted, fontSize : 15, margin: 0 }}>No players yet</p>
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
               {[...players].sort((a, b) => b.score - a.score).map(p => (
                 <li key={p.id}
-                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontsize : 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize : 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
                   onDoubleClick={() => {
                     if (p.id !== auth?.userId) {
                       setPrivateChat({ userId: p.id, nickname: p.nickname, messages: [] });
@@ -820,17 +908,17 @@ onRoundEnded: useCallback((roundScores, winning) => {
         {/* Room chat */}
         <Panel style={{ padding: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}` }}>
-            <h2 style={{ margin: 0, fontsize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Room Chat</h2>
+            <h2 style={{ margin: 0, fontSize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Room Chat</h2>
           </div>
-          <div style={{ flex: 1, overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
             {roomMessages.length === 0 ? (
-              <p style={{ color: C.textMuted, fontsize : 15, margin: 0 }}>No messages yet...</p>
+              <p style={{ color: C.textMuted, fontSize : 15, margin: 0 }}>No messages yet...</p>
             ) : (
               roomMessages.map((m, i) => (
                 m.system ? (
-                  <div key={i} style={{ fontsize : 14, color: C.textMuted, fontStyle: "italic", textAlign: "center", padding: "2px 0" }}>{m.message}</div>
+                  <div key={i} style={{ fontSize : 14, color: C.textMuted, fontStyle: "italic", textAlign: "center", padding: "2px 0" }}>{m.message}</div>
                 ) : (
-                  <div key={i} style={{ fontsize : 15 }}>
+                  <div key={i} style={{ fontSize : 15 }}>
                     <span style={{ color: C.teal, fontWeight: 600 }}>{m.nickname}: </span>
                     <span style={{ color: C.textSecond }}>{m.message}</span>
                   </div>
@@ -842,7 +930,7 @@ onRoundEnded: useCallback((roundScores, winning) => {
           <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
             <input
               id="chatInput"
-              style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontsize : 15, outline: "none", fontFamily: "inherit" }}
+              style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize : 15, outline: "none", fontFamily: "inherit" }}
               placeholder="Say something..."
               value={roomChatInput}
               onChange={e => setRoomChatInput(e.target.value)}
@@ -856,17 +944,17 @@ onRoundEnded: useCallback((roundScores, winning) => {
         {privateChat && (
           <Panel style={{ padding: 0, display: "flex", flexDirection: "column", borderColor: C.lavender }}>
             <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ margin: 0, fontsize : 14, color: C.lavender, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              <h2 style={{ margin: 0, fontSize : 14, color: C.lavender, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Private · {privateChat.nickname}
               </h2>
               <button onClick={() => setPrivateChat(null)} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
             </div>
             <div style={{ flex: 1, overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
               {privateChat.messages.length === 0 ? (
-                <p style={{ color: C.textMuted, fontsize : 15, margin: 0 }}>Start a private conversation...</p>
+                <p style={{ color: C.textMuted, fontSize : 15, margin: 0 }}>Start a private conversation...</p>
               ) : (
                 privateChat.messages.map((m, i) => (
-                  <div key={i} style={{ fontsize : 15 }}>
+                  <div key={i} style={{ fontSize : 15 }}>
                     <span style={{ color: m.nickname === auth?.username ? C.teal : C.lavender, fontWeight: 600 }}>{m.nickname}: </span>
                     <span style={{ color: C.textSecond }}>{m.message}</span>
                   </div>
@@ -877,7 +965,7 @@ onRoundEnded: useCallback((roundScores, winning) => {
             <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
               <input
                 id="privateChatInput"
-                style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontsize : 15, outline: "none", fontFamily: "inherit" }}
+                style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize : 15, outline: "none", fontFamily: "inherit" }}
                 placeholder={`Message ${privateChat.nickname}...`}
                 value={privateChatInput}
                 onChange={e => setPrivateChatInput(e.target.value)}
