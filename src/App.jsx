@@ -649,6 +649,20 @@ useEffect(() => {
   return () => window.removeEventListener("pagehide", handleLeaveRoom);
 }, []);
 
+useEffect(() => {
+  window.addEventListener("beforeunload", handleLeaveRoom);
+  return () => window.removeEventListener("beforeunload", handleLeaveRoom);
+}, []);
+
+// Intercept browser back button and clean up properly
+useEffect(() => {
+  const handlePopState = async () => {
+    await handleLeaveRoom();
+  };
+  window.addEventListener("popstate", handlePopState);
+  return () => window.removeEventListener("popstate", handlePopState);
+}, []);
+
   useEffect(() => {
     if (!auth) { navigate("/"); return; }
     joinRoom(id, { id: auth.userId, nickname: auth.username, score: 0 }).catch(e => console.warn(e));
