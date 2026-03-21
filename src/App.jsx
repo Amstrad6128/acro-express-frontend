@@ -361,27 +361,35 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
             ))
           )}
         </div>
-        <div style={{ padding: "12px 24px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <p style={{ margin: 0, fontSize : 15, color: voted ? C.success : C.textMuted, fontStyle: voted ? "normal" : "italic" }}>
-            {voted ? "✓ Vote recorded! Waiting for others..." : textPair.subtitle}
-          </p>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {timer !== null && timer > 0 && (
-              <span style={{ fontWeight: 700, fontSize: 22, color: timer <= 10 ? C.brand : C.ivory, fontFamily: "Fredoka, sans-serif" }}>
-                {timer}s
-              </span>
-            )}
-            <BtnSecondary onClick={() => setClosed(true)}>I'm done voting!</BtnSecondary>
-          </div>
-        </div>
+        <div style={{ padding: "12px 24px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "center", alignItems: "center", gap: 16 }}>
+  {voted && (
+    <p style={{ margin: 0, fontSize: 15, color: C.success }}>
+      ✓ Vote recorded! Waiting for others...
+    </p>
+  )}
+  {timer !== null && timer > 0 && (
+    <span style={{ fontWeight: 700, fontSize: 22, color: timer <= 10 ? C.brand : C.ivory, fontFamily: "Fredoka, sans-serif" }}>
+      {timer}s
+    </span>
+  )}
+  <BtnSecondary onClick={() => setClosed(true)}>I'm done voting!</BtnSecondary>
+</div>
       </div>
     </div>
   );
 }
 
 // ── Results Screen ─────────────────────────────────────────────
-function ResultsScreen({ scores, winningAcro }) {
+function ResultsScreen({ scores, winningAcro, entries, players }) {
   const sorted = Object.entries(scores || {}).sort((a, b) => b[1] - a[1]);
+
+  // Map nickname -> acro sentence using players list to connect IDs to names
+  const entryByNickname = {};
+  (entries || []).forEach(e => {
+    const player = (players || []).find(p => p.id === e.playerId?.toString());
+    if (player) entryByNickname[player.nickname] = e.sentence;
+  });
+
   return (
     <Panel style={{ padding: 16 }}>
       <h2 style={{ margin: "0 0 12px", color: C.ivory, fontFamily: "Fredoka, sans-serif", fontSize: 20 }}>🏆 Round Results</h2>
@@ -393,10 +401,13 @@ function ResultsScreen({ scores, winningAcro }) {
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {sorted.map(([name, score], i) => (
-          <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.bgApp, borderRadius: 6, padding: "8px 12px" }}>
-            <span style={{ color: C.textSecond }}>{i === 0 ? "👑 " : `${i + 1}. `}{name}</span>
-            <span style={{ fontWeight: 700, color: C.teal }}>{score} pts</span>
-          </div>
+          <div key={name} style={{ display: "flex", alignItems: "center", background: C.bgApp, borderRadius: 6, padding: "8px 12px", gap: 12 }}>
+  <span style={{ color: C.teal, fontWeight: 700, minWidth: 30 }}>{score}</span>
+  <span style={{ color: C.textSecond, minWidth: 120 }}>{i === 0 ? "👑 " : `${i + 1}. `}{name}</span>
+  <span style={{ color: C.ivory, fontStyle: "italic", fontSize: 17 }}>
+    {entryByNickname[name] || ""}
+  </span>
+</div>
         ))}
       </div>
     </Panel>
@@ -420,6 +431,7 @@ function Room() {
   const [timer, setTimer] = useState(null);
   const [submittedAcro, setSubmittedAcro] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [currentTopic, setCurrentTopic] = useState("");
 
   const [roomMessages, setRoomMessages] = useState([]);
   const [roomChatInput, setRoomChatInput] = useState("");
@@ -458,14 +470,12 @@ const [topicTimer, setTopicTimer] = useState(null);
   setIsEditing(false);
   setMyDraft("");
   myDraftRef.current = "";
+  setCurrentTopic("");
   setCurrentRound(roundNumber);
   postSystemMessage(`Round ${roundNumber} has begun.`);
-
-  // Only focus acro input if topic prompt is not showing
   if (!topicRequestedRef.current) {
     setTimeout(() => document.getElementById("acroInput")?.focus(), 100);
   }
-
   if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
   setTimeout(() => {
     audioRef.current = new Audio("/AcroExpress_tunes.m4a");
@@ -512,7 +522,7 @@ onRoundEnded: useCallback((roundScores, winning) => {
     setScores(roundScores || {});
     setWinningAcro(winning);
     setPhase("Results");
-    setTimer(15);
+    setTimer(null); 
   }, 4180);
 }, []),
 
@@ -539,14 +549,15 @@ onRoundEnded: useCallback((roundScores, winning) => {
       navigate("/");
     }, [navigate]),
 
-    onTopicSet: useCallback((topic) => {
+   onTopicSet: useCallback((topic) => {
+  console.log("TopicSet received:", topic);
   setTopicRequested(false);
   topicRequestedRef.current = false;
   setTopicDraft("");
   setTopicTimer(null);
+  setCurrentTopic(topic);
   postSystemMessage(`Topic for this round: "${topic}"`);
 }, []),
-
 
 
     onPrivateMessage: useCallback((senderNickname, message) => {
@@ -795,13 +806,9 @@ useEffect(() => {
 )}
 
       {/* Letters — large, Bowlby One SC, no box */}
-      {letters.length > 0 && !topicRequested && (
+      {letters.length > 0 && !topicRequested && phase !== "Results" && (
         <div style={{ textAlign: "center", padding: "24px 0" }}>
-          {data.currentTopic && (
-            <p style={{ color: C.lavender, fontSize : 16, fontStyle: "italic", marginBottom: 12 }}>
-              Topic: {data.currentTopic}
-            </p>
-          )}
+        
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             {letters.map((l, i) => (
               <span key={i} style={{
@@ -822,7 +829,14 @@ useEffect(() => {
       {/* Acro input — only show after topic is set */}
 {phase === "Submitting" && !topicRequested && (
         <Panel style={{ padding: 16, marginBottom: 16 }}>
-          <h2 style={{ margin: "0 0 8px", fontSize: 20, color: C.textPrimary }}>Your Acro</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+  <h2 style={{ margin: 0, fontSize: 20, color: C.textPrimary }}>Your Acro</h2>
+  {currentTopic && (
+    <p style={{ margin: 0, fontSize: 20, color: C.textPrimary }}>
+      Topic: {currentTopic}
+    </p>
+  )}
+</div>
           {submittedAcro && !isEditing ? (
             <>
               <p style={{ margin: "0 0 10px", fontSize : 15, color: C.textMuted }}>Your entry is on its way.</p>
@@ -861,8 +875,7 @@ useEffect(() => {
       )}
 
       {/* Results */}
-      {phase === "Results" && <div style={{ marginBottom: 16 }}><ResultsScreen scores={scores} winningAcro={winningAcro} /></div>}
-
+{phase === "Results" && <div style={{ marginBottom: 16, gridColumn: "1 / -1" }}><ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players} /></div>}
       {/* Waiting */}
       {phase === "Waiting" && (
         <Panel style={{ padding: 16, marginBottom: 16, textAlign: "center" }}>
