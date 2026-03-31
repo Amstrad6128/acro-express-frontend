@@ -1,10 +1,71 @@
 @import "tailwindcss";
 
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  overflow: hidden;
+@font-face {
+  font-family: 'Bowlby One SC';
+  src: url('/fonts/bowlby-one-sc-v27-latin-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Fredoka';
+  src: url('/fonts/fredoka-v17-latin-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Fredoka';
+  src: url('/fonts/fredoka-v17-latin-500.woff2') format('woff2');
+  font-weight: 500;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Fredoka';
+  src: url('/fonts/fredoka-v17-latin-600.woff2') format('woff2');
+  font-weight: 600;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Fredoka';
+  src: url('/fonts/fredoka-v17-latin-700.woff2') format('woff2');
+  font-weight: 700;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Nunito';
+  src: url('/fonts/nunito-v32-latin-300.woff2') format('woff2');
+  font-weight: 300;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Nunito';
+  src: url('/fonts/nunito-v32-latin-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Nunito';
+  src: url('/fonts/nunito-v32-latin-500.woff2') format('woff2');
+  font-weight: 500;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Nunito';
+  src: url('/fonts/nunito-v32-latin-600.woff2') format('woff2');
+  font-weight: 600;
+  font-display: block;
+}
+
+html {
+  overflow-y: scroll;
+  overflow-x: hidden;
 }
 
 body {
@@ -15,9 +76,12 @@ body {
   color: #F3F4F8;
   font-family: 'Nunito', sans-serif;
   font-size: 16px;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
 }
 
-/* Styled scrollbars — dark and subtle */
+/* Styled scrollbars */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #2B3758; border-radius: 3px; }

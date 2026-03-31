@@ -119,7 +119,7 @@ export function logout() {
 // ROOMS + GAME
 // -------------------------------------------------------------
 export async function createRoom(name = "Acro Room") {
-  const payload = { name, maxPlayers: 8 };
+  const payload = { name, maxPlayers: 16 };
   const res = await authFetch(`${API_URL}/api/room`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

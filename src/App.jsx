@@ -45,7 +45,7 @@ const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, st
         border: "none",
         borderRadius: 8,
         padding: "6px 14px",
-        fontSize : 16,
+        fontSize: 16,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
         fontFamily: "inherit",
@@ -70,7 +70,7 @@ const BtnSecondary = ({ children, onClick, style = {} }) => {
         border: `1px solid ${C.teal}`,
         borderRadius: 8,
         padding: "6px 14px",
-        fontSize : 16,
+        fontSize: 16,
         cursor: "pointer",
         fontFamily: "inherit",
         transition: "background 0.15s",
@@ -96,7 +96,7 @@ const Input = ({ id, value, onChange, onKeyDown, placeholder, type = "text", sty
       borderRadius: 8,
       padding: "8px 12px",
       color: C.textPrimary,
-      fontSize : 16,
+      fontSize: 16,
       outline: "none",
       width: "100%",
       fontFamily: "inherit",
@@ -181,25 +181,22 @@ function Lobby() {
 
   return (
     <div style={{ height: "100vh", overflowY: "auto", color: C.textPrimary }}>
-      {/* Header */}
       <div style={{ borderBottom: `1px solid ${C.border}`, padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand, margin: 0, letterSpacing: "-0.5px" }}>Acro Express</h1>
-        <span style={{ color: C.textMuted, fontSize : 15 }}>{status}</span>
+        <span style={{ color: C.textMuted, fontSize: 15 }}>{status}</span>
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 24px" }}>
 
-        {/* Welcome */}
         {auth && (
           <Panel style={{ padding: "16px 20px", marginBottom: 20, borderColor: C.teal }}>
             <p style={{ color: C.teal, fontWeight: 600, margin: 0 }}>Welcome aboard Acro Express.</p>
-            <p style={{ color: C.textSecond, fontSize : 15, margin: "4px 0 0" }}>
+            <p style={{ color: C.textSecond, fontSize: 15, margin: "4px 0 0" }}>
               This is the first public stop on the journey. A working version with more style, features, and surprises still to come.
             </p>
           </Panel>
         )}
 
-        {/* Auth */}
         <Panel style={{ padding: 16, marginBottom: 20 }}>
           <h2 style={{ margin: "0 0 12px", fontSize: 16, color: C.textPrimary }}>
             {auth ? `Welcome, ${auth.username}!` : "Sign in to play"}
@@ -220,21 +217,20 @@ function Lobby() {
           )}
         </Panel>
 
-        {/* Rooms — only shown when logged in */}
         {auth && <Panel style={{ padding: 16, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h2 style={{ margin: 0, fontSize: 16, color: C.textPrimary }}>Game Rooms</h2>
             <Btn onClick={handleCreate}>+ Create Room</Btn>
           </div>
           {roomList.length === 0 ? (
-            <p style={{ color: C.textMuted, fontSize : 15, margin: 0 }}>No rooms yet. Create one!</p>
+            <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No rooms yet. Create one!</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {roomList.map(room => (
                 <div key={room.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px" }}>
                   <div>
                     <p style={{ margin: 0, fontWeight: 600, color: C.textPrimary }}>{room.name}</p>
-                    <p style={{ margin: 0, fontSize : 14, color: C.textMuted }}>{room.playerCount}/{room.maxPlayers} players · {room.status}</p>
+                    <p style={{ margin: 0, fontSize: 14, color: C.textMuted }}>{room.playerCount}/{room.maxPlayers} players · {room.status}</p>
                   </div>
                   <BtnSecondary onClick={() => navigate(`/room/${room.id}`)}>Join</BtnSecondary>
                 </div>
@@ -243,19 +239,18 @@ function Lobby() {
           )}
         </Panel>}
 
-        {/* Players + Chat */}
         {auth && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 3fr", gap: 16 }}>
             <Panel style={{ padding: 16 }}>
-              <h2 style={{ margin: "0 0 10px", fontSize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Online Players ({players.length})
               </h2>
               {players.length === 0 ? (
-                <p style={{ color: C.textMuted, fontSize : 15, margin: 0 }}>No one else here yet</p>
+                <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No one else here yet</p>
               ) : (
                 <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
                   {players.map((p, i) => (
-                    <li key={i} style={{ fontSize : 15, color: C.textSecond, padding: "4px 8px", background: C.bgApp, borderRadius: 6 }}>
+                    <li key={i} style={{ fontSize: 15, color: C.textSecond, padding: "4px 8px", background: C.bgApp, borderRadius: 6 }}>
                       <span style={{ color: C.success }}>●</span> {p}
                     </li>
                   ))}
@@ -264,15 +259,15 @@ function Lobby() {
             </Panel>
 
             <Panel style={{ padding: 16, display: "flex", flexDirection: "column" }}>
-              <h2 style={{ margin: "0 0 10px", fontSize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Lobby Chat
               </h2>
               <div style={{ flex: 1, overflowY: "auto", maxHeight: 180, display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
                 {messages.length === 0 ? (
-                  <p style={{ color: C.textMuted, fontSize : 15, margin: 0 }}>No messages yet</p>
+                  <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No messages yet</p>
                 ) : (
                   messages.map((m, i) => (
-                    <div key={i} style={{ fontSize : 15 }}>
+                    <div key={i} style={{ fontSize: 15 }}>
                       <span style={{ color: C.teal, fontWeight: 600 }}>{m.username}: </span>
                       <span style={{ color: C.textSecond }}>{m.message}</span>
                     </div>
@@ -282,11 +277,11 @@ function Lobby() {
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <input
-  id="lobbyChatInput"
-  name="lobbyChatInput"
-  style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize : 15, outline: "none", fontFamily: "inherit" }}
-  placeholder="Say something..."
-  value={chatInput}
+                  id="lobbyChatInput"
+                  name="lobbyChatInput"
+                  style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
+                  placeholder="Say something..."
+                  value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } }}
                 />
@@ -341,7 +336,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
         </div>
         <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 8, maxHeight: 380, overflowY: "auto" }}>
           {visibleEntries.length === 0 ? (
-            <p style={{ color: C.textMuted, fontSize : 15, textAlign: "center" }}>No entries to vote on this round...</p>
+            <p style={{ color: C.textMuted, fontSize: 15, textAlign: "center" }}>No entries to vote on this round...</p>
           ) : (
             visibleEntries.map((entry, i) => (
               <button key={i}
@@ -352,7 +347,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
                   background: selected === entry.id ? `${C.brand}22` : C.bgPanel2,
                   border: `1px solid ${selected === entry.id ? C.brand : C.border}`,
                   borderRadius: 10, color: selected === entry.id ? C.ivory : C.textSecond,
-                  fontSize : 16, cursor: voted ? "not-allowed" : "pointer",
+                  fontSize: 16, cursor: voted ? "not-allowed" : "pointer",
                   opacity: voted && selected !== entry.id ? 0.6 : 1,
                   fontFamily: "inherit", transition: "all 0.15s"
                 }}>
@@ -362,18 +357,18 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
           )}
         </div>
         <div style={{ padding: "12px 24px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "center", alignItems: "center", gap: 16 }}>
-  {voted && (
-    <p style={{ margin: 0, fontSize: 15, color: C.success }}>
-      ✓ Vote recorded! Waiting for others...
-    </p>
-  )}
-  {timer !== null && timer > 0 && (
-    <span style={{ fontWeight: 700, fontSize: 22, color: timer <= 10 ? C.brand : C.ivory, fontFamily: "Fredoka, sans-serif" }}>
-      {timer}s
-    </span>
-  )}
-  <BtnSecondary onClick={() => setClosed(true)}>I'm done voting!</BtnSecondary>
-</div>
+          {voted && (
+            <p style={{ margin: 0, fontSize: 15, color: C.success }}>
+              ✓ Vote recorded! Waiting for others...
+            </p>
+          )}
+          {timer !== null && timer > 0 && (
+            <span style={{ fontWeight: 700, fontSize: 22, color: timer <= 10 ? C.brand : C.ivory, fontFamily: "Fredoka, sans-serif" }}>
+              {timer}s
+            </span>
+          )}
+          <BtnSecondary onClick={() => setClosed(true)}>I'm done voting!</BtnSecondary>
+        </div>
       </div>
     </div>
   );
@@ -383,7 +378,6 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
 function ResultsScreen({ scores, winningAcro, entries, players }) {
   const sorted = Object.entries(scores || {}).sort((a, b) => b[1] - a[1]);
 
-  // Map nickname -> acro sentence using players list to connect IDs to names
   const entryByNickname = {};
   (entries || []).forEach(e => {
     const player = (players || []).find(p => p.id === e.playerId?.toString());
@@ -402,12 +396,12 @@ function ResultsScreen({ scores, winningAcro, entries, players }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {sorted.map(([name, score], i) => (
           <div key={name} style={{ display: "flex", alignItems: "center", background: C.bgApp, borderRadius: 6, padding: "8px 12px", gap: 12 }}>
-  <span style={{ color: C.teal, fontWeight: 700, minWidth: 30 }}>{score}</span>
-  <span style={{ color: C.textSecond, minWidth: 120 }}>{i === 0 ? "👑 " : `${i + 1}. `}{name}</span>
-  <span style={{ color: C.ivory, fontStyle: "italic", fontSize: 17 }}>
-    {entryByNickname[name] || ""}
-  </span>
-</div>
+            <span style={{ color: C.teal, fontWeight: 700, minWidth: 30 }}>{score}</span>
+            <span style={{ color: C.textSecond, minWidth: 120 }}>{i === 0 ? "👑 " : `${i + 1}. `}{name}</span>
+            <span style={{ color: C.ivory, fontStyle: "italic", fontSize: 17 }}>
+              {entryByNickname[name] || ""}
+            </span>
+          </div>
         ))}
       </div>
     </Panel>
@@ -437,21 +431,22 @@ function Room() {
   const [roomChatInput, setRoomChatInput] = useState("");
   const chatBottomRef = useRef(null);
 
-  // Tracks if this player is the room creator being asked to set a topic
-const [topicRequested, setTopicRequested] = useState(false);
-const [topicDraft, setTopicDraft] = useState("");
-const [topicTimer, setTopicTimer] = useState(null);
+  const [topicRequested, setTopicRequested] = useState(false);
+  const [topicDraft, setTopicDraft] = useState("");
+  const [topicTimer, setTopicTimer] = useState(null);
 
   const [privateChat, setPrivateChat] = useState(null);
   const [privateChatInput, setPrivateChatInput] = useState("");
   const [unreadFrom, setUnreadFrom] = useState({});
   const privateChatBottomRef = useRef(null);
 
+  // Refs
   const myDraftRef = useRef("");
   const submittedAcroRef = useRef(null);
   const handleSubmitAcroRef = useRef(null);
-  const audioRef = useRef(null);
-  const votingAudioRef = useRef(null);
+  const audioRef = useRef(null);      // tune 1 — plays during submission
+  const audio2Ref = useRef(null);     // tune 2 — plays after submission until voting
+  const votingAudioRef = useRef(null); // drumroll
   const topicRequestedRef = useRef(false);
 
   function postSystemMessage(text) {
@@ -460,74 +455,75 @@ const [topicTimer, setTopicTimer] = useState(null);
 
   const signalRHandlers = {
     onRoundStarted: useCallback((roundNumber, lettersStr, seconds) => {
-  setLetters(typeof lettersStr === "string" ? lettersStr.split("") : lettersStr);
-  setPhase("Submitting");
-  setTimer(seconds);
-  setEntries([]);
-  setWinningAcro(null);
-  setSubmittedAcro(null);
-  submittedAcroRef.current = null;
-  setIsEditing(false);
-  setMyDraft("");
-  myDraftRef.current = "";
-  setCurrentTopic("");
-  setCurrentRound(roundNumber);
-  postSystemMessage(`Round ${roundNumber} has begun.`);
-  if (!topicRequestedRef.current) {
-    setTimeout(() => document.getElementById("acroInput")?.focus(), 100);
-  }
-  if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
-  setTimeout(() => {
-    audioRef.current = new Audio("/AcroExpress_tunes.m4a");
-    audioRef.current.loop = false;
-    audioRef.current.muted = false;
-    audioRef.current.play().catch(() => {});
-  }, 200);
-}, []),
+      setLetters(typeof lettersStr === "string" ? lettersStr.split("") : lettersStr);
+      setPhase("Submitting");
+      setTimer(seconds);
+      setEntries([]);
+      setWinningAcro(null);
+      setSubmittedAcro(null);
+      submittedAcroRef.current = null;
+      setIsEditing(false);
+      setMyDraft("");
+      myDraftRef.current = "";
+      setCurrentTopic("");
+      setCurrentRound(roundNumber);
+      postSystemMessage(`Round ${roundNumber} has begun.`);
+
+      if (!topicRequestedRef.current) {
+        setTimeout(() => document.getElementById("acroInput")?.focus(), 100);
+      }
+
+      // Stop all previous audio
+      if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
+      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
+
+      // Start tune 1
+      setTimeout(() => {
+        audioRef.current = new Audio("/AcroExpress_tunes.m4a");
+        audioRef.current.loop = false;
+        audioRef.current.muted = false;
+        audioRef.current.play().catch(() => {});
+      }, 200);
+    }, []),
 
     onVotingStarted: useCallback((acroEntries, votingSeconds) => {
+      // Stop all music when voting starts
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
       setEntries(acroEntries || []);
       setPhase("Voting");
       setTimer(votingSeconds || 20);
     }, []),
 
     onTopicRequested: useCallback((creatorUserId) => {
-  console.log("TopicRequested:", creatorUserId, "my id:", auth?.userId, "match:", auth?.userId === creatorUserId);
-  if (auth?.userId === creatorUserId) {
-    setTopicRequested(true);
-    topicRequestedRef.current = true;
-    setTopicTimer(15);
-  } else {
-    postSystemMessage("Waiting for the host to set a topic...");
-  }
+      if (auth?.userId === creatorUserId) {
+        setTopicRequested(true);
+        topicRequestedRef.current = true;
+        setTopicTimer(15);
+      } else {
+        postSystemMessage("Waiting for the host to set a topic...");
+      }
+    }, [auth]),
 
-  console.log("All localStorage:", {
-  acroAuth: localStorage.getItem("acro.auth"),
-  acroUserid: localStorage.getItem("acro.userid"),
-});
+    onRoundEnded: useCallback((roundScores, winning) => {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
 
-}, [auth]),
+      const drumroll = new Audio("/AcroExpress_drumroll.m4a");
+      votingAudioRef.current = drumroll;
+      drumroll.play().catch(() => {});
 
-onRoundEnded: useCallback((roundScores, winning) => {
-  if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-  
-  const drumroll = new Audio("/AcroExpress_drumroll.m4a");
-  votingAudioRef.current = drumroll;
-  
-  drumroll.play().catch(() => {});
-
-  // Show results exactly when drumroll ends — 4.18 seconds
-  setTimeout(() => {
-    setScores(roundScores || {});
-    setWinningAcro(winning);
-    setPhase("Results");
-    setTimer(null); 
-  }, 4180);
-}, []),
+      setTimeout(() => {
+        setScores(roundScores || {});
+        setWinningAcro(winning);
+        setPhase("Results");
+        setTimer(null);
+      }, 4180);
+    }, []),
 
     onGameOver: useCallback((winner) => {
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
       if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
       const msgs = [
         `⚡ ${winner}'s supernatural acro skills leave the whole station in awe.`,
@@ -549,16 +545,14 @@ onRoundEnded: useCallback((roundScores, winning) => {
       navigate("/");
     }, [navigate]),
 
-   onTopicSet: useCallback((topic) => {
-  console.log("TopicSet received:", topic);
-  setTopicRequested(false);
-  topicRequestedRef.current = false;
-  setTopicDraft("");
-  setTopicTimer(null);
-  setCurrentTopic(topic);
-  postSystemMessage(`Topic for this round: "${topic}"`);
-}, []),
-
+    onTopicSet: useCallback((topic) => {
+      setTopicRequested(false);
+      topicRequestedRef.current = false;
+      setTopicDraft("");
+      setTopicTimer(null);
+      setCurrentTopic(topic);
+      postSystemMessage(`Topic for this round: "${topic}"`);
+    }, []),
 
     onPrivateMessage: useCallback((senderNickname, message) => {
       setPrivateChat(prev => {
@@ -598,17 +592,17 @@ onRoundEnded: useCallback((roundScores, winning) => {
   useEffect(() => { chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [roomMessages]);
   useEffect(() => { privateChatBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [privateChat?.messages]);
 
-  // Topic selection countdown — 15 seconds for creator to set topic
-useEffect(() => {
-  if (topicTimer === null || topicTimer <= 0) return;
-  const iv = setInterval(() => {
-    setTopicTimer(t => {
-      if (t <= 1) { clearInterval(iv); return 0; }
-      return t - 1;
-    });
-  }, 1000);
-  return () => clearInterval(iv);
-}, [topicTimer]);
+  // Topic countdown
+  useEffect(() => {
+    if (topicTimer === null || topicTimer <= 0) return;
+    const iv = setInterval(() => {
+      setTopicTimer(t => {
+        if (t <= 1) { clearInterval(iv); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [topicTimer]);
 
   async function sendRoomMessage() {
     const text = roomChatInput.trim();
@@ -633,7 +627,9 @@ useEffect(() => {
   }
 
   async function handleLeaveRoom() {
+    // Stop all audio
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
     if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
     try {
       const { leaveRoom } = await import("./services/api");
@@ -643,25 +639,21 @@ useEffect(() => {
     navigate("/");
   }
 
-useEffect(() => {
-  // pagehide is the modern replacement for beforeunload
-  window.addEventListener("pagehide", handleLeaveRoom);
-  return () => window.removeEventListener("pagehide", handleLeaveRoom);
-}, []);
+  useEffect(() => {
+    window.addEventListener("pagehide", handleLeaveRoom);
+    return () => window.removeEventListener("pagehide", handleLeaveRoom);
+  }, []);
 
-useEffect(() => {
-  window.addEventListener("beforeunload", handleLeaveRoom);
-  return () => window.removeEventListener("beforeunload", handleLeaveRoom);
-}, []);
+  useEffect(() => {
+    window.addEventListener("beforeunload", handleLeaveRoom);
+    return () => window.removeEventListener("beforeunload", handleLeaveRoom);
+  }, []);
 
-// Intercept browser back button and clean up properly
-useEffect(() => {
-  const handlePopState = async () => {
-    await handleLeaveRoom();
-  };
-  window.addEventListener("popstate", handlePopState);
-  return () => window.removeEventListener("popstate", handlePopState);
-}, []);
+  useEffect(() => {
+    const handlePopState = async () => { await handleLeaveRoom(); };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   useEffect(() => {
     if (!auth) { navigate("/"); return; }
@@ -712,6 +704,10 @@ useEffect(() => {
       if (isEditing && text === submittedAcro) {
         setIsEditing(false);
         if (audioRef.current) audioRef.current.muted = true;
+        // Restart tune 2 after editing with no changes
+        audio2Ref.current = new Audio("/AcroExpress_tunes_02.mp3");
+        audio2Ref.current.loop = false;
+        audio2Ref.current.play().catch(() => {});
         setTimeout(() => document.getElementById("chatInput")?.focus(), 100);
         return;
       }
@@ -721,7 +717,12 @@ useEffect(() => {
       setIsEditing(false);
       setMyDraft("");
       myDraftRef.current = "";
+      // Mute tune 1 — it keeps playing silently as the timer
       if (audioRef.current) audioRef.current.muted = true;
+      // Start tune 2 after submitting
+      audio2Ref.current = new Audio("/AcroExpress_tunes_02.mp3");
+      audio2Ref.current.loop = false;
+      audio2Ref.current.play().catch(() => {});
       setTimeout(() => document.getElementById("chatInput")?.focus(), 100);
     } catch (e) {
       if (e.message?.includes("SINGLE_LETTER")) {
@@ -735,13 +736,10 @@ useEffect(() => {
   handleSubmitAcroRef.current = handleSubmitAcro;
 
   async function handleStartRound() {
-  try {
-    // Just call the API — don't set phase or timer locally
-    // The server will broadcast TopicRequested via SignalR
-    // which will show the topic prompt, then RoundStarted will fire
-    await startRound(id);
-  } catch (e) { alert(`Start failed: ${e.message}`); }
-}
+    try {
+      await startRound(id);
+    } catch (e) { alert(`Start failed: ${e.message}`); }
+  }
 
   if (state.loading) return <div style={{ minHeight: "100vh", background: C.bgApp, color: C.textPrimary, padding: 24 }}>Loading room...</div>;
   if (state.error) return (
@@ -766,7 +764,7 @@ useEffect(() => {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || `Room #${id}`}</h1>
-          <p style={{ margin: "4px 0 0", fontSize : 15, color: C.textMuted }}>
+          <p style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
             Round <span style={{ color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
             {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase}</span>
             {timer !== null && timer > 0 &&
@@ -779,50 +777,49 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Topic selection prompt — shown to room creator before round begins */}
-{topicRequested && (
-  <Panel style={{ padding: 20, marginBottom: 16, borderColor: C.teal, textAlign: "center" }}>
-    <h2 style={{ margin: "0 0 8px", fontFamily: "Fredoka, sans-serif", fontSize: 22, color: C.teal }}>
-      Set the topic for this round
-    </h2>
-    <p style={{ margin: "0 0 16px", color: C.textMuted, fontSize: 15 }}>
-      You have <span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span> — or it defaults to General Acro.
-    </p>
-    <div style={{ display: "flex", gap: 8, maxWidth: 500, margin: "0 auto" }}>
-      <input
-        id="topicInput"
-        autoFocus
-        style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 18, outline: "none", fontFamily: "inherit", textAlign: "center" }}
-        placeholder="Type a topic..."
-        value={topicDraft}
-        onChange={e => setTopicDraft(e.target.value)}
-        onKeyDown={async e => {
-          if (e.key === "Enter" && topicDraft.trim()) {
-            const { setTopic } = await import("./services/api");
-            await setTopic(id, topicDraft.trim());
-            setTopicRequested(false);
-            setTopicDraft("");
-            setTopicTimer(null);
-          }
-        }}
-      />
-      <Btn onClick={async () => {
-        if (topicDraft.trim()) {
-          const { setTopic } = await import("./services/api");
-          await setTopic(id, topicDraft.trim());
-          setTopicRequested(false);
-          setTopicDraft("");
-          setTopicTimer(null);
-        }
-      }}>Set Topic</Btn>
-    </div>
-  </Panel>
-)}
+      {/* Topic selection prompt */}
+      {topicRequested && (
+        <Panel style={{ padding: 20, marginBottom: 16, borderColor: C.teal, textAlign: "center" }}>
+          <h2 style={{ margin: "0 0 8px", fontFamily: "Fredoka, sans-serif", fontSize: 22, color: C.teal }}>
+            Set the topic for this round
+          </h2>
+          <p style={{ margin: "0 0 16px", color: C.textMuted, fontSize: 15 }}>
+            You have <span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span> — or it defaults to General Acro.
+          </p>
+          <div style={{ display: "flex", gap: 8, maxWidth: 500, margin: "0 auto" }}>
+            <input
+              id="topicInput"
+              autoFocus
+              style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 18, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+              placeholder="Type a topic..."
+              value={topicDraft}
+              onChange={e => setTopicDraft(e.target.value)}
+              onKeyDown={async e => {
+                if (e.key === "Enter" && topicDraft.trim()) {
+                  const { setTopic } = await import("./services/api");
+                  await setTopic(id, topicDraft.trim());
+                  setTopicRequested(false);
+                  setTopicDraft("");
+                  setTopicTimer(null);
+                }
+              }}
+            />
+            <Btn onClick={async () => {
+              if (topicDraft.trim()) {
+                const { setTopic } = await import("./services/api");
+                await setTopic(id, topicDraft.trim());
+                setTopicRequested(false);
+                setTopicDraft("");
+                setTopicTimer(null);
+              }
+            }}>Set Topic</Btn>
+          </div>
+        </Panel>
+      )}
 
-      {/* Letters — large, Bowlby One SC, no box */}
+      {/* Letters */}
       {letters.length > 0 && !topicRequested && phase !== "Results" && (
         <div style={{ textAlign: "center", padding: "24px 0" }}>
-        
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             {letters.map((l, i) => (
               <span key={i} style={{
@@ -840,34 +837,36 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Acro input — only show after topic is set */}
-{phase === "Submitting" && !topicRequested && (
+      {/* Acro input */}
+      {phase === "Submitting" && !topicRequested && (
         <Panel style={{ padding: 16, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-  <h2 style={{ margin: 0, fontSize: 20, color: C.textPrimary }}>Your Acro</h2>
-  {currentTopic && (
-    <p style={{ margin: 0, fontSize: 20, color: C.textPrimary }}>
-      Topic: {currentTopic}
-    </p>
-  )}
-</div>
+            <h2 style={{ margin: 0, fontSize: 20, color: C.textPrimary }}>Your Acro</h2>
+            {currentTopic && (
+              <p style={{ margin: 0, fontSize: 20, color: C.teal, fontStyle: "italic", fontWeight: 600 }}>
+                {currentTopic}
+              </p>
+            )}
+          </div>
           {submittedAcro && !isEditing ? (
             <>
-              <p style={{ margin: "0 0 10px", fontSize : 15, color: C.textMuted }}>Your entry is on its way.</p>
+              <p style={{ margin: "0 0 10px", fontSize: 15, color: C.textMuted }}>Your entry is on its way.</p>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <div style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 20}}>
+                <div style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 20 }}>
                   {submittedAcro}
                 </div>
                 <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
                   setMyDraft(submittedAcro);
                   setIsEditing(true);
+                  // Pause tune 2 and unmute tune 1 when editing
+                  if (audio2Ref.current) { audio2Ref.current.pause(); }
                   if (audioRef.current) audioRef.current.muted = false;
                 }}>Edit</Btn>
               </div>
             </>
           ) : (
             <>
-              <p style={{ margin: "0 0 10px", fontSize : 15, color: C.textMuted }}>
+              <p style={{ margin: "0 0 10px", fontSize: 15, color: C.textMuted }}>
                 Type a sentence where each word starts with the letters above.
               </p>
               <div style={{ display: "flex", gap: 8 }}>
@@ -878,7 +877,6 @@ useEffect(() => {
                   value={myDraft}
                   onChange={e => { setMyDraft(e.target.value); myDraftRef.current = e.target.value; }}
                   onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
-                  //autoFocus
                 />
                 <Btn onClick={handleSubmitAcro}>{isEditing ? "Update" : "Submit"}</Btn>
                 {isEditing && <BtnSecondary onClick={() => setIsEditing(false)}>Cancel</BtnSecondary>}
@@ -889,7 +887,12 @@ useEffect(() => {
       )}
 
       {/* Results */}
-{phase === "Results" && <div style={{ marginBottom: 16, gridColumn: "1 / -1" }}><ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players} /></div>}
+      {phase === "Results" && (
+        <div style={{ marginBottom: 16 }}>
+          <ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players} />
+        </div>
+      )}
+
       {/* Waiting */}
       {phase === "Waiting" && (
         <Panel style={{ padding: 16, marginBottom: 16, textAlign: "center" }}>
@@ -902,14 +905,14 @@ useEffect(() => {
 
         {/* Players */}
         <Panel style={{ padding: 16 }}>
-          <h2 style={{ margin: "0 0 10px", fontSize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Players</h2>
+          <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Players</h2>
           {players.length === 0 ? (
-            <p style={{ color: C.textMuted, fontSize : 15, margin: 0 }}>No players yet</p>
+            <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No players yet</p>
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
               {[...players].sort((a, b) => b.score - a.score).map(p => (
                 <li key={p.id}
-                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize : 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
                   onDoubleClick={() => {
                     if (p.id !== auth?.userId) {
                       setPrivateChat({ userId: p.id, nickname: p.nickname, messages: [] });
@@ -935,17 +938,17 @@ useEffect(() => {
         {/* Room chat */}
         <Panel style={{ padding: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}` }}>
-            <h2 style={{ margin: 0, fontSize : 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Room Chat</h2>
+            <h2 style={{ margin: 0, fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Room Chat</h2>
           </div>
           <div style={{ overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
             {roomMessages.length === 0 ? (
-              <p style={{ color: C.textMuted, fontSize : 15, margin: 0 }}>No messages yet...</p>
+              <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No messages yet...</p>
             ) : (
               roomMessages.map((m, i) => (
                 m.system ? (
-                  <div key={i} style={{ fontSize : 14, color: C.textMuted, fontStyle: "italic", textAlign: "center", padding: "2px 0" }}>{m.message}</div>
+                  <div key={i} style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic", textAlign: "center", padding: "2px 0" }}>{m.message}</div>
                 ) : (
-                  <div key={i} style={{ fontSize : 15 }}>
+                  <div key={i} style={{ fontSize: 15 }}>
                     <span style={{ color: C.teal, fontWeight: 600 }}>{m.nickname}: </span>
                     <span style={{ color: C.textSecond }}>{m.message}</span>
                   </div>
@@ -957,7 +960,7 @@ useEffect(() => {
           <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
             <input
               id="chatInput"
-              style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize : 15, outline: "none", fontFamily: "inherit" }}
+              style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
               placeholder="Say something..."
               value={roomChatInput}
               onChange={e => setRoomChatInput(e.target.value)}
@@ -971,17 +974,17 @@ useEffect(() => {
         {privateChat && (
           <Panel style={{ padding: 0, display: "flex", flexDirection: "column", borderColor: C.lavender }}>
             <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ margin: 0, fontSize : 14, color: C.lavender, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              <h2 style={{ margin: 0, fontSize: 14, color: C.lavender, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Private · {privateChat.nickname}
               </h2>
               <button onClick={() => setPrivateChat(null)} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
             </div>
             <div style={{ flex: 1, overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
               {privateChat.messages.length === 0 ? (
-                <p style={{ color: C.textMuted, fontSize : 15, margin: 0 }}>Start a private conversation...</p>
+                <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>Start a private conversation...</p>
               ) : (
                 privateChat.messages.map((m, i) => (
-                  <div key={i} style={{ fontSize : 15 }}>
+                  <div key={i} style={{ fontSize: 15 }}>
                     <span style={{ color: m.nickname === auth?.username ? C.teal : C.lavender, fontWeight: 600 }}>{m.nickname}: </span>
                     <span style={{ color: C.textSecond }}>{m.message}</span>
                   </div>
@@ -992,7 +995,7 @@ useEffect(() => {
             <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
               <input
                 id="privateChatInput"
-                style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize : 15, outline: "none", fontFamily: "inherit" }}
+                style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
                 placeholder={`Message ${privateChat.nickname}...`}
                 value={privateChatInput}
                 onChange={e => setPrivateChatInput(e.target.value)}
