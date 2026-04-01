@@ -431,6 +431,7 @@ function Room() {
   const [roomChatInput, setRoomChatInput] = useState("");
   const chatBottomRef = useRef(null);
 
+  const [creatorId, setCreatorId] = useState(null);
   const [topicRequested, setTopicRequested] = useState(false);
   const [topicDraft, setTopicDraft] = useState("");
   const [topicTimer, setTopicTimer] = useState(null);
@@ -505,21 +506,27 @@ function Room() {
       }
     }, [auth]),
 
-    onRoundEnded: useCallback((roundScores, winning) => {
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
+    onRoundEnded: useCallback((roundScores, winning, winnerPlayerId) => {
+  if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+  if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
 
-      const drumroll = new Audio("/AcroExpress_drumroll.m4a");
-      votingAudioRef.current = drumroll;
-      drumroll.play().catch(() => {});
+  const drumroll = new Audio("/AcroExpress_drumroll.m4a");
+  votingAudioRef.current = drumroll;
+  drumroll.play().catch(() => {});
 
-      setTimeout(() => {
-        setScores(roundScores || {});
-        setWinningAcro(winning);
-        setPhase("Results");
-        setTimer(null);
-      }, 4180);
-    }, []),
+  setTimeout(() => {
+    setScores(roundScores || {});
+    setWinningAcro(winning);
+    setPhase("Results");
+    setTimer(null);
+
+    if (winnerPlayerId && auth?.userId === winnerPlayerId) {
+      setTopicRequested(true);
+      topicRequestedRef.current = true;
+      setTopicTimer(15);
+    }
+  }, 4180);
+}, [auth]),
 
     onGameOver: useCallback((winner) => {
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
