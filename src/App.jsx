@@ -297,33 +297,53 @@ function Lobby() {
 
 // ── Voting Screen ──────────────────────────────────────────────
 function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
-  const [voted, setVoted] = useState(false);
-  const [selected, setSelected] = useState(null);
+  const [submitted, setSubmitted] = useState(false); // true after "I'm done voting" is clicked
+  const [selected, setSelected] = useState(null);    // the currently selected entry id
   const [closed, setClosed] = useState(false);
 
   const [textPair] = useState(() => {
     const pairs = [
-      { title: "🗳️ Which one is your favorite?", subtitle: "A brief parade of wit, chaos, and ambition." },
-      { title: "🗳️ The platform is open for voting", subtitle: "Several tiny masterpieces, one looming decision." },
-      { title: "🗳️ Now presenting the entries", subtitle: "A fine display of compact wit and acro craftsmanship." },
+      { title: "🗳️ Which one is your favorite?" },
+      { title: "🗳️ The platform is open for voting" },
+      { title: "🗳️ Now presenting the entries" },
     ];
     return pairs[Math.floor(Math.random() * pairs.length)];
   });
 
-  async function handleVote(entryId) {
-    if (voted || !entryId) return;
+  // Selecting an entry sends the vote immediately but allows changing
+  // until the player clicks "I'm done voting"
+  async function handleSelect(entryId) {
+    if (submitted) return; // locked after submitting
     try {
       const auth = getAuth();
+      // Always send the vote — backend handles re-voting by replacing old vote
       await castVote(roomId, auth.username, entryId);
       setSelected(entryId);
-      setVoted(true);
-      if (onVoted) onVoted();
     } catch (e) { alert(`Vote failed: ${e.message}`); }
+  }
+
+  // Blank vote — player abstains, sends Guid.Empty to backend
+  async function handleBlankVote() {
+    if (submitted) return;
+    try {
+      const auth = getAuth();
+      // Guid.Empty signals a blank vote on the backend
+      await castVote(roomId, auth.username, "00000000-0000-0000-0000-000000000000");
+      setSelected("blank");
+    } catch (e) { alert(`Vote failed: ${e.message}`); }
+  }
+
+  // Lock in the vote and close the overlay
+  function handleDoneVoting() {
+    setSubmitted(true);
+    if (onVoted) onVoted();
+    setClosed(true);
   }
 
   if (closed) return null;
 
   const auth = getAuth();
+  // Hide the player's own entry from the voting list
   const visibleEntries = entries.filter(e =>
     typeof e === "string" ? true : e.playerId?.toString() !== auth?.userId?.toString()
   );
@@ -331,24 +351,33 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ width: "100%", maxWidth: 520, background: C.bgPanel, border: `1px solid ${C.brand}`, borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+
+        {/* Header */}
         <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${C.border}` }}>
           <h2 style={{ margin: 0, fontSize: 20, color: C.ivory, fontFamily: "Fredoka, sans-serif" }}>{textPair.title}</h2>
+          {selected && selected !== "blank" && !submitted && (
+            <p style={{ margin: "6px 0 0", fontSize: 13, color: C.textMuted }}>
+              You can change your vote until you click "Done Voting".
+            </p>
+          )}
         </div>
+
+        {/* Entry list */}
         <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 8, maxHeight: 380, overflowY: "auto" }}>
           {visibleEntries.length === 0 ? (
             <p style={{ color: C.textMuted, fontSize: 15, textAlign: "center" }}>No entries to vote on this round...</p>
           ) : (
             visibleEntries.map((entry, i) => (
               <button key={i}
-                onClick={() => handleVote(entry.id)}
-                disabled={voted}
+                onClick={() => handleSelect(entry.id)}
+                disabled={submitted}
                 style={{
                   width: "100%", textAlign: "left", padding: "12px 16px",
                   background: selected === entry.id ? `${C.brand}22` : C.bgPanel2,
                   border: `1px solid ${selected === entry.id ? C.brand : C.border}`,
                   borderRadius: 10, color: selected === entry.id ? C.ivory : C.textSecond,
-                  fontSize: 16, cursor: voted ? "not-allowed" : "pointer",
-                  opacity: voted && selected !== entry.id ? 0.6 : 1,
+                  fontSize: 16, cursor: submitted ? "not-allowed" : "pointer",
+                  opacity: submitted && selected !== entry.id ? 0.6 : 1,
                   fontFamily: "inherit", transition: "all 0.15s"
                 }}>
                 {typeof entry === "string" ? entry : entry.sentence}
@@ -356,18 +385,33 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
             ))
           )}
         </div>
-        <div style={{ padding: "12px 24px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "center", alignItems: "center", gap: 16 }}>
-          {voted && (
-            <p style={{ margin: 0, fontSize: 15, color: C.success }}>
-              ✓ Vote recorded! Waiting for others...
-            </p>
+
+        {/* Footer */}
+        <div style={{ padding: "12px 24px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "center", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {/* Blank vote option */}
+          {!submitted && (
+            <button
+              onClick={handleBlankVote}
+              style={{
+                background: selected === "blank" ? `${C.textMuted}22` : "transparent",
+                border: `1px solid ${selected === "blank" ? C.textMuted : C.border}`,
+                borderRadius: 8, padding: "6px 14px", fontSize: 14,
+                color: selected === "blank" ? C.textPrimary : C.textMuted,
+                cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s"
+              }}>
+              None of the above
+            </button>
           )}
+
+          {/* Timer */}
           {timer !== null && timer > 0 && (
             <span style={{ fontWeight: 700, fontSize: 22, color: timer <= 10 ? C.brand : C.ivory, fontFamily: "Fredoka, sans-serif" }}>
               {timer}s
             </span>
           )}
-          <BtnSecondary onClick={() => setClosed(true)}>I'm done voting!</BtnSecondary>
+
+          {/* Done voting button */}
+          <BtnSecondary onClick={handleDoneVoting}>Done Voting</BtnSecondary>
         </div>
       </div>
     </div>
