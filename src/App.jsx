@@ -476,6 +476,7 @@ function Room() {
   const chatBottomRef = useRef(null);
 
   const [creatorId, setCreatorId] = useState(null);
+  const [gameWinner, setGameWinner] = useState(null); // null = no game over, object = { name, message }
   const [topicRequested, setTopicRequested] = useState(false);
   const [topicDraft, setTopicDraft] = useState("");
   const [topicTimer, setTopicTimer] = useState(null);
@@ -573,28 +574,36 @@ function Room() {
 }, [auth]),
 
     onGameOver: useCallback((winner) => {
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
-      if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
-      const msgs = [
-        `⚡ ${winner}'s supernatural acro skills leave the whole station in awe.`,
-        `🏆 Final stop: victory. ${winner} arrives first at glory.`,
-        `🚂 ${winner} pulls into the winner's platform in style.`,
-        `🎖️ Next station: triumph. ${winner} has arrived.`,
-        `🚉 The signals are clear — ${winner} wins the game.`,
-        `✨ ${winner} leaves the rest of the field behind and claims the line.`,
-        `🌟 ${winner} takes the express route straight to victory.`,
-        `🎉 Attention passengers: ${winner} is today's champion.`,
-        `🔔 Please mind the gap between ${winner} and everyone else.`,
-        `👑 ${winner} has officially taken command of the rails.`,
-        `📣 Service update: ${winner} has arrived at greatness.`,
-        `🚄 No delays, no doubt — ${winner} wins.`,
-        `🥇 ${winner} makes a flawless arrival at the platform of champions.`,
-        `🎟️ One ticket to glory, stamped and claimed by ${winner}.`
-      ];
-      alert(msgs[Math.floor(Math.random() * msgs.length)]);
-      navigate("/");
-    }, [navigate]),
+  // Stop all audio
+  if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+  if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
+  if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
+
+  // Pick a random station-themed winner message
+  const msgs = [
+    `⚡ ${winner}'s supernatural acro skills leave the whole station in awe.`,
+    `🏆 Final stop: victory. ${winner} arrives first at glory.`,
+    `🚂 ${winner} pulls into the winner's platform in style.`,
+    `🎖️ Next station: triumph. ${winner} has arrived.`,
+    `🚉 The signals are clear — ${winner} wins the game.`,
+    `✨ ${winner} leaves the rest of the field behind and claims the line.`,
+    `🌟 ${winner} takes the express route straight to victory.`,
+    `🎉 Attention passengers: ${winner} is today's champion.`,
+    `🔔 Please mind the gap between ${winner} and everyone else.`,
+    `👑 ${winner} has officially taken command of the rails.`,
+    `📣 Service update: ${winner} has arrived at greatness.`,
+    `🚄 No delays, no doubt — ${winner} wins.`,
+    `🥇 ${winner} makes a flawless arrival at the platform of champions.`,
+    `🎟️ One ticket to glory, stamped and claimed by ${winner}.`
+  ];
+
+  // Show winner inline — players stay in the room
+  setGameWinner({
+    name: winner,
+    message: msgs[Math.floor(Math.random() * msgs.length)]
+  });
+  setPhase("GameOver");
+}, []),
 
     onTopicSet: useCallback((topic) => {
       setTopicRequested(false);
@@ -867,6 +876,24 @@ function Room() {
           </div>
         </Panel>
       )}
+
+      {/* Game over — shown inline where letters normally appear */}
+{phase === "GameOver" && gameWinner && (
+  <Panel style={{ padding: 32, marginBottom: 16, textAlign: "center", borderColor: C.teal }}>
+    <p style={{ margin: "0 0 8px", fontSize: 13, color: C.teal, textTransform: "uppercase", letterSpacing: "0.12em" }}>
+      Final Stop
+    </p>
+    <h2 style={{ margin: "0 0 16px", fontFamily: "Fredoka, sans-serif", fontSize: 48, color: C.ivory, lineHeight: 1 }}>
+      👑 {gameWinner.name}
+    </h2>
+    <p style={{ margin: "0 0 24px", fontSize: 18, color: C.textSecond, fontStyle: "italic" }}>
+      {gameWinner.message}
+    </p>
+    <p style={{ margin: "0 0 24px", fontSize: 15, color: C.textMuted }}>
+      A new departure begins shortly. Stay on board.
+    </p>
+  </Panel>
+)}
 
       {/* Letters */}
       {letters.length > 0 && !topicRequested && phase !== "Results" && (
