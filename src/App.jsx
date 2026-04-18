@@ -6,22 +6,22 @@ import { useLobbyHub } from "./hooks/useLobbyHub";
 
 // ── Design tokens ──────────────────────────────────────────────
 const C = {
-  bgApp:       "#070b14",
-  bgPanel:     "#131A2E",
-  bgPanel2:    "#1A233B",
-  border:      "#2B3758",
+  bgApp: "#070b14",
+  bgPanel: "#131A2E",
+  bgPanel2: "#1A233B",
+  border: "#2B3758",
   textPrimary: "#F3F4F8",
-  textSecond:  "#C7CEE0",
-  textMuted:   "#94A0BE",
-  brand:       "#F26A5E",
-  brandHover:  "#FF7A6B",
-  teal:        "#6FB7C8",
-  tealLight:   "#8FD0DE",
-  lavender:    "#B7B3E6",
-  ivory:       "#F2E6D8",
-  success:     "#4FAF8F",
-  navy2:       "#24314D",
-  navy3:       "#2C3B5F",
+  textSecond: "#C7CEE0",
+  textMuted: "#94A0BE",
+  brand: "#F26A5E",
+  brandHover: "#FF7A6B",
+  teal: "#6FB7C8",
+  tealLight: "#8FD0DE",
+  lavender: "#B7B3E6",
+  ivory: "#F2E6D8",
+  success: "#4FAF8F",
+  navy2: "#24314D",
+  navy3: "#2C3B5F",
 };
 
 // ── Reusable styled components ─────────────────────────────────
@@ -516,7 +516,14 @@ function Room() {
       postSystemMessage(`Round ${roundNumber} has begun.`);
 
       if (!topicRequestedRef.current) {
-        setTimeout(() => document.getElementById("acroInput")?.focus(), 100);
+        setTimeout(() => {
+          // Only focus acro input if player is not currently typing in chat
+          const activeEl = document.activeElement;
+          const isChatFocused = activeEl?.id === "chatInput" || activeEl?.id === "privateChatInput";
+          if (!isChatFocused) {
+            document.getElementById("acroInput")?.focus();
+          }
+        }, 100);
       }
 
       // Stop all previous audio
@@ -528,7 +535,7 @@ function Room() {
         audioRef.current = new Audio("/AcroExpress_tunes.m4a");
         audioRef.current.loop = false;
         audioRef.current.muted = false;
-        audioRef.current.play().catch(() => {});
+        audioRef.current.play().catch(() => { });
       }, 200);
     }, []),
 
@@ -552,58 +559,58 @@ function Room() {
     }, [auth]),
 
     onRoundEnded: useCallback((roundScores, winning, winnerPlayerId) => {
-  if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-  if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
 
-  const drumroll = new Audio("/AcroExpress_drumroll.m4a");
-  votingAudioRef.current = drumroll;
-  drumroll.play().catch(() => {});
+      const drumroll = new Audio("/AcroExpress_drumroll.m4a");
+      votingAudioRef.current = drumroll;
+      drumroll.play().catch(() => { });
 
-  setTimeout(() => {
-    setScores(roundScores || {});
-    setWinningAcro(winning);
-    setPhase("Results");
-    setTimer(null);
+      setTimeout(() => {
+        setScores(roundScores || {});
+        setWinningAcro(winning);
+        setPhase("Results");
+        setTimer(null);
 
-    if (winnerPlayerId && auth?.userId === winnerPlayerId) {
-      setTopicRequested(true);
-      topicRequestedRef.current = true;
-      setTopicTimer(15);
-    }
-  }, 4180);
-}, [auth]),
+        if (winnerPlayerId && auth?.userId === winnerPlayerId) {
+          setTopicRequested(true);
+          topicRequestedRef.current = true;
+          setTopicTimer(15);
+        }
+      }, 4180);
+    }, [auth]),
 
     onGameOver: useCallback((winner) => {
-  // Stop all audio
-  if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-  if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
-  if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
+      // Stop all audio
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
+      if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
 
-  // Pick a random station-themed winner message
-  const msgs = [
-    `⚡ ${winner}'s supernatural acro skills leave the whole station in awe.`,
-    `🏆 Final stop: victory. ${winner} arrives first at glory.`,
-    `🚂 ${winner} pulls into the winner's platform in style.`,
-    `🎖️ Next station: triumph. ${winner} has arrived.`,
-    `🚉 The signals are clear — ${winner} wins the game.`,
-    `✨ ${winner} leaves the rest of the field behind and claims the line.`,
-    `🌟 ${winner} takes the express route straight to victory.`,
-    `🎉 Attention passengers: ${winner} is today's champion.`,
-    `🔔 Please mind the gap between ${winner} and everyone else.`,
-    `👑 ${winner} has officially taken command of the rails.`,
-    `📣 Service update: ${winner} has arrived at greatness.`,
-    `🚄 No delays, no doubt — ${winner} wins.`,
-    `🥇 ${winner} makes a flawless arrival at the platform of champions.`,
-    `🎟️ One ticket to glory, stamped and claimed by ${winner}.`
-  ];
+      // Pick a random station-themed winner message
+      const msgs = [
+        `⚡ ${winner}'s supernatural acro skills leave the whole station in awe.`,
+        `🏆 Final stop: victory. ${winner} arrives first at glory.`,
+        `🚂 ${winner} pulls into the winner's platform in style.`,
+        `🎖️ Next station: triumph. ${winner} has arrived.`,
+        `🚉 The signals are clear — ${winner} wins the game.`,
+        `✨ ${winner} leaves the rest of the field behind and claims the line.`,
+        `🌟 ${winner} takes the express route straight to victory.`,
+        `🎉 Attention passengers: ${winner} is today's champion.`,
+        `🔔 Please mind the gap between ${winner} and everyone else.`,
+        `👑 ${winner} has officially taken command of the rails.`,
+        `📣 Service update: ${winner} has arrived at greatness.`,
+        `🚄 No delays, no doubt — ${winner} wins.`,
+        `🥇 ${winner} makes a flawless arrival at the platform of champions.`,
+        `🎟️ One ticket to glory, stamped and claimed by ${winner}.`
+      ];
 
-  // Show winner inline — players stay in the room
-  setGameWinner({
-    name: winner,
-    message: msgs[Math.floor(Math.random() * msgs.length)]
-  });
-  setPhase("GameOver");
-}, []),
+      // Show winner inline — players stay in the room
+      setGameWinner({
+        name: winner,
+        message: msgs[Math.floor(Math.random() * msgs.length)]
+      });
+      setPhase("GameOver");
+    }, []),
 
     onTopicSet: useCallback((topic) => {
       setTopicRequested(false);
@@ -644,7 +651,7 @@ function Room() {
       postSystemMessage("A player has left the room.");
     }, []),
 
-    onChatMessage: useCallback(() => {}, []),
+    onChatMessage: useCallback(() => { }, []),
   };
 
   const { disconnect, connectionRef } = useSignalR(id, signalRHandlers);
@@ -767,7 +774,7 @@ function Room() {
         // Restart tune 2 after editing with no changes
         audio2Ref.current = new Audio("/AcroExpress_tunes_02.mp3");
         audio2Ref.current.loop = false;
-        audio2Ref.current.play().catch(() => {});
+        audio2Ref.current.play().catch(() => { });
         setTimeout(() => document.getElementById("chatInput")?.focus(), 100);
         return;
       }
@@ -782,7 +789,7 @@ function Room() {
       // Start tune 2 after submitting
       audio2Ref.current = new Audio("/AcroExpress_tunes_02.mp3");
       audio2Ref.current.loop = false;
-      audio2Ref.current.play().catch(() => {});
+      audio2Ref.current.play().catch(() => { });
       setTimeout(() => document.getElementById("chatInput")?.focus(), 100);
     } catch (e) {
       if (e.message?.includes("SINGLE_LETTER")) {
@@ -817,7 +824,7 @@ function Room() {
 
       {/* Voting overlay */}
       {phase === "Voting" && (
-        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => {}} timer={timer} />
+        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} timer={timer} />
       )}
 
       {/* Header */}
@@ -878,22 +885,22 @@ function Room() {
       )}
 
       {/* Game over — shown inline where letters normally appear */}
-{phase === "GameOver" && gameWinner && (
-  <Panel style={{ padding: 32, marginBottom: 16, textAlign: "center", borderColor: C.teal }}>
-    <p style={{ margin: "0 0 8px", fontSize: 13, color: C.teal, textTransform: "uppercase", letterSpacing: "0.12em" }}>
-      Final Stop
-    </p>
-    <h2 style={{ margin: "0 0 16px", fontFamily: "Fredoka, sans-serif", fontSize: 48, color: C.ivory, lineHeight: 1 }}>
-      👑 {gameWinner.name}
-    </h2>
-    <p style={{ margin: "0 0 24px", fontSize: 18, color: C.textSecond, fontStyle: "italic" }}>
-      {gameWinner.message}
-    </p>
-    <p style={{ margin: "0 0 24px", fontSize: 15, color: C.textMuted }}>
-      A new departure begins shortly. Stay on board.
-    </p>
-  </Panel>
-)}
+      {phase === "GameOver" && gameWinner && (
+        <Panel style={{ padding: 32, marginBottom: 16, textAlign: "center", borderColor: C.teal }}>
+          <p style={{ margin: "0 0 8px", fontSize: 13, color: C.teal, textTransform: "uppercase", letterSpacing: "0.12em" }}>
+            Final Stop
+          </p>
+          <h2 style={{ margin: "0 0 16px", fontFamily: "Fredoka, sans-serif", fontSize: 48, color: C.ivory, lineHeight: 1 }}>
+            👑 {gameWinner.name}
+          </h2>
+          <p style={{ margin: "0 0 24px", fontSize: 18, color: C.textSecond, fontStyle: "italic" }}>
+            {gameWinner.message}
+          </p>
+          <p style={{ margin: "0 0 24px", fontSize: 15, color: C.textMuted }}>
+            A new departure begins shortly. Stay on board.
+          </p>
+        </Panel>
+      )}
 
       {/* Letters */}
       {letters.length > 0 && !topicRequested && phase !== "Results" && (
