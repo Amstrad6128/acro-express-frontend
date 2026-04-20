@@ -81,6 +81,7 @@ const BtnSecondary = ({ children, onClick, style = {} }) => {
   );
 };
 
+
 const Input = ({ id, value, onChange, onKeyDown, placeholder, type = "text", style = {}, autoFocus = false }) => (
   <input
     id={id}
@@ -296,7 +297,7 @@ function Lobby() {
 }
 
 // ── Voting Screen ──────────────────────────────────────────────
-function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
+function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer }) {
   const [submitted, setSubmitted] = useState(false); // true after "I'm done voting" is clicked
   const [selected, setSelected] = useState(null);    // the currently selected entry id
   const [closed, setClosed] = useState(false);
@@ -405,9 +406,19 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer }) {
 
           {/* Timer */}
           {timer !== null && timer > 0 && (
-            <span style={{ fontWeight: 700, fontSize: 22, color: timer <= 10 ? C.brand : C.ivory, fontFamily: "Fredoka, sans-serif" }}>
-              {timer}s
-            </span>
+            <div style={{ marginTop: 8, width: 220 }}>
+              <div style={{ background: C.border, borderRadius: 999, height: 6, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%",
+                  borderRadius: 999,
+                  background: timer <= 10 ? C.brand : C.teal,
+                  // Width shrinks as timer counts down — needs maxTimer to calculate percentage
+                  width: `${(timer / maxTimer) * 100}%`,
+                  transition: "width 1s linear, background 0.3s"
+                }} />
+              </div>
+              <span style={{ fontSize: 13, color: C.textMuted, marginTop: 4, display: "block" }}>{timer}</span>
+            </div>
           )}
 
           {/* Done voting button */}
@@ -478,6 +489,7 @@ function Room() {
   const [creatorId, setCreatorId] = useState(null);
   const [gameWinner, setGameWinner] = useState(null); // null = no game over, object = { name, message }
   const [joinedMidRound, setJoinedMidRound] = useState(false);
+  const [maxTimer, setMaxTimer] = useState(60); // tracks initial timer value for the progress bar
   const [topicRequested, setTopicRequested] = useState(false);
   const [topicDraft, setTopicDraft] = useState("");
   const [topicTimer, setTopicTimer] = useState(null);
@@ -517,6 +529,7 @@ function Room() {
       setCurrentTopic("");
       setCurrentRound(roundNumber);
       postSystemMessage(`Round ${roundNumber} has begun.`);
+      setMaxTimer(seconds);
 
       if (!topicRequestedRef.current) {
         setTimeout(() => {
@@ -549,6 +562,7 @@ function Room() {
       setEntries(acroEntries || []);
       setPhase("Voting");
       setTimer(votingSeconds || 20);
+      setMaxTimer(votingSeconds || 20);
     }, []),
 
     onTopicRequested: useCallback((creatorUserId) => {
@@ -833,8 +847,7 @@ function Room() {
 
       {/* Voting overlay */}
       {phase === "Voting" && (
-        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} timer={timer} />
-      )}
+        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} timer={timer} maxTimer={maxTimer} />)}
 
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
@@ -844,7 +857,18 @@ function Room() {
             Round <span style={{ color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
             {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase}</span>
             {timer !== null && timer > 0 &&
-              <span style={{ marginLeft: 12, color: C.ivory, fontFamily: "Fredoka, sans-serif", fontSize: 26, fontWeight: 700 }}>{timer}s</span>}
+              <div style={{ marginTop: 8, width: 220 }}>
+                <div style={{ background: C.border, borderRadius: 999, height: 6, overflow: "hidden" }}>
+                  <div style={{
+                    height: "100%",
+                    borderRadius: 999,
+                    background: timer <= 10 ? C.brand : C.teal,
+                    width: `${(timer / maxTimer) * 100}%`,
+                    transition: "width 1s linear, background 0.3s"
+                  }} />
+                </div>
+                <span style={{ fontSize: 13, color: C.textMuted, marginTop: 4, display: "block" }}>{timer}</span>
+              </div>}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -1006,9 +1030,9 @@ function Room() {
 
         {/* Players */}
         <Panel style={{ padding: 16 }}>
-          <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Players</h2>
+          <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Passengers</h2>
           {players.length === 0 ? (
-            <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No players yet</p>
+            <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No passengers yet</p>
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
               {[...players].sort((a, b) => b.score - a.score).map(p => (
