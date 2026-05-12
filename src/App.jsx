@@ -488,7 +488,7 @@ function Room() {
 
   const [creatorId, setCreatorId] = useState(null);
   const [gameWinner, setGameWinner] = useState(null); // null = no game over, object = { name, message }
-  const [joinedMidRound, setJoinedMidRound] = useState(false);
+
   const [maxTimer, setMaxTimer] = useState(60); // tracks initial timer value for the progress bar
   const [topicRequested, setTopicRequested] = useState(false);
   const [topicDraft, setTopicDraft] = useState("");
@@ -515,7 +515,7 @@ function Room() {
   const signalRHandlers = {
     onRoundStarted: useCallback((roundNumber, lettersStr, seconds) => {
       // Player received this event live — they are not a mid-round joiner
-      setJoinedMidRound(false);
+
       setLetters(typeof lettersStr === "string" ? lettersStr.split("") : lettersStr);
       setPhase("Submitting");
       setTimer(seconds);
@@ -654,12 +654,9 @@ function Room() {
 
     onPlayerJoined: useCallback((playerId) => {
       refreshRoomState();
-      setState(prev => {
-        const playerName = (prev.data?.players || []).find(p => p.id === playerId)?.nickname;
-        if (playerName && playerName !== auth?.username) {
-          setRoomMessages(msgs => [...msgs, { nickname: "•", message: `${playerName} has entered the room.`, system: true, time: new Date() }]);
-        }
-        return prev;
+      setPhase(prev => {
+        if (prev === "Submitting" || prev === "Voting" || prev === "Results") return prev;
+        return data?.phase || prev;
       });
     }, []),
 
@@ -956,14 +953,8 @@ function Room() {
       )}
 
       {/* Acro input */}
-      {phase === "Submitting" && joinedMidRound && (
-        <Panel style={{ padding: 16, marginBottom: 16, textAlign: "center", borderColor: C.border }}>
-          <p style={{ margin: 0, color: C.textMuted, fontSize: 15 }}>
-            You joined mid-round. Your ticket is valid from the next departure. 🚂
-          </p>
-        </Panel>
-      )}
-      {phase === "Submitting" && !topicRequested && !joinedMidRound && (
+     
+      {phase === "Submitting" && !topicRequested && (
         <Panel style={{ padding: 16, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
             <h2 style={{ margin: 0, fontSize: 20, color: C.textPrimary }}>Your Acro</h2>
