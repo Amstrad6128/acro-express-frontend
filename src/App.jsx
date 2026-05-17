@@ -654,10 +654,6 @@ function Room() {
 
     onPlayerJoined: useCallback((playerId) => {
       refreshRoomState();
-      setPhase(prev => {
-        if (prev === "Submitting" || prev === "Voting" || prev === "Results") return prev;
-        return data?.phase || prev;
-      });
     }, []),
 
     onPlayerLeft: useCallback(() => {
@@ -749,13 +745,7 @@ function Room() {
       if (data?.letters) setLetters(typeof data.letters === "string" ? data.letters.split("") : data.letters);
       setPhase(prev => {
         if (prev === "Submitting" || prev === "Voting" || prev === "Results") return prev;
-        const nextPhase = data?.phase || prev;
-        // If we're transitioning from Waiting to Submitting via a poll,
-        // the player wasn't there for the round start — mark as mid-round joiner
-        if (prev === "Waiting" && nextPhase === "Submitting") {
-          setJoinedMidRound(true);
-        }
-        return nextPhase;
+        return data?.phase || prev;
       });
     } catch (err) { setState({ loading: false, error: String(err?.message || err), data: null }); }
   }
