@@ -558,23 +558,6 @@ function Room() {
       // Stop all previous audio
       if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
-
-      // Try to play tune 1 — if blocked, play on next user gesture
-      setTimeout(() => {
-        const audio = new Audio("/AcroExpress_tunes.m4a");
-        audio.loop = false;
-        audioRef.current = audio;
-        audio.play().catch(() => {
-          // Autoplay blocked — wait for next click or keydown
-          const playOnGesture = () => {
-            audio.play().catch(() => { });
-            window.removeEventListener("click", playOnGesture);
-            window.removeEventListener("keydown", playOnGesture);
-          };
-          window.addEventListener("click", playOnGesture);
-          window.addEventListener("keydown", playOnGesture);
-        });
-      }, 200);
     }, []),
 
     onVotingStarted: useCallback((acroEntries, votingSeconds) => {
@@ -658,6 +641,15 @@ function Room() {
       setTopicTimer(null);
       setCurrentTopic(topic);
       postSystemMessage(`Topic for this round: "${topic}"`);
+
+      // Start tune 1 immediately — button click gesture is still active
+      if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
+      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
+      setTimeout(() => {
+        audioRef.current = new Audio("/AcroExpress_tunes.m4a");
+        audioRef.current.loop = false;
+        audioRef.current.play().catch(() => { });
+      }, 200);
     }, []),
 
     onPrivateMessage: useCallback((senderNickname, message) => {
