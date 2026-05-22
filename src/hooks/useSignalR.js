@@ -4,6 +4,12 @@ import { API_URL, getAuth } from "../services/api";
 
 export function useSignalR(roomId, handlers = {}) {
   const connectionRef = useRef(null);
+  const handlersRef = useRef(handlers);
+
+  // Keep handlersRef current on every render
+  useEffect(() => {
+    handlersRef.current = handlers;
+  });
 
   const connect = useCallback(async () => {
     if (connectionRef.current) return;
@@ -19,47 +25,20 @@ export function useSignalR(roomId, handlers = {}) {
       .build();
 
     // ── Game events ──────────────────────────────────────
-    if (handlers.onRoundStarted)
-      connection.on("RoundStarted", handlers.onRoundStarted);
-
-    if (handlers.onVotingStarted)
-      connection.on("VotingStarted", handlers.onVotingStarted);
-
-    if (handlers.onRoundEnded)
-      connection.on("RoundEnded", handlers.onRoundEnded);
-
-    if (handlers.onGameOver)
-      connection.on("GameOver", handlers.onGameOver);
-
-    // Topic set by round winner — triggers next round
-    if (handlers.onTopicSet)
-      connection.on("TopicSet", handlers.onTopicSet);
+    connection.on("RoundStarted", (...args) => handlersRef.current.onRoundStarted?.(...args));
+    connection.on("VotingStarted", (...args) => handlersRef.current.onVotingStarted?.(...args));
+    connection.on("RoundEnded", (...args) => handlersRef.current.onRoundEnded?.(...args));
+    connection.on("GameOver", (...args) => handlersRef.current.onGameOver?.(...args));
+    connection.on("TopicSet", (...args) => handlersRef.current.onTopicSet?.(...args));
+    connection.on("TopicRequested", (...args) => handlersRef.current.onTopicRequested?.(...args));
 
     // ── Chat events ──────────────────────────────────────
-    // Legacy chat handler
-    if (handlers.onChatMessage)
-      connection.on("ReceiveChatMessage", handlers.onChatMessage);
-
-    // Room public chat
-    if (handlers.onRoomMessage)
-      connection.on("ReceiveRoomMessage", handlers.onRoomMessage);
-
-    // Private chat — registered once only
-    if (handlers.onPrivateMessage)
-      connection.on("ReceivePrivateMessage", handlers.onPrivateMessage);
+    connection.on("ReceiveRoomMessage", (...args) => handlersRef.current.onRoomMessage?.(...args));
+    connection.on("ReceivePrivateMessage", (...args) => handlersRef.current.onPrivateMessage?.(...args));
 
     // ── Player events ────────────────────────────────────
-    if (handlers.onPlayerJoined)
-      connection.on("PlayerJoined", handlers.onPlayerJoined);
-
-
-    // Topic requested — creator needs to set topic before round begins
-    if (handlers.onPlayerLeft)
-      connection.on("PlayerLeft", handlers.onPlayerLeft);
-
-    // Topic requested — creator needs to set topic before round begins
-    if (handlers.onTopicRequested)
-      connection.on("TopicRequested", handlers.onTopicRequested);
+    connection.on("PlayerJoined", (...args) => handlersRef.current.onPlayerJoined?.(...args));
+    connection.on("PlayerLeft", (...args) => handlersRef.current.onPlayerLeft?.(...args));
 
     try {
       await connection.start();
@@ -72,7 +51,6 @@ export function useSignalR(roomId, handlers = {}) {
     }
   }, [roomId]);
 
-  // Clean disconnect when leaving room
   const disconnect = useCallback(async () => {
     const conn = connectionRef.current;
     if (!conn) return;
@@ -88,10 +66,7 @@ export function useSignalR(roomId, handlers = {}) {
   useEffect(() => {
     connect();
 
-    // Handle browser X button / tab close
-    const handleBeforeUnload = () => {
-      disconnect();
-    };
+    const handleBeforeUnload = () => { disconnect(); };
     window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
@@ -100,7 +75,5 @@ export function useSignalR(roomId, handlers = {}) {
     };
   }, [connect, disconnect]);
 
-  // Export both disconnect and connectionRef
-  // connectionRef lets Room component invoke hub methods directly
   return { disconnect, connectionRef };
 }
