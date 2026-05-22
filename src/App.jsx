@@ -556,17 +556,15 @@ function Room() {
       }
 
       // Stop all previous audio cleanly
+      // Stop all previous audio cleanly
       if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
 
-      // Set up and attempt to play Tune 1
       const audio = new Audio("/AcroExpress_tunes.m4a");
       audio.loop = false;
       audioRef.current = audio;
 
       audio.play().catch(() => {
-        // If the 2-second background timer delay caused a browser autoplay block:
-        // Listen for the absolute next click or keydown to immediately trigger the track
         const unlockAndPlay = () => {
           audio.play().catch(() => { });
           window.removeEventListener("click", unlockAndPlay);
@@ -648,15 +646,6 @@ function Room() {
       setTopicTimer(null);
       setCurrentTopic(topic);
       postSystemMessage(`Topic for this round: "${topic}"`);
-
-      // Start tune 1 immediately — button click gesture is still active
-      if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
-      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
-      setTimeout(() => {
-        audioRef.current = new Audio("/AcroExpress_tunes.m4a");
-        audioRef.current.loop = false;
-        audioRef.current.play().catch(() => { });
-      }, 200);
     }, []),
 
     onPrivateMessage: useCallback((senderNickname, message) => {
