@@ -508,6 +508,22 @@ function Room() {
   const votingAudioRef = useRef(null); // drumroll
   const topicRequestedRef = useRef(false);
 
+  // Unlock audio on first user interaction
+  useEffect(() => {
+    const unlock = () => {
+      const a = new Audio();
+      a.play().catch(() => { });
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+    window.addEventListener("click", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
   function postSystemMessage(text) {
     setRoomMessages(prev => [...prev, { nickname: "•", message: text, system: true, time: new Date() }]);
   }
@@ -943,7 +959,7 @@ function Room() {
       )}
 
       {/* Acro input */}
-     
+
       {phase === "Submitting" && !topicRequested && (
         <Panel style={{ padding: 16, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
