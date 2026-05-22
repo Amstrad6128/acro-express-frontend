@@ -530,8 +530,6 @@ function Room() {
 
   const signalRHandlers = {
     onRoundStarted: useCallback((roundNumber, lettersStr, seconds) => {
-      // Player received this event live — they are not a mid-round joiner
-
       setLetters(typeof lettersStr === "string" ? lettersStr.split("") : lettersStr);
       setPhase("Submitting");
       setTimer(seconds);
@@ -549,7 +547,6 @@ function Room() {
 
       if (!topicRequestedRef.current) {
         setTimeout(() => {
-          // Only focus acro input if player is not currently typing in chat
           const activeEl = document.activeElement;
           const isChatFocused = activeEl?.id === "chatInput" || activeEl?.id === "privateChatInput";
           if (!isChatFocused) {
@@ -562,12 +559,21 @@ function Room() {
       if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
 
-      // Start tune 1
+      // Try to play tune 1 — if blocked, play on next user gesture
       setTimeout(() => {
-        audioRef.current = new Audio("/AcroExpress_tunes.m4a");
-        audioRef.current.loop = false;
-        audioRef.current.muted = false;
-        audioRef.current.play().catch(() => { });
+        const audio = new Audio("/AcroExpress_tunes.m4a");
+        audio.loop = false;
+        audioRef.current = audio;
+        audio.play().catch(() => {
+          // Autoplay blocked — wait for next click or keydown
+          const playOnGesture = () => {
+            audio.play().catch(() => { });
+            window.removeEventListener("click", playOnGesture);
+            window.removeEventListener("keydown", playOnGesture);
+          };
+          window.addEventListener("click", playOnGesture);
+          window.addEventListener("keydown", playOnGesture);
+        });
       }, 200);
     }, []),
 
