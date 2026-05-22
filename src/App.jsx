@@ -555,19 +555,26 @@ function Room() {
         }, 100);
       }
 
-      // Stop all previous audio
+      // Stop all previous audio cleanly
       if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
-    }, []),
 
-    onVotingStarted: useCallback((acroEntries, votingSeconds) => {
-      // Stop all music when voting starts
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
-      setEntries(acroEntries || []);
-      setPhase("Voting");
-      setTimer(votingSeconds || 20);
-      setMaxTimer(votingSeconds || 20);
+      // Set up and attempt to play Tune 1
+      const audio = new Audio("/AcroExpress_tunes.m4a");
+      audio.loop = false;
+      audioRef.current = audio;
+
+      audio.play().catch(() => {
+        // If the 2-second background timer delay caused a browser autoplay block:
+        // Listen for the absolute next click or keydown to immediately trigger the track
+        const unlockAndPlay = () => {
+          audio.play().catch(() => { });
+          window.removeEventListener("click", unlockAndPlay);
+          window.removeEventListener("keydown", unlockAndPlay);
+        };
+        window.addEventListener("click", unlockAndPlay);
+        window.addEventListener("keydown", unlockAndPlay);
+      });
     }, []),
 
     onTopicRequested: useCallback((creatorUserId) => {
