@@ -753,6 +753,15 @@ function Room() {
       const data = await fetchRoomState(id);
       setState({ loading: false, error: null, data });
       if (data?.letters) setLetters(typeof data.letters === "string" ? data.letters.split("") : data.letters);
+
+      // If server says Voting but frontend missed the SignalR event — force it
+      if (data?.phase === "Voting" && phase !== "Voting") {
+        setPhase("Voting");
+        setEntries(data.entries || []);
+        setTimer(prev => prev ?? 20);
+        setMaxTimer(prev => prev ?? 20);
+      }
+
       setPhase(prev => {
         if (prev === "Submitting" || prev === "Voting" || prev === "Results") return prev;
         return data?.phase || prev;
