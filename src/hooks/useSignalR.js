@@ -31,6 +31,7 @@ export function useSignalR(roomId, handlers = {}) {
     connection.on("GameOver", (...args) => handlersRef.current.onGameOver?.(...args));
     connection.on("TopicSet", (...args) => handlersRef.current.onTopicSet?.(...args));
     connection.on("TopicRequested", (...args) => handlersRef.current.onTopicRequested?.(...args));
+    connection.on("GamePaused", (...args) => handlersRef.current.onGamePaused?.(...args));
 
     // ── Chat events ──────────────────────────────────────
     connection.on("ReceiveRoomMessage", (...args) => handlersRef.current.onRoomMessage?.(...args));
@@ -39,6 +40,17 @@ export function useSignalR(roomId, handlers = {}) {
     // ── Player events ────────────────────────────────────
     connection.on("PlayerJoined", (...args) => handlersRef.current.onPlayerJoined?.(...args));
     connection.on("PlayerLeft", (...args) => handlersRef.current.onPlayerLeft?.(...args));
+
+    // After an automatic reconnect the server sees a NEW connection, which isn't in the
+    // room yet — re-join, otherwise no more game updates arrive and the inactivity
+    // cleanup would treat the player as gone
+    connection.onreconnected(async () => {
+      try {
+        await connection.invoke("JoinRoom", roomId, getAuth()?.userId?.toString());
+      } catch (err) {
+        console.error("SignalR re-join failed:", err);
+      }
+    });
 
     try {
       await connection.start();

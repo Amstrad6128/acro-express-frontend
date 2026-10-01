@@ -678,7 +678,7 @@ function Room() {
       // A new game is starting — leave the Game Over screen (hides the New Game button,
       // so nobody else clicks it and gets a "round already in progress" error)
       setGameWinner(null);
-      setPhase(prev => (prev === "GameOver" ? "Starting" : prev));
+      setPhase(prev => (prev === "GameOver" || prev === "Paused" ? "Starting" : prev));
       // sameId ignores case differences between the backend Guid and localStorage
       if (sameId(auth?.userId, creatorUserId)) {
         setTopicRequested(true);
@@ -754,6 +754,17 @@ function Room() {
       setTimer(null);
       setFrozenScores(null);
       setPhase("GameOver");
+    }, []),
+
+    // Several rounds in a row without any acros — the server paused the game
+    onGamePaused: useCallback(() => {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
+      setPhase("Paused");
+      setTimer(null);
+      setLetters([]);
+      setFrozenScores(null);
+      postSystemMessage("Game paused: no acros for 3 rounds in a row. Press Start Game to continue.");
     }, []),
 
     onTopicSet: useCallback((topic) => {
@@ -902,7 +913,7 @@ function Room() {
 
       setPhase(prev => {
         // "GameOver" is kept too — otherwise the poll replaced it within 3s and the winner panel vanished
-        if (prev === "Submitting" || prev === "Voting" || prev === "Tallying" || prev === "Results" || prev === "GameOver") return prev;
+        if (prev === "Submitting" || prev === "Voting" || prev === "Tallying" || prev === "Results" || prev === "GameOver" || prev === "Paused") return prev;
         return data?.phase || prev;
       });
     } catch (err) { setState({ loading: false, error: String(err?.message || err), data: null }); }
@@ -1071,7 +1082,7 @@ function Room() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 16 }}>
           <div style={{ display: "flex", gap: 8 }}>
             {/* After a game ends the room is back in Waiting, so a new game can be started */}
-            {(phase === "Waiting" || phase === "GameOver") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
+            {(phase === "Waiting" || phase === "GameOver" || phase === "Paused") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
             <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
           </div>
           {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
@@ -1173,6 +1184,13 @@ function Room() {
       )}
 
       {/* Results and the topic prompt are floating panels now (see the top of this return) */}
+
+      {/* Paused — no acros for several rounds */}
+      {phase === "Paused" && (
+        <Panel style={{ padding: 16, marginBottom: 16, textAlign: "center" }}>
+          <p style={{ color: C.textMuted, margin: 0 }}>Game paused: no acros for 3 rounds in a row. Press Start Game to continue.</p>
+        </Panel>
+      )}
 
       {/* Waiting */}
       {phase === "Waiting" && (
