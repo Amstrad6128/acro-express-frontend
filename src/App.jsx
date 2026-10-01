@@ -443,8 +443,9 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer })
 }
 
 // ── Results Screen ─────────────────────────────────────────────
-function ResultsScreen({ scores, winningAcro, entries, players }) {
+function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose }) {
   const sorted = Object.entries(scores || {}).sort((a, b) => b[1] - a[1]);
+  const anyPoints = sorted.some(([, s]) => s > 0);
 
   const entryByNickname = {};
   (entries || []).forEach(e => {
@@ -456,27 +457,45 @@ function ResultsScreen({ scores, winningAcro, entries, players }) {
     });
   });
 
+  // One table, one column (like AcroChallenge): Name | Points | Acro.
+  // The winning entry is shown by colour — no separate "winning entry" box.
+  const cell = { padding: "8px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "left" };
   return (
-    <Panel style={{ padding: 16 }}>
-      <h2 style={{ margin: "0 0 12px", color: C.ivory, fontFamily: "Fredoka, sans-serif", fontSize: 20 }}>🏆 Round Results</h2>
-      {winningAcro && (
-        <div style={{ background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", marginBottom: 12 }}>
-          <p style={{ margin: 0, fontSize: 11, color: C.teal, textTransform: "uppercase", letterSpacing: "0.1em" }}>Winning Entry</p>
-          <p style={{ margin: "4px 0 0", color: C.ivory, fontWeight: 600 }}>"{winningAcro}"</p>
-        </div>
-      )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {sorted.map(([name, score], i) => (
-          <div key={name} style={{ display: "flex", alignItems: "center", background: C.bgApp, borderRadius: 6, padding: "8px 12px", gap: 12 }}>
-            <span style={{ color: C.teal, fontWeight: 700, minWidth: 30, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{score}</span>
-            {/* Crown only for a real leader — with all scores at 0 it wrongly looked like a winner */}
-            <span style={{ color: C.textSecond, minWidth: 120 }}>{i === 0 && score > 0 ? "👑 " : `${i + 1}. `}{name}</span>
-            <span style={{ color: C.ivory, fontStyle: "italic", fontSize: 17 }}>
-              {entryByNickname[name] || ""}
-            </span>
-          </div>
-        ))}
+    <Panel style={{ padding: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <h2 style={{ margin: 0, color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 20 }}>
+          Round <span style={{ fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{round}</span>{topic ? ` – ${topic}` : ""}
+        </h2>
+        <button onClick={onClose} title="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>×</button>
       </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 16 }}>
+          <thead>
+            <tr style={{ color: C.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              <th style={cell}>Name</th>
+              <th style={{ ...cell, textAlign: "center", width: 80 }}>Points</th>
+              <th style={cell}>Acro</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map(([name, score]) => {
+              // Winner = wrote the winning acro (several authors if identical acros were merged)
+              const isWinner = !!winningAcro && entryByNickname[name] === winningAcro && score > 0;
+              const colour = isWinner ? C.brand : C.textSecond;
+              return (
+                <tr key={name} style={{ background: isWinner ? `${C.brand}1a` : "transparent" }}>
+                  <td style={{ ...cell, color: colour, fontWeight: isWinner ? 700 : 400 }}>{name}</td>
+                  <td style={{ ...cell, textAlign: "center", color: isWinner ? C.brand : C.teal, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{score}</td>
+                  <td style={{ ...cell, color: isWinner ? C.ivory : C.textSecond, fontStyle: "italic" }}>{entryByNickname[name] || "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {!anyPoints && (
+        <p style={{ margin: "10px 0 0", color: C.textMuted, fontSize: 14 }}>No points were awarded in this round.</p>
+      )}
     </Panel>
   );
 }
@@ -506,6 +525,7 @@ function Room() {
 
   const [creatorId, setCreatorId] = useState(null);
   const [gameWinner, setGameWinner] = useState(null); // null = no game over, object = { name, message }
+  const [resultsClosed, setResultsClosed] = useState(false); // × on the results panel
 
   const [maxTimer, setMaxTimer] = useState(60); // tracks initial timer value for the progress bar
   const [topicRequested, setTopicRequested] = useState(false);
@@ -687,6 +707,7 @@ function Room() {
         setWinningAcro(winning);
         setPhase("Results");
         setTimer(null);
+        setResultsClosed(false);
         // Reveal: Passengers now show the new totals
         setFrozenScores(null);
 
@@ -983,38 +1004,16 @@ function Room() {
     // Wide side margins on desktop (like AcroChallenge), tighter on phones
     <div style={{ height: "100vh", overflowY: "auto", color: C.textPrimary, padding: isNarrow ? 16 : "24px 64px" }}>
 
-      {/* Voting overlay */}
-      {phase === "Voting" && (
-        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} timer={timer} maxTimer={maxTimer} />)}
-
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || `Room #${id}`}</h1>
-          {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
-          <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
-            Round <span style={{ color: C.teal, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
-            {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase === "Tallying" ? "Counting votes" : phase}</span>
-            {/* The timer moved to the centre, above the letters */}
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 16 }}>
-          <div style={{ display: "flex", gap: 8 }}>
-            {/* After a game ends the room is back in Waiting, so a new game can be started */}
-            {(phase === "Waiting" || phase === "GameOver") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
-            <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
-          </div>
-          {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
-          {showTopic && !isNarrow && topicBlock("right")}
-        </div>
-      </div>
-
-      {/* Stage — fixed height outside the writing phase (see stageRef above) */}
-      <div ref={stageRef} style={stageH && !(phase === "Submitting" && !topicRequested) ? { display: "flow-root", height: stageH, overflowY: "auto" } : { display: "flow-root" }}>
-
-      {/* Topic selection prompt */}
-      {topicRequested && (
-        <Panel style={{ padding: 20, marginBottom: 16, borderColor: C.teal, textAlign: "center" }}>
+      {/* Floating panels (like AcroChallenge): round results on top, the winner's topic
+          prompt under it. They float above the page, so nothing underneath moves. */}
+      {((phase === "Results" && !resultsClosed) || topicRequested) && (
+        <div style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", width: "min(900px, calc(100% - 32px))", maxHeight: "calc(100vh - 100px)", overflowY: "auto", zIndex: 40, display: "flex", flexDirection: "column", gap: 16 }}>
+          {phase === "Results" && !resultsClosed && (
+            <ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players}
+              round={currentRound} topic={currentTopic} onClose={() => setResultsClosed(true)} />
+          )}
+          {topicRequested && (
+        <Panel style={{ padding: 20, borderColor: C.teal, textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
           <h2 style={{ margin: "0 0 8px", fontFamily: "Fredoka, sans-serif", fontSize: 22, color: C.teal }}>
             Set the topic for this round
           </h2>
@@ -1050,7 +1049,39 @@ function Room() {
             }}>Set Topic</Btn>
           </div>
         </Panel>
+          )}
+        </div>
       )}
+
+      {/* Voting overlay */}
+      {phase === "Voting" && (
+        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} timer={timer} maxTimer={maxTimer} />)}
+
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || `Room #${id}`}</h1>
+          {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
+          <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
+            Round <span style={{ color: C.teal, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
+            {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase === "Tallying" ? "Counting votes" : phase}</span>
+            {/* The timer moved to the centre, above the letters */}
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 16 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            {/* After a game ends the room is back in Waiting, so a new game can be started */}
+            {(phase === "Waiting" || phase === "GameOver") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
+            <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
+          </div>
+          {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
+          {showTopic && !isNarrow && topicBlock("right")}
+        </div>
+      </div>
+
+      {/* Stage — fixed height outside the writing phase (see stageRef above) */}
+      <div ref={stageRef} style={stageH && !(phase === "Submitting" && !topicRequested) ? { display: "flow-root", height: stageH, overflowY: "auto" } : { display: "flow-root" }}>
+
 
       {/* Game over — shown inline where letters normally appear */}
       {phase === "GameOver" && gameWinner && (
@@ -1141,12 +1172,7 @@ function Room() {
         </Panel>
       )}
 
-      {/* Results */}
-      {phase === "Results" && (
-        <div style={{ marginBottom: 16 }}>
-          <ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players} />
-        </div>
-      )}
+      {/* Results and the topic prompt are floating panels now (see the top of this return) */}
 
       {/* Waiting */}
       {phase === "Waiting" && (
