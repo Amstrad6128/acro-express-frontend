@@ -975,7 +975,8 @@ function Room() {
   );
 
   return (
-    <div style={{ height: "100vh", overflowY: "auto", color: C.textPrimary, padding: 24 }}>
+    // Wide side margins on desktop (like AcroChallenge), tighter on phones
+    <div style={{ height: "100vh", overflowY: "auto", color: C.textPrimary, padding: isNarrow ? 16 : "24px 64px" }}>
 
       {/* Voting overlay */}
       {phase === "Voting" && (
@@ -1066,7 +1067,7 @@ function Room() {
         <div style={{ textAlign: "center", padding: "24px 0" }}>
           {/* Countdown — number only, centred above the letters, red in the last 10 seconds */}
           {timer !== null && timer > 0 && (
-            <div style={{ fontSize: 56, fontWeight: 700, fontFamily: "Fredoka, sans-serif", color: timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: 12 }}>{timer}</div>
+            <div style={{ fontSize: 56, fontWeight: 700, fontFamily: "'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif", fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: 12 }}>{timer}</div>
           )}
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             {letters.map((l, i) => (
