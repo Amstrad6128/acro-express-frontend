@@ -297,6 +297,10 @@ function Lobby() {
 }
 
 // ── Voting Screen ──────────────────────────────────────────────
+// One font for every number in the game (timers, round number, scores) —
+// plain and bold, like the AcroChallenge countdown
+const NUM_FONT = "'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif";
+
 // Compares two ids (Guids) safely: ignores case and null/undefined.
 // The backend sends Guids as lowercase strings, but localStorage values or older
 // payloads may differ in case — a plain === check let players see their own entry.
@@ -425,22 +429,9 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer })
             </button>
           )}
 
-          {/* Timer — wider bar and larger number so it's readable at a glance */}
+          {/* Voting countdown — number only (no bar), red in the last 10 seconds */}
           {timer !== null && timer > 0 && (
-            <div style={{ marginTop: 8, width: 260, textAlign: "center" }}>
-              <div style={{ background: C.border, borderRadius: 999, height: 10, overflow: "hidden" }}>
-                <div style={{
-                  height: "100%",
-                  borderRadius: 999,
-                  background: timer <= 10 ? C.brand : C.teal,
-                  // Width shrinks as timer counts down — needs maxTimer to calculate percentage
-                  width: `${(timer / maxTimer) * 100}%`,
-                  transition: "width 1s linear, background 0.3s"
-                }} />
-              </div>
-              {/* Seconds left — turns brand colour in the last 10 seconds */}
-              <span style={{ fontSize: 32, fontWeight: 700, fontFamily: "Fredoka, sans-serif", color: timer <= 10 ? C.brand : C.ivory, marginTop: 4, display: "block", lineHeight: 1 }}>{timer}</span>
-            </div>
+            <span style={{ fontSize: 32, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.ivory, lineHeight: 1 }}>{timer}</span>
           )}
 
           {/* Done voting button */}
@@ -477,7 +468,7 @@ function ResultsScreen({ scores, winningAcro, entries, players }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {sorted.map(([name, score], i) => (
           <div key={name} style={{ display: "flex", alignItems: "center", background: C.bgApp, borderRadius: 6, padding: "8px 12px", gap: 12 }}>
-            <span style={{ color: C.teal, fontWeight: 700, minWidth: 30 }}>{score}</span>
+            <span style={{ color: C.teal, fontWeight: 700, minWidth: 30, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{score}</span>
             {/* Crown only for a real leader — with all scores at 0 it wrongly looked like a winner */}
             <span style={{ color: C.textSecond, minWidth: 120 }}>{i === 0 && score > 0 ? "👑 " : `${i + 1}. `}{name}</span>
             <span style={{ color: C.ivory, fontStyle: "italic", fontSize: 17 }}>
@@ -532,6 +523,20 @@ function Room() {
   // don't show before the results are revealed (null = show live scores)
   const [frozenScores, setFrozenScores] = useState(null);
   const playersRef = useRef([]);
+  // The middle "stage" (letters + acro box) is measured while players write, and that
+  // height is kept in every other phase — so Passengers and the chats never jump up or down
+  const stageRef = useRef(null);
+  const [stageH, setStageH] = useState(null);
+  useEffect(() => {
+    if (phase !== "Submitting" || topicRequested) return;
+    const el = stageRef.current;
+    if (!el) return;
+    const measure = () => setStageH(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [phase, topicRequested]);
   // Narrow screens (phones): the topic moves from the top right to under the letters
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 900);
   useEffect(() => {
@@ -988,7 +993,7 @@ function Room() {
           <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || `Room #${id}`}</h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
           <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
-            Round <span style={{ color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
+            Round <span style={{ color: C.teal, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
             {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase === "Tallying" ? "Counting votes" : phase}</span>
             {/* The timer moved to the centre, above the letters */}
           </div>
@@ -1003,6 +1008,9 @@ function Room() {
           {showTopic && !isNarrow && topicBlock("right")}
         </div>
       </div>
+
+      {/* Stage — fixed height outside the writing phase (see stageRef above) */}
+      <div ref={stageRef} style={stageH && !(phase === "Submitting" && !topicRequested) ? { display: "flow-root", height: stageH, overflowY: "auto" } : { display: "flow-root" }}>
 
       {/* Topic selection prompt */}
       {topicRequested && (
@@ -1067,7 +1075,7 @@ function Room() {
         <div style={{ textAlign: "center", padding: "24px 0" }}>
           {/* Countdown — number only, centred above the letters, red in the last 10 seconds */}
           {timer !== null && timer > 0 && (
-            <div style={{ fontSize: 56, fontWeight: 700, fontFamily: "'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif", fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: 12 }}>{timer}</div>
+            <div style={{ fontSize: 46, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: 12 }}>{timer}</div>
           )}
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             {letters.map((l, i) => (
@@ -1147,6 +1155,8 @@ function Room() {
         </Panel>
       )}
 
+      </div>
+
       {/* Bottom: players | chat | private chat */}
       <div style={{ display: "grid", gridTemplateColumns: privateChat ? "1fr 2fr 1fr" : "1fr 3fr", gap: 16 }}>
 
@@ -1177,7 +1187,7 @@ function Room() {
                       </span>
                     )}
                   </span>
-                  <span style={{ color: C.teal, fontWeight: 700 }}>{shownScore(p)}</span>
+                  <span style={{ color: C.teal, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{shownScore(p)}</span>
                 </li>
               ))}
             </ul>
