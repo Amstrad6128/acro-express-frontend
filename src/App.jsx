@@ -297,6 +297,16 @@ function Lobby() {
 }
 
 // ── Voting Screen ──────────────────────────────────────────────
+// Compares two ids (Guids) safely: ignores case and null/undefined.
+// The backend sends Guids as lowercase strings, but localStorage values or older
+// payloads may differ in case — a plain === check let players see their own entry.
+function sameId(a, b) {
+  // Missing ids never match — prevents undefined === undefined being "true"
+  if (!a || !b) return false;
+  // Normalise both sides to lowercase strings before comparing
+  return a.toString().toLowerCase() === b.toString().toLowerCase();
+}
+
 function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer }) {
   const [submitted, setSubmitted] = useState(false); // true after "I'm done voting" is clicked
   const [selected, setSelected] = useState(null);    // the currently selected entry id
@@ -344,9 +354,14 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer })
   if (closed) return null;
 
   const auth = getAuth();
-  // Hide the player's own entry from the voting list
-  const visibleEntries = entries.filter(e =>
-    typeof e === "string" ? true : e.playerId?.toString() !== auth?.userId?.toString()
+  // Only keep real entry objects (with an id) — plain strings can't be voted on,
+  // because the vote would go out with no entry id and be counted as a blank vote.
+  // Then hide the player's own entry from the voting list.
+  const visibleEntries = (entries || []).filter(e =>
+    e && typeof e === "object" && e.id &&
+    // Hide if I'm the author — or one of the authors, when identical acros were merged
+    !sameId(e.playerId, auth?.userId) &&
+    !(e.playerIds || []).some(pid => sameId(pid, auth?.userId))
   );
 
   return (
@@ -364,26 +379,32 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer })
         </div>
 
         {/* Entry list */}
-        <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 8, maxHeight: 380, overflowY: "auto" }}>
+        {/* maxHeight follows the screen height (was a fixed 380px, which only fit ~4 entries) */}
+        <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 8, maxHeight: "60vh", overflowY: "auto" }}>
           {visibleEntries.length === 0 ? (
             <p style={{ color: C.textMuted, fontSize: 15, textAlign: "center" }}>No entries to vote on this round...</p>
           ) : (
-            visibleEntries.map((entry, i) => (
-              <button key={i}
-                onClick={() => handleSelect(entry.id)}
-                disabled={submitted}
-                style={{
-                  width: "100%", textAlign: "left", padding: "12px 16px",
-                  background: selected === entry.id ? `${C.brand}22` : C.bgPanel2,
-                  border: `1px solid ${selected === entry.id ? C.brand : C.border}`,
-                  borderRadius: 10, color: selected === entry.id ? C.ivory : C.textSecond,
-                  fontSize: 16, cursor: submitted ? "not-allowed" : "pointer",
-                  opacity: submitted && selected !== entry.id ? 0.6 : 1,
-                  fontFamily: "inherit", transition: "all 0.15s"
-                }}>
-                {typeof entry === "string" ? entry : entry.sentence}
-              </button>
-            ))
+            visibleEntries.map((entry) => {
+              // sameId() returns false for missing ids, so only the clicked entry lights up
+              const isSelected = sameId(selected, entry.id);
+              return (
+                // Key by entry id so React doesn't mix up buttons between rounds
+                <button key={entry.id}
+                  onClick={() => handleSelect(entry.id)}
+                  disabled={submitted}
+                  style={{
+                    width: "100%", textAlign: "left", padding: "12px 16px",
+                    background: isSelected ? `${C.brand}22` : C.bgPanel2,
+                    border: `1px solid ${isSelected ? C.brand : C.border}`,
+                    borderRadius: 10, color: isSelected ? C.ivory : C.textSecond,
+                    fontSize: 16, cursor: submitted ? "not-allowed" : "pointer",
+                    opacity: submitted && !isSelected ? 0.6 : 1,
+                    fontFamily: "inherit", transition: "all 0.15s"
+                  }}>
+                  {entry.sentence}
+                </button>
+              );
+            })
           )}
         </div>
 
@@ -404,10 +425,10 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer })
             </button>
           )}
 
-          {/* Timer */}
+          {/* Timer — wider bar and larger number so it's readable at a glance */}
           {timer !== null && timer > 0 && (
-            <div style={{ marginTop: 8, width: 220 }}>
-              <div style={{ background: C.border, borderRadius: 999, height: 6, overflow: "hidden" }}>
+            <div style={{ marginTop: 8, width: 260, textAlign: "center" }}>
+              <div style={{ background: C.border, borderRadius: 999, height: 10, overflow: "hidden" }}>
                 <div style={{
                   height: "100%",
                   borderRadius: 999,
@@ -417,7 +438,8 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer })
                   transition: "width 1s linear, background 0.3s"
                 }} />
               </div>
-              <span style={{ fontSize: 13, color: C.textMuted, marginTop: 4, display: "block" }}>{timer}</span>
+              {/* Seconds left — turns brand colour in the last 10 seconds */}
+              <span style={{ fontSize: 32, fontWeight: 700, fontFamily: "Fredoka, sans-serif", color: timer <= 10 ? C.brand : C.ivory, marginTop: 4, display: "block", lineHeight: 1 }}>{timer}</span>
             </div>
           )}
 
@@ -435,8 +457,12 @@ function ResultsScreen({ scores, winningAcro, entries, players }) {
 
   const entryByNickname = {};
   (entries || []).forEach(e => {
-    const player = (players || []).find(p => p.id === e.playerId?.toString());
-    if (player) entryByNickname[player.nickname] = e.sentence;
+    // All authors of this entry (several when identical acros were merged)
+    const authorIds = e.playerIds?.length ? e.playerIds : [e.playerId];
+    authorIds.forEach(pid => {
+      const player = (players || []).find(p => sameId(p.id, pid));
+      if (player) entryByNickname[player.nickname] = e.sentence;
+    });
   });
 
   return (
@@ -452,7 +478,8 @@ function ResultsScreen({ scores, winningAcro, entries, players }) {
         {sorted.map(([name, score], i) => (
           <div key={name} style={{ display: "flex", alignItems: "center", background: C.bgApp, borderRadius: 6, padding: "8px 12px", gap: 12 }}>
             <span style={{ color: C.teal, fontWeight: 700, minWidth: 30 }}>{score}</span>
-            <span style={{ color: C.textSecond, minWidth: 120 }}>{i === 0 ? "👑 " : `${i + 1}. `}{name}</span>
+            {/* Crown only for a real leader — with all scores at 0 it wrongly looked like a winner */}
+            <span style={{ color: C.textSecond, minWidth: 120 }}>{i === 0 && score > 0 ? "👑 " : `${i + 1}. `}{name}</span>
             <span style={{ color: C.ivory, fontStyle: "italic", fontSize: 17 }}>
               {entryByNickname[name] || ""}
             </span>
@@ -507,6 +534,14 @@ function Room() {
   const audio2Ref = useRef(null);     // tune 2 — plays after submission until voting
   const votingAudioRef = useRef(null); // drumroll
   const topicRequestedRef = useRef(false);
+  // Mirrors `phase` so refreshRoomState (run from a setInterval) always reads the
+  // current phase — the interval closure otherwise keeps the phase from first render
+  const phaseRef = useRef("Waiting");
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  // Chat scroll containers — we scroll these directly instead of scrollIntoView,
+  // which also scrolled the whole page down every time a message arrived
+  const chatListRef = useRef(null);
+  const privateChatListRef = useRef(null);
 
   // Unlock audio on first user interaction
   useEffect(() => {
@@ -529,7 +564,8 @@ function Room() {
   }
 
   const signalRHandlers = {
-    onRoundStarted: useCallback((roundNumber, lettersStr, seconds) => {
+    // 4th argument (topic) is new — the backend now sends it with every RoundStarted
+    onRoundStarted: useCallback((roundNumber, lettersStr, seconds, topic) => {
       setLetters(typeof lettersStr === "string" ? lettersStr.split("") : lettersStr);
       setPhase("Submitting");
       setTimer(seconds);
@@ -540,7 +576,10 @@ function Room() {
       setIsEditing(false);
       setMyDraft("");
       myDraftRef.current = "";
-      setCurrentTopic("");
+      // Show this round's topic next to the acro input.
+      // Before, this line cleared the topic — but TopicSet arrives just BEFORE
+      // RoundStarted, so the topic was wiped the moment the round began.
+      if (typeof topic === "string") setCurrentTopic(topic);
       setCurrentRound(roundNumber);
       postSystemMessage(`Round ${roundNumber} has begun.`);
       setMaxTimer(seconds);
@@ -575,8 +614,29 @@ function Room() {
       });
     }, []),
 
+    // Restored: this handler was accidentally deleted in the May 22 music fix.
+    // Without it the voting screen only appeared via the 3s poll, which sent
+    // plain sentence strings (no ids) — causing the all-highlighted voting,
+    // blank votes (so nobody scored), and players seeing their own entry.
+    onVotingStarted: useCallback((acroEntries, votingSeconds) => {
+      // Stop all music when voting starts
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
+      // Entry objects: { id, sentence, playerId }
+      setEntries(acroEntries || []);
+      setPhase("Voting");
+      // Voting countdown for the progress bar
+      setTimer(votingSeconds || 20);
+      setMaxTimer(votingSeconds || 20);
+    }, []),
+
     onTopicRequested: useCallback((creatorUserId) => {
-      if (auth?.userId === creatorUserId) {
+      // A new game is starting — leave the Game Over screen (hides the New Game button,
+      // so nobody else clicks it and gets a "round already in progress" error)
+      setGameWinner(null);
+      setPhase(prev => (prev === "GameOver" ? "Starting" : prev));
+      // sameId ignores case differences between the backend Guid and localStorage
+      if (sameId(auth?.userId, creatorUserId)) {
         setTopicRequested(true);
         topicRequestedRef.current = true;
         setTopicTimer(15);
@@ -599,7 +659,8 @@ function Room() {
         setPhase("Results");
         setTimer(null);
 
-        if (winnerPlayerId && auth?.userId === winnerPlayerId) {
+        // Round winner picks the next topic (sameId ignores Guid case differences)
+        if (sameId(auth?.userId, winnerPlayerId)) {
           setTopicRequested(true);
           topicRequestedRef.current = true;
           setTopicTimer(15);
@@ -676,8 +737,16 @@ function Room() {
 
   const { disconnect, connectionRef } = useSignalR(id, signalRHandlers);
 
-  useEffect(() => { chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [roomMessages]);
-  useEffect(() => { privateChatBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [privateChat?.messages]);
+  // Keep the newest chat message in view by scrolling only the chat box itself.
+  // (scrollIntoView also scrolled the whole page — the "screen scrolls down" bug)
+  useEffect(() => {
+    const el = chatListRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [roomMessages]);
+  useEffect(() => {
+    const el = privateChatListRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [privateChat?.messages]);
 
   // Topic countdown
   useEffect(() => {
@@ -754,16 +823,25 @@ function Room() {
       setState({ loading: false, error: null, data });
       if (data?.letters) setLetters(typeof data.letters === "string" ? data.letters.split("") : data.letters);
 
-      // If server says Voting but frontend missed the SignalR event — force it
-      if (data?.phase === "Voting" && phase !== "Voting") {
+      // If server says Voting but frontend missed the SignalR event — force it.
+      // phaseRef (not `phase`) because this runs from a setInterval with a stale closure,
+      // which made this block re-run every 3 seconds and overwrite the real entries.
+      if (data?.phase === "Voting" && phaseRef.current !== "Voting") {
         setPhase("Voting");
-        setEntries(data.entries || []);
-        setTimer(prev => prev ?? 20);
-        setMaxTimer(prev => prev ?? 20);
+        // votingEntries = objects with ids; the old `entries` were plain strings
+        setEntries(data.votingEntries || []);
+        // Use the server's remaining time when available
+        const secs = data.secondsRemaining || 20;
+        setTimer(secs);
+        setMaxTimer(secs);
       }
 
+      // Fallback for the topic label in case TopicSet/RoundStarted was missed
+      if (data?.phase === "Submitting" && data?.currentTopic) setCurrentTopic(data.currentTopic);
+
       setPhase(prev => {
-        if (prev === "Submitting" || prev === "Voting" || prev === "Results") return prev;
+        // "GameOver" is kept too — otherwise the poll replaced it within 3s and the winner panel vanished
+        if (prev === "Submitting" || prev === "Voting" || prev === "Results" || prev === "GameOver") return prev;
         return data?.phase || prev;
       });
     } catch (err) { setState({ loading: false, error: String(err?.message || err), data: null }); }
@@ -859,12 +937,14 @@ function Room() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || `Room #${id}`}</h1>
-          <p style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
+          {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
+          <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
             Round <span style={{ color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
             {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase}</span>
+            {/* Timer — wider, thicker bar and a large number (was 13px, too small) */}
             {timer !== null && timer > 0 &&
-              <div style={{ marginTop: 8, width: 220 }}>
-                <div style={{ background: C.border, borderRadius: 999, height: 6, overflow: "hidden" }}>
+              <div style={{ marginTop: 8, width: 320 }}>
+                <div style={{ background: C.border, borderRadius: 999, height: 12, overflow: "hidden" }}>
                   <div style={{
                     height: "100%",
                     borderRadius: 999,
@@ -873,12 +953,14 @@ function Room() {
                     transition: "width 1s linear, background 0.3s"
                   }} />
                 </div>
-                <span style={{ fontSize: 13, color: C.textMuted, marginTop: 4, display: "block" }}>{timer}</span>
+                {/* Seconds left — turns brand colour in the last 10 seconds */}
+                <span style={{ fontSize: 40, fontWeight: 700, fontFamily: "Fredoka, sans-serif", color: timer <= 10 ? C.brand : C.ivory, marginTop: 6, display: "block", lineHeight: 1 }}>{timer}</span>
               </div>}
-          </p>
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          {phase === "Waiting" && <Btn onClick={handleStartRound}>Start Game</Btn>}
+          {/* After a game ends the room is back in Waiting, so a new game can be started */}
+          {(phase === "Waiting" || phase === "GameOver") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
           <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
         </div>
       </div>
@@ -936,7 +1018,7 @@ function Room() {
             {gameWinner.message}
           </p>
           <p style={{ margin: "0 0 24px", fontSize: 15, color: C.textMuted }}>
-            A new departure begins shortly. Stay on board.
+            Press New Game to start the next departure.
           </p>
         </Panel>
       )}
@@ -1065,7 +1147,7 @@ function Room() {
           <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}` }}>
             <h2 style={{ margin: 0, fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Room Chat</h2>
           </div>
-          <div style={{ overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+          <div ref={chatListRef} style={{ overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
             {roomMessages.length === 0 ? (
               <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No messages yet...</p>
             ) : (
@@ -1104,7 +1186,7 @@ function Room() {
               </h2>
               <button onClick={() => setPrivateChat(null)} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
             </div>
-            <div style={{ flex: 1, overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+            <div ref={privateChatListRef} style={{ flex: 1, overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
               {privateChat.messages.length === 0 ? (
                 <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>Start a private conversation...</p>
               ) : (
