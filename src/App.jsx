@@ -522,6 +522,23 @@ function Room() {
   const [topicTimer, setTopicTimer] = useState(null);
 
   const [privateChat, setPrivateChat] = useState(null);
+  // Every private conversation, keyed by the other player's nickname.
+  // Messages are stored here even while that chat is closed, so the first message
+  // isn't lost and double-clicking a name no longer wipes the conversation.
+  const [privateHistory, setPrivateHistory] = useState({});
+  const privateChatRef = useRef(null);
+  useEffect(() => { privateChatRef.current = privateChat; }, [privateChat]);
+  // Passenger scores frozen during voting and the drumroll, so the new totals
+  // don't show before the results are revealed (null = show live scores)
+  const [frozenScores, setFrozenScores] = useState(null);
+  const playersRef = useRef([]);
+  // Narrow screens (phones): the topic moves from the top right to under the letters
+  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 900);
+  useEffect(() => {
+    const onResize = () => setIsNarrow(window.innerWidth < 900);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const [privateChatInput, setPrivateChatInput] = useState("");
   const [unreadFrom, setUnreadFrom] = useState({});
   const privateChatBottomRef = useRef(null);
@@ -625,6 +642,8 @@ function Room() {
       // Entry objects: { id, sentence, playerId }
       setEntries(acroEntries || []);
       setPhase("Voting");
+      // Freeze the Passengers scores until the results are revealed
+      setFrozenScores(Object.fromEntries(playersRef.current.map(p => [p.id, p.score])));
       // Voting countdown for the progress bar
       setTimer(votingSeconds || 20);
       setMaxTimer(votingSeconds || 20);
@@ -649,6 +668,11 @@ function Room() {
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
 
+      // Voting is over (time ran out, or everyone voted) — close the voting screen
+      // straight away and show "Counting votes" during the drumroll
+      setPhase("Tallying");
+      setTimer(null);
+
       const drumroll = new Audio("/AcroExpress_drumroll.m4a");
       votingAudioRef.current = drumroll;
       drumroll.play().catch(() => { });
@@ -658,6 +682,8 @@ function Room() {
         setWinningAcro(winning);
         setPhase("Results");
         setTimer(null);
+        // Reveal: Passengers now show the new totals
+        setFrozenScores(null);
 
         // Round winner picks the next topic (sameId ignores Guid case differences)
         if (sameId(auth?.userId, winnerPlayerId)) {
@@ -697,6 +723,10 @@ function Room() {
         name: winner,
         message: msgs[Math.floor(Math.random() * msgs.length)]
       });
+      // Hide the last round's letters and countdown on the game over screen
+      setLetters([]);
+      setTimer(null);
+      setFrozenScores(null);
       setPhase("GameOver");
     }, []),
 
@@ -710,13 +740,14 @@ function Room() {
     }, []),
 
     onPrivateMessage: useCallback((senderNickname, message) => {
-      setPrivateChat(prev => {
-        if (prev?.nickname === senderNickname) {
-          return { ...prev, messages: [...prev.messages, { nickname: senderNickname, message, time: new Date() }] };
-        }
-        return prev;
-      });
-      setUnreadFrom(prev => ({ ...prev, [senderNickname]: (prev[senderNickname] || 0) + 1 }));
+      // Always keep the message — before, it was dropped if this chat wasn't open
+      setPrivateHistory(prev => ({
+        ...prev,
+        [senderNickname]: [...(prev[senderNickname] || []), { nickname: senderNickname, message, time: new Date() }]
+      }));
+      // Red unread badge only if this conversation isn't the one on screen
+      if (privateChatRef.current?.nickname !== senderNickname)
+        setUnreadFrom(prev => ({ ...prev, [senderNickname]: (prev[senderNickname] || 0) + 1 }));
     }, []),
 
     onRoomMessage: useCallback((nickname, message) => {
@@ -746,7 +777,7 @@ function Room() {
   useEffect(() => {
     const el = privateChatListRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [privateChat?.messages]);
+  }, [privateHistory, privateChat]);
 
   // Topic countdown
   useEffect(() => {
@@ -776,7 +807,8 @@ function Room() {
       const conn = connectionRef.current;
       if (conn) {
         await conn.invoke("SendPrivateMessage", privateChat.userId, auth.username, text);
-        setPrivateChat(prev => ({ ...prev, messages: [...prev.messages, { nickname: auth.username, message: text, time: new Date() }] }));
+        const to = privateChat.nickname;
+        setPrivateHistory(prev => ({ ...prev, [to]: [...(prev[to] || []), { nickname: auth.username, message: text, time: new Date() }] }));
         setPrivateChatInput("");
       }
     } catch (e) { console.error(e); }
@@ -826,8 +858,11 @@ function Room() {
       // If server says Voting but frontend missed the SignalR event — force it.
       // phaseRef (not `phase`) because this runs from a setInterval with a stale closure,
       // which made this block re-run every 3 seconds and overwrite the real entries.
-      if (data?.phase === "Voting" && phaseRef.current !== "Voting") {
+      // (not during "Tallying"/"Results": the round is already over, the server just
+      //  hasn't saved it yet — forcing Voting here would reopen the voting screen)
+      if (data?.phase === "Voting" && !["Voting", "Tallying", "Results"].includes(phaseRef.current)) {
         setPhase("Voting");
+        setFrozenScores(prev => prev ?? Object.fromEntries((data.players || []).map(p => [p.id, p.score])));
         // votingEntries = objects with ids; the old `entries` were plain strings
         setEntries(data.votingEntries || []);
         // Use the server's remaining time when available
@@ -841,7 +876,7 @@ function Room() {
 
       setPhase(prev => {
         // "GameOver" is kept too — otherwise the poll replaced it within 3s and the winner panel vanished
-        if (prev === "Submitting" || prev === "Voting" || prev === "Results" || prev === "GameOver") return prev;
+        if (prev === "Submitting" || prev === "Voting" || prev === "Tallying" || prev === "Results" || prev === "GameOver") return prev;
         return data?.phase || prev;
       });
     } catch (err) { setState({ loading: false, error: String(err?.message || err), data: null }); }
@@ -925,6 +960,19 @@ function Room() {
 
   const data = state.data || {};
   const players = data.players || [];
+  playersRef.current = players;
+  // Score shown in Passengers — frozen during voting/drumroll, live otherwise
+  const shownScore = p => (frozenScores && frozenScores[p.id] !== undefined ? frozenScores[p.id] : p.score);
+  // Messages of the open private chat (kept per person, survives closing/reopening)
+  const privateMessages = privateChat ? (privateHistory[privateChat.nickname] || []) : [];
+  // Topic is shown while players are writing their acros
+  const showTopic = !!currentTopic && phase === "Submitting" && !topicRequested;
+  const topicBlock = (align) => (
+    <div style={{ textAlign: align }}>
+      <div style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Topic</div>
+      <div style={{ fontSize: 28, color: C.teal, fontWeight: 700, fontFamily: "Fredoka, sans-serif", lineHeight: 1.15, maxWidth: 420, overflowWrap: "anywhere" }}>{currentTopic}</div>
+    </div>
+  );
 
   return (
     <div style={{ height: "100vh", overflowY: "auto", color: C.textPrimary, padding: 24 }}>
@@ -940,28 +988,18 @@ function Room() {
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
           <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
             Round <span style={{ color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
-            {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase}</span>
-            {/* Timer — wider, thicker bar and a large number (was 13px, too small) */}
-            {timer !== null && timer > 0 &&
-              <div style={{ marginTop: 8, width: 320 }}>
-                <div style={{ background: C.border, borderRadius: 999, height: 12, overflow: "hidden" }}>
-                  <div style={{
-                    height: "100%",
-                    borderRadius: 999,
-                    background: timer <= 10 ? C.brand : C.teal,
-                    width: `${(timer / maxTimer) * 100}%`,
-                    transition: "width 1s linear, background 0.3s"
-                  }} />
-                </div>
-                {/* Seconds left — turns brand colour in the last 10 seconds */}
-                <span style={{ fontSize: 40, fontWeight: 700, fontFamily: "Fredoka, sans-serif", color: timer <= 10 ? C.brand : C.ivory, marginTop: 6, display: "block", lineHeight: 1 }}>{timer}</span>
-              </div>}
+            {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase === "Tallying" ? "Counting votes" : phase}</span>
+            {/* The timer moved to the centre, above the letters */}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {/* After a game ends the room is back in Waiting, so a new game can be started */}
-          {(phase === "Waiting" || phase === "GameOver") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
-          <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 16 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            {/* After a game ends the room is back in Waiting, so a new game can be started */}
+            {(phase === "Waiting" || phase === "GameOver") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
+            <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
+          </div>
+          {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
+          {showTopic && !isNarrow && topicBlock("right")}
         </div>
       </div>
 
@@ -1024,8 +1062,12 @@ function Room() {
       )}
 
       {/* Letters */}
-      {letters.length > 0 && !topicRequested && phase !== "Results" && (
+      {letters.length > 0 && !topicRequested && phase !== "Results" && phase !== "GameOver" && (
         <div style={{ textAlign: "center", padding: "24px 0" }}>
+          {/* Countdown — number only, centred above the letters, red in the last 10 seconds */}
+          {timer !== null && timer > 0 && (
+            <div style={{ fontSize: 56, fontWeight: 700, fontFamily: "Fredoka, sans-serif", color: timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: 12 }}>{timer}</div>
+          )}
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             {letters.map((l, i) => (
               <span key={i} style={{
@@ -1040,6 +1082,7 @@ function Room() {
               </span>
             ))}
           </div>
+          {showTopic && isNarrow && <div style={{ marginTop: 16 }}>{topicBlock("center")}</div>}
         </div>
       )}
 
@@ -1049,11 +1092,7 @@ function Room() {
         <Panel style={{ padding: 16, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
             <h2 style={{ margin: 0, fontSize: 20, color: C.textPrimary }}>Your Acro</h2>
-            {currentTopic && (
-              <p style={{ margin: 0, fontSize: 20, color: C.teal, fontStyle: "italic", fontWeight: 600 }}>
-                {currentTopic}
-              </p>
-            )}
+            {/* The topic is now shown at the top right (or under the letters on phones) */}
           </div>
           {submittedAcro && !isEditing ? (
             <>
@@ -1117,12 +1156,14 @@ function Room() {
             <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No passengers yet</p>
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
-              {[...players].sort((a, b) => b.score - a.score).map(p => (
+              {[...players].sort((a, b) => shownScore(b) - shownScore(a)).map(p => (
                 <li key={p.id}
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
                   onDoubleClick={() => {
                     if (p.id !== auth?.userId) {
-                      setPrivateChat({ userId: p.id, nickname: p.nickname, messages: [] });
+                      // Opens (or re-opens) the chat — the history lives in privateHistory,
+                      // so this no longer wipes earlier messages
+                      setPrivateChat({ userId: p.id, nickname: p.nickname });
                       setUnreadFrom(prev => ({ ...prev, [p.nickname]: 0 }));
                     }
                   }}>
@@ -1135,7 +1176,7 @@ function Room() {
                       </span>
                     )}
                   </span>
-                  <span style={{ color: C.teal, fontWeight: 700 }}>{p.score}</span>
+                  <span style={{ color: C.teal, fontWeight: 700 }}>{shownScore(p)}</span>
                 </li>
               ))}
             </ul>
@@ -1187,10 +1228,10 @@ function Room() {
               <button onClick={() => setPrivateChat(null)} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
             </div>
             <div ref={privateChatListRef} style={{ flex: 1, overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
-              {privateChat.messages.length === 0 ? (
+              {privateMessages.length === 0 ? (
                 <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>Start a private conversation...</p>
               ) : (
-                privateChat.messages.map((m, i) => (
+                privateMessages.map((m, i) => (
                   <div key={i} style={{ fontSize: 15 }}>
                     <span style={{ color: m.nickname === auth?.username ? C.teal : C.lavender, fontWeight: 600 }}>{m.nickname}: </span>
                     <span style={{ color: C.textSecond }}>{m.message}</span>
