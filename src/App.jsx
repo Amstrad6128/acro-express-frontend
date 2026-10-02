@@ -1180,7 +1180,13 @@ function Room() {
       {/* Acro input */}
 
       {phase === "Submitting" && !topicRequested && (
-        <Panel style={{ padding: 16, marginBottom: 16 }}>
+        // Clicking anywhere in this box puts the cursor in the acro field — players
+        // were clicking the light box itself, thinking that was where to type
+        <Panel style={{ padding: 16, marginBottom: 16, cursor: "text" }}
+          onClick={e => {
+            if (e.target.closest("button")) return; // let Submit/Edit/Cancel work normally
+            document.getElementById("acroInput")?.focus();
+          }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
             <h2 style={{ margin: 0, fontSize: 20, color: C.textPrimary }}>Your Acro</h2>
             {/* The topic is now shown at the top right (or under the letters on phones) */}
@@ -1209,7 +1215,8 @@ function Room() {
               <div style={{ display: "flex", gap: 8 }}>
                 <input
                   id="acroInput"
-                  style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 20, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+                  // Clear teal border so the typing field stands out inside the lighter box
+                  style={{ flex: 1, background: C.bgApp, border: `2px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 20, outline: "none", fontFamily: "inherit", textAlign: "center" }}
                   placeholder="Type your acro..."
                   value={myDraft}
                   onChange={e => { setMyDraft(e.target.value); myDraftRef.current = e.target.value; }}
