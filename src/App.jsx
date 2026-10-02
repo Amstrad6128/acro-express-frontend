@@ -655,11 +655,28 @@ function Room() {
       audio.loop = false;
       audioRef.current = audio;
 
+      // The song lasts ~92 seconds and its ending must land on 0: every round
+      // (56–84 s) skips the right amount of its beginning, with a quick fade-in.
+      // (If a round is ever longer than the song, the song starts later instead.)
+      const SONG_SECONDS = 91.9; // extended version (30-second build-up intro + the original song)
+      const skipSeconds = Math.max(0, SONG_SECONDS - (seconds || 0));
+      if (skipSeconds > 0) audio.currentTime = skipSeconds;
+
       const startSong = () => {
         // Round already over (or a new one started) — don't play a stale song
         if (audioRef.current !== audio) return;
         // Submitted during the quiet lead-in → the song runs silently, as after any submit
         if (submittedAcroRef.current) audio.muted = true;
+        // Fade in over 1.5 s when not starting from the very beginning
+        if (skipSeconds > 0) {
+          audio.volume = 0;
+          let v = 0;
+          const fade = setInterval(() => {
+            v = Math.min(1, v + 0.1);
+            audio.volume = v;
+            if (v >= 1) clearInterval(fade);
+          }, 150);
+        }
         audio.play().catch(() => {
           const unlockAndPlay = () => {
             audio.play().catch(() => { });
@@ -671,9 +688,7 @@ function Room() {
         });
       };
 
-      // The song lasts ~60 seconds. Longer rounds start it later, so its ending
-      // always lines up with the timer reaching 0.
-      const SONG_SECONDS = 60.2;
+      // Longer rounds: wait, so the song's ending still lines up with 0
       const delayMs = Math.max(0, ((seconds || 0) - SONG_SECONDS) * 1000);
       if (songTimeoutRef.current) clearTimeout(songTimeoutRef.current);
       songTimeoutRef.current = null;
