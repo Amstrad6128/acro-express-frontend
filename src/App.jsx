@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Routes, Route, useParams, useNavigate } from "react-router-dom";
-import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, getAuth } from "./services/api";
+import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, getAuth, doneVoting } from "./services/api";
 import { useSignalR } from "./hooks/useSignalR";
 import { useLobbyHub } from "./hooks/useLobbyHub";
 
@@ -118,7 +118,7 @@ function Lobby() {
     return saved ? JSON.parse(saved) : null;
   });
   const navigate = useNavigate();
-  const { players, messages, sendMessage } = useLobbyHub();
+  const { players, messages, sendMessage } = useLobbyHub(auth?.username);
   const [chatInput, setChatInput] = useState("");
   const lobbyBottomRef = useRef(null);
 
@@ -311,7 +311,7 @@ function sameId(a, b) {
   return a.toString().toLowerCase() === b.toString().toLowerCase();
 }
 
-function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer }) {
+function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer, topic }) {
   const [submitted, setSubmitted] = useState(false); // true after "I'm done voting" is clicked
   const [selected, setSelected] = useState(null);    // the currently selected entry id
   const [closed, setClosed] = useState(false);
@@ -348,8 +348,11 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer })
     } catch (e) { alert(`Vote failed: ${e.message}`); }
   }
 
-  // Lock in the vote and close the overlay
+  // Lock in the vote and close the overlay. Tells the server too: voting ends
+  // early only when every player has clicked "Done Voting".
   function handleDoneVoting() {
+    const a = getAuth();
+    doneVoting(roomId, a.username).catch(() => { });
     setSubmitted(true);
     if (onVoted) onVoted();
     setClosed(true);
@@ -375,6 +378,12 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer })
         {/* Header */}
         <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${C.border}` }}>
           <h2 style={{ margin: 0, fontSize: 20, color: C.ivory, fontFamily: "Fredoka, sans-serif" }}>{textPair.title}</h2>
+          {/* The round's topic — players asked "what was the topic?" while voting */}
+          {topic && (
+            <p style={{ margin: "6px 0 0", fontSize: 15, color: C.teal }}>
+              Topic: <span style={{ fontWeight: 700 }}>{topic}</span>
+            </p>
+          )}
           {selected && selected !== "blank" && !submitted && (
             <p style={{ margin: "6px 0 0", fontSize: 13, color: C.textMuted }}>
               You can change your vote until you click "Done Voting".
@@ -575,6 +584,7 @@ function Room() {
   const audioRef = useRef(null);      // tune 1 — plays during submission
   const audio2Ref = useRef(null);     // tune 2 — plays after submission until voting
   const votingAudioRef = useRef(null); // drumroll
+  const songTimeoutRef = useRef(null); // delayed start of the writing song (long rounds)
   const topicRequestedRef = useRef(false);
   // Mirrors `phase` so refreshRoomState (run from a setInterval) always reads the
   // current phase — the interval closure otherwise keeps the phase from first render
@@ -645,15 +655,30 @@ function Room() {
       audio.loop = false;
       audioRef.current = audio;
 
-      audio.play().catch(() => {
-        const unlockAndPlay = () => {
-          audio.play().catch(() => { });
-          window.removeEventListener("click", unlockAndPlay);
-          window.removeEventListener("keydown", unlockAndPlay);
-        };
-        window.addEventListener("click", unlockAndPlay);
-        window.addEventListener("keydown", unlockAndPlay);
-      });
+      const startSong = () => {
+        // Round already over (or a new one started) — don't play a stale song
+        if (audioRef.current !== audio) return;
+        // Submitted during the quiet lead-in → the song runs silently, as after any submit
+        if (submittedAcroRef.current) audio.muted = true;
+        audio.play().catch(() => {
+          const unlockAndPlay = () => {
+            audio.play().catch(() => { });
+            window.removeEventListener("click", unlockAndPlay);
+            window.removeEventListener("keydown", unlockAndPlay);
+          };
+          window.addEventListener("click", unlockAndPlay);
+          window.addEventListener("keydown", unlockAndPlay);
+        });
+      };
+
+      // The song lasts ~60 seconds. Longer rounds start it later, so its ending
+      // always lines up with the timer reaching 0.
+      const SONG_SECONDS = 60.2;
+      const delayMs = Math.max(0, ((seconds || 0) - SONG_SECONDS) * 1000);
+      if (songTimeoutRef.current) clearTimeout(songTimeoutRef.current);
+      songTimeoutRef.current = null;
+      if (delayMs > 0) songTimeoutRef.current = setTimeout(startSong, delayMs);
+      else startSong();
     }, []),
 
     // Restored: this handler was accidentally deleted in the May 22 music fix.
@@ -683,7 +708,7 @@ function Room() {
       if (sameId(auth?.userId, creatorUserId)) {
         setTopicRequested(true);
         topicRequestedRef.current = true;
-        setTopicTimer(15);
+        setTopicTimer(25);
       } else {
         postSystemMessage("Waiting for the host to set a topic...");
       }
@@ -715,7 +740,7 @@ function Room() {
         if (sameId(auth?.userId, winnerPlayerId)) {
           setTopicRequested(true);
           topicRequestedRef.current = true;
-          setTopicTimer(15);
+          setTopicTimer(25);
         }
       }, 4180);
     }, [auth]),
@@ -1066,7 +1091,7 @@ function Room() {
 
       {/* Voting overlay */}
       {phase === "Voting" && (
-        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} timer={timer} maxTimer={maxTimer} />)}
+        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} timer={timer} maxTimer={maxTimer} topic={currentTopic} />)}
 
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
@@ -1222,9 +1247,11 @@ function Room() {
                       setUnreadFrom(prev => ({ ...prev, [p.nickname]: 0 }));
                     }
                   }}>
-                  <span style={{ color: C.textSecond }}>
+                  <span style={{ color: p.isConnected === false ? C.textMuted : C.textSecond, opacity: p.isConnected === false ? 0.6 : 1 }}>
                     {p.nickname}
                     {p.id === auth?.userId && <span style={{ color: C.teal, marginLeft: 4 }}>(you)</span>}
+                    {/* Window closed / connection lost — removed after 3 minutes */}
+                    {p.isConnected === false && <span style={{ marginLeft: 4, fontStyle: "italic" }}>(away)</span>}
                     {unreadFrom[p.nickname] > 0 && (
                       <span style={{ marginLeft: 6, background: C.brand, color: "#fff", fontSize: 10, borderRadius: 999, padding: "1px 6px" }}>
                         {unreadFrom[p.nickname]}

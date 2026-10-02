@@ -196,6 +196,19 @@ export async function castVote(roomId, voterNickname, entryId) {
   return j(res);
 }
 
+// The player clicked "Done Voting" — voting ends early once everyone has
+export async function doneVoting(roomId, voterNickname) {
+  const res = await authFetch(
+    `${API_URL}/api/room/${encodeURIComponent(roomId)}/vote/done`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ voterNickname }),
+    }
+  );
+  return j(res);
+}
+
 export async function scoreRound(roomId) {
   const res = await authFetch(
     `${API_URL}/api/room/${encodeURIComponent(roomId)}/round/score`,
