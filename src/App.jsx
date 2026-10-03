@@ -555,20 +555,6 @@ function Room() {
   // don't show before the results are revealed (null = show live scores)
   const [frozenScores, setFrozenScores] = useState(null);
   const playersRef = useRef([]);
-  // The middle "stage" (letters + acro box) is measured while players write, and that
-  // height is kept in every other phase — so Passengers and the chats never jump up or down
-  const stageRef = useRef(null);
-  const [stageH, setStageH] = useState(null);
-  useEffect(() => {
-    if (phase !== "Submitting" || topicRequested) return;
-    const el = stageRef.current;
-    if (!el) return;
-    const measure = () => setStageH(el.offsetHeight);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [phase, topicRequested]);
   // Narrow screens (phones): the topic moves from the top right to under the letters
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 900);
   useEffect(() => {
@@ -1065,7 +1051,9 @@ function Room() {
 
   return (
     // Wide side margins on desktop (like AcroChallenge), tighter on phones
-    <div style={{ height: "100vh", overflowY: "auto", color: C.textPrimary, padding: isNarrow ? 16 : "24px 64px" }}>
+    // The page fills the window exactly: header on top, the stage takes whatever space is left,
+    // and Passengers + chats are pinned to the bottom, so they never move between phases
+    <div style={{ height: "100vh", boxSizing: "border-box", overflow: "hidden", display: "flex", flexDirection: "column", color: C.textPrimary, padding: isNarrow ? 16 : "clamp(12px, 3vh, 24px) 64px" }}>
 
       {/* Floating panels (like AcroChallenge): round results on top, the winner's topic
           prompt under it. They float above the page, so nothing underneath moves. */}
@@ -1121,7 +1109,7 @@ function Room() {
         <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} timer={timer} maxTimer={maxTimer} topic={currentTopic} />)}
 
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+      <div style={{ flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "clamp(8px, 2vh, 24px)" }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || `Room #${id}`}</h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
@@ -1142,8 +1130,8 @@ function Room() {
         </div>
       </div>
 
-      {/* Stage — fixed height outside the writing phase (see stageRef above) */}
-      <div ref={stageRef} style={stageH && !(phase === "Submitting" && !topicRequested) ? { display: "flow-root", height: stageH, overflowY: "auto" } : { display: "flow-root" }}>
+      {/* Stage — takes the space between the header and the bottom boxes (scrolls inside if needed) */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flow-root" }}>
 
 
       {/* Game over — shown inline where letters normally appear */}
@@ -1166,16 +1154,16 @@ function Room() {
 
       {/* Letters */}
       {letters.length > 0 && !topicRequested && phase !== "Results" && phase !== "GameOver" && (
-        <div style={{ textAlign: "center", padding: "24px 0" }}>
+        <div style={{ textAlign: "center", padding: "clamp(4px, 2vh, 24px) 0" }}>
           {/* Countdown — number only, centred above the letters, red in the last 10 seconds */}
           {timer !== null && timer > 0 && (
-            <div style={{ fontSize: 46, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: 12 }}>{timer}</div>
+            <div style={{ fontSize: "clamp(28px, 6vh, 46px)", fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: "clamp(4px, 1.5vh, 12px)" }}>{timer}</div>
           )}
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             {letters.map((l, i) => (
               <span key={i} style={{
                 fontFamily: "'Bowlby One SC', serif",
-                fontSize: "6rem",
+                fontSize: "clamp(3rem, 11vh, 6rem)", // smaller on short laptop screens
                 lineHeight: 1,
                 color: C.brand,
                 textShadow: `3px 3px 0px rgba(0,0,0,0.5)`,
@@ -1270,10 +1258,10 @@ function Room() {
       </div>
 
       {/* Bottom: players | chat | private chat */}
-      <div style={{ display: "grid", gridTemplateColumns: privateChat ? "1fr 2fr 1fr" : "1fr 3fr", gap: 16 }}>
+      <div style={{ flexShrink: 0, height: "clamp(170px, 30vh, 320px)", display: "grid", gridTemplateColumns: privateChat ? "1fr 2fr 1fr" : "1fr 3fr", gap: 16 }}>
 
         {/* Players */}
-        <Panel style={{ padding: 16 }}>
+        <Panel style={{ padding: 16, minHeight: 0, overflowY: "auto", boxSizing: "border-box" }}>
           <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Passengers</h2>
           {players.length === 0 ? (
             <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No passengers yet</p>
@@ -1293,7 +1281,7 @@ function Room() {
                   <span style={{ color: p.isConnected === false ? C.textMuted : C.textSecond, opacity: p.isConnected === false ? 0.6 : 1 }}>
                     {p.nickname}
                     {p.id === auth?.userId && <span style={{ color: C.teal, marginLeft: 4 }}>(you)</span>}
-                    {/* Window closed / connection lost — removed after 3 minutes */}
+                    {/* Window closed / connection lost — removed after about 10 seconds */}
                     {p.isConnected === false && <span style={{ marginLeft: 4, fontStyle: "italic" }}>(away)</span>}
                     {unreadFrom[p.nickname] > 0 && (
                       <span style={{ marginLeft: 6, background: C.brand, color: "#fff", fontSize: 10, borderRadius: 999, padding: "1px 6px" }}>
@@ -1309,11 +1297,11 @@ function Room() {
         </Panel>
 
         {/* Room chat */}
-        <Panel style={{ padding: 0, display: "flex", flexDirection: "column" }}>
+        <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}` }}>
             <h2 style={{ margin: 0, fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Room Chat</h2>
           </div>
-          <div ref={chatListRef} style={{ overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+          <div ref={chatListRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
             {roomMessages.length === 0 ? (
               <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No messages yet...</p>
             ) : (
@@ -1345,14 +1333,14 @@ function Room() {
 
         {/* Private chat */}
         {privateChat && (
-          <Panel style={{ padding: 0, display: "flex", flexDirection: "column", borderColor: C.lavender }}>
+          <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 0, borderColor: C.lavender }}>
             <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2 style={{ margin: 0, fontSize: 14, color: C.lavender, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Private · {privateChat.nickname}
               </h2>
               <button onClick={() => setPrivateChat(null)} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
             </div>
-            <div ref={privateChatListRef} style={{ flex: 1, overflowY: "auto", height: 200, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+            <div ref={privateChatListRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
               {privateMessages.length === 0 ? (
                 <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>Start a private conversation...</p>
               ) : (
