@@ -526,6 +526,9 @@ function Room() {
   const [timer, setTimer] = useState(null);
   const [submittedAcro, setSubmittedAcro] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  // Why the last acro wasn't accepted (shown under the input; cleared when typing)
+  const [acroError, setAcroError] = useState("");
+  const draftTimerRef = useRef(null);
   const [currentTopic, setCurrentTopic] = useState("");
 
   const [roomMessages, setRoomMessages] = useState([]);
@@ -628,6 +631,7 @@ function Room() {
       setIsEditing(false);
       setMyDraft("");
       myDraftRef.current = "";
+      setAcroError("");
       // Show this round's topic next to the acro input.
       // Before, this line cleared the topic — but TopicSet arrives just BEFORE
       // RoundStarted, so the topic was wiped the moment the round began.
@@ -967,14 +971,12 @@ function Room() {
 
   useEffect(() => {
     if (timer === null || timer <= 0) return;
-    const currentPhase = phase;
     const iv = setInterval(() => {
       setTimer(t => {
         if (t <= 1) {
           clearInterval(iv);
-          if (currentPhase === "Submitting" && myDraftRef.current.trim() && !submittedAcroRef.current) {
-            handleSubmitAcroRef.current?.();
-          }
+          // (No auto-submit here any more: the server collects unsent acros at time-up,
+          //  from what the player typed — see saveDraft below.)
           return 0;
         }
         return t - 1;
@@ -982,6 +984,15 @@ function Room() {
     }, 1000);
     return () => clearInterval(iv);
   }, [timer]);
+
+  // Sends what the player is typing to the server (a moment after they stop typing),
+  // so a valid acro is still entered if the time runs out before they press Submit
+  function saveDraft(text, immediately = false) {
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    const send = () => connectionRef.current?.invoke("SaveDraft", text).catch(() => { });
+    if (immediately) send();
+    else draftTimerRef.current = setTimeout(send, 250);
+  }
 
   async function handleSubmitAcro() {
     const text = myDraftRef.current.trim();
@@ -998,6 +1009,8 @@ function Room() {
         return;
       }
       await submitAcro(id, auth.userId, text);
+      setAcroError("");
+      saveDraft("", true);   // submitted — nothing left to collect
       setSubmittedAcro(text);
       submittedAcroRef.current = text;
       setIsEditing(false);
@@ -1011,11 +1024,10 @@ function Room() {
       audio2Ref.current.play().catch(() => { });
       setTimeout(() => document.getElementById("chatInput")?.focus(), 100);
     } catch (e) {
-      if (e.message?.includes("SINGLE_LETTER")) {
-        alert("😄 Come on, you can do better than that! Each word needs more than one letter.");
-      } else {
-        alert(`Submit failed: ${e.message}`);
-      }
+      // Show the server's reason under the input, e.g. "Word 2 ("apple") should start with V."
+      // (the error text arrives as "400: <reason>")
+      const reason = (e.message || "").replace(/^\d{3}:\s*/, "").replace(/^"|"$/g, "");
+      setAcroError(reason || "That acro wasn't accepted.");
     }
   }
 
@@ -1219,12 +1231,21 @@ function Room() {
                   style={{ flex: 1, background: C.bgApp, border: `2px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 20, outline: "none", fontFamily: "inherit", textAlign: "center" }}
                   placeholder="Type your acro..."
                   value={myDraft}
-                  onChange={e => { setMyDraft(e.target.value); myDraftRef.current = e.target.value; }}
+                  onChange={e => {
+                    setMyDraft(e.target.value);
+                    myDraftRef.current = e.target.value;
+                    setAcroError("");
+                    saveDraft(e.target.value);
+                  }}
                   onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
                 />
                 <Btn onClick={handleSubmitAcro}>{isEditing ? "Update" : "Submit"}</Btn>
-                {isEditing && <BtnSecondary onClick={() => setIsEditing(false)}>Cancel</BtnSecondary>}
+                {isEditing && <BtnSecondary onClick={() => { setIsEditing(false); setAcroError(""); saveDraft("", true); }}>Cancel</BtnSecondary>}
               </div>
+              {/* Why the acro wasn't accepted */}
+              {acroError && (
+                <p style={{ margin: "8px 0 0", color: C.brand, fontSize: 15, textAlign: "center" }}>{acroError}</p>
+              )}
             </>
           )}
         </Panel>

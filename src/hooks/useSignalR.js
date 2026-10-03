@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import * as signalR from "@microsoft/signalr";
-import { API_URL, getAuth } from "../services/api";
+import { API_URL, getAuth, joinRoom } from "../services/api";
 
 export function useSignalR(roomId, handlers = {}) {
   const connectionRef = useRef(null);
@@ -47,6 +47,10 @@ export function useSignalR(roomId, handlers = {}) {
     connection.onreconnected(async () => {
       try {
         await connection.invoke("JoinRoom", roomId, getAuth()?.userId?.toString());
+        // Also re-join the room itself, in case the server removed us while we were
+        // disconnected (e.g. during a server restart) — this restores our score too
+        const a = getAuth();
+        if (a?.userId) await joinRoom(roomId, { id: a.userId, nickname: a.username, score: 0 });
       } catch (err) {
         console.error("SignalR re-join failed:", err);
       }
