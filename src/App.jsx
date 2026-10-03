@@ -121,6 +121,10 @@ function Lobby() {
   const { players, messages, sendMessage } = useLobbyHub(auth?.username);
   const [chatInput, setChatInput] = useState("");
   const lobbyBottomRef = useRef(null);
+  // Create Room: an inline name field instead of the browser's pop-up
+  const [creating, setCreating] = useState(false);
+  const [newRoomName, setNewRoomName] = useState("");
+  const [createError, setCreateError] = useState("");
 
   async function doRegister() {
     try {
@@ -168,16 +172,19 @@ function Lobby() {
     lobbyBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  function cancelCreate() {
+    setCreating(false); setNewRoomName(""); setCreateError("");
+  }
+
   async function handleCreate() {
-    if (!auth) { alert("Please log in first!"); return; }
-    const name = window.prompt("Name your room:", "");
-    if (!name || !name.trim()) return;
+    const name = newRoomName.trim();
+    if (!name) { setCreateError("Give your room a name."); return; }
     try {
-      const data = await createRoom(name.trim());
+      const data = await createRoom(name);
       const id = data?.id || data?.roomId;
       if (!id) throw new Error("No room id");
       navigate(`/room/${encodeURIComponent(id)}`);
-    } catch (e) { alert(`Error: ${e.message}`); }
+    } catch (e) { setCreateError(`Couldn't create the room: ${e.message}`); }
   }
 
   return (
@@ -221,8 +228,26 @@ function Lobby() {
         {auth && <Panel style={{ padding: 16, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h2 style={{ margin: 0, fontSize: 16, color: C.textPrimary }}>Game Rooms</h2>
-            <Btn onClick={handleCreate}>+ Create Room</Btn>
+            {!creating && <Btn onClick={() => setCreating(true)}>+ Create Room</Btn>}
           </div>
+          {creating && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  autoFocus
+                  maxLength={40}
+                  placeholder="Name your room..."
+                  value={newRoomName}
+                  onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
+                  onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
+                  style={{ flex: 1, background: C.bgApp, border: `2px solid ${C.teal}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit" }}
+                />
+                <Btn onClick={handleCreate}>Create</Btn>
+                <BtnSecondary onClick={cancelCreate}>Cancel</BtnSecondary>
+              </div>
+              {createError && <p style={{ margin: "6px 0 0", fontSize: 14, color: C.brand }}>{createError}</p>}
+            </div>
+          )}
           {roomList.length === 0 ? (
             <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No rooms yet. Create one!</p>
           ) : (
@@ -1109,7 +1134,8 @@ function Room() {
         <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} timer={timer} maxTimer={maxTimer} topic={currentTopic} />)}
 
       {/* Header */}
-      <div style={{ flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "clamp(8px, 2vh, 24px)" }}>
+      {/* minHeight keeps room for the topic (top right), so the header is the same height with or without it */}
+      <div style={{ flexShrink: 0, minHeight: isNarrow ? 0 : 104, display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "clamp(8px, 2vh, 24px)" }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || `Room #${id}`}</h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
@@ -1130,8 +1156,10 @@ function Room() {
         </div>
       </div>
 
-      {/* Stage — takes the space between the header and the bottom boxes (scrolls inside if needed) */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flow-root" }}>
+      {/* Stage — always the height the writing phase needs (timer + letters + acro box + room
+          for an error line), in every phase, so the boxes below never move. Passengers and the
+          chats get all the remaining space. On short screens the stage shrinks and scrolls inside. */}
+      <div style={{ flex: "0 1 calc(2 * clamp(4px, 2vh, 24px) + clamp(28px, 6vh, 46px) + clamp(4px, 1.5vh, 12px) + clamp(3rem, 11vh, 6rem) + 200px)", minHeight: 0, overflowY: "auto", display: "flow-root" }}>
 
 
       {/* Game over — shown inline where letters normally appear */}
@@ -1258,7 +1286,7 @@ function Room() {
       </div>
 
       {/* Bottom: players | chat | private chat */}
-      <div style={{ flexShrink: 0, height: "clamp(170px, 30vh, 320px)", display: "grid", gridTemplateColumns: privateChat ? "1fr 2fr 1fr" : "1fr 3fr", gap: 16 }}>
+      <div style={{ flex: "1 0 170px", minHeight: 170, display: "grid", gridTemplateRows: "minmax(0, 1fr)", gridTemplateColumns: privateChat ? "1fr 2fr 1fr" : "1fr 3fr", gap: 16 }}>
 
         {/* Players */}
         <Panel style={{ padding: 16, minHeight: 0, overflowY: "auto", boxSizing: "border-box" }}>
