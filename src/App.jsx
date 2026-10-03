@@ -405,9 +405,10 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer, t
           <h2 style={{ margin: 0, fontSize: 20, color: C.ivory, fontFamily: "Fredoka, sans-serif" }}>{textPair.title}</h2>
           {/* The round's topic — players asked "what was the topic?" while voting */}
           {topic && (
-            <p style={{ margin: "6px 0 0", fontSize: 15, color: C.teal }}>
-              Topic: <span style={{ fontWeight: 700 }}>{topic}</span>
-            </p>
+            <div style={{ margin: "10px 0 0", textAlign: "center" }}>
+              <div style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Topic</div>
+              <div style={{ fontSize: 24, color: C.teal, fontWeight: 700, fontFamily: "Fredoka, sans-serif", lineHeight: 1.2, overflowWrap: "anywhere" }}>{topic}</div>
+            </div>
           )}
           {selected && selected !== "blank" && !submitted && (
             <p style={{ margin: "6px 0 0", fontSize: 13, color: C.textMuted }}>
@@ -1096,6 +1097,10 @@ function Room() {
           <p style={{ margin: "0 0 16px", color: C.textMuted, fontSize: 15 }}>
             You have <span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span> — or it defaults to General Acro.
           </p>
+          {/* Letters go 3,4,5,6,7 and repeat — same rule as the server (3 + (round - 1) % 5) */}
+          <p style={{ margin: "0 0 16px", color: C.textSecond, fontSize: 16 }}>
+            Next round: <span style={{ color: C.brand, fontWeight: 700, fontFamily: NUM_FONT }}>{3 + (currentRound % 5)}</span> letters
+          </p>
           <div style={{ display: "flex", gap: 8, maxWidth: 500, margin: "0 auto" }}>
             <input
               id="topicInput"
@@ -1156,10 +1161,9 @@ function Room() {
         </div>
       </div>
 
-      {/* Stage — always the height the writing phase needs (timer + letters + acro box + room
-          for an error line), in every phase, so the boxes below never move. Passengers and the
+      {/* Stage — always the height the writing phase needs (timer + letters + acro box), in every phase, so the boxes below never move. Passengers and the
           chats get all the remaining space. On short screens the stage shrinks and scrolls inside. */}
-      <div style={{ flex: "0 1 calc(2 * clamp(4px, 2vh, 24px) + clamp(28px, 6vh, 46px) + clamp(4px, 1.5vh, 12px) + clamp(3rem, 11vh, 6rem) + 200px)", minHeight: 0, overflowY: "auto", display: "flow-root" }}>
+      <div style={{ flex: "0 1 calc(2 * clamp(4px, 2vh, 24px) + clamp(28px, 6vh, 46px) + clamp(4px, 1.5vh, 12px) + clamp(3rem, 11vh, 6rem) + 173px)", minHeight: 0, overflowY: "auto", display: "flow-root" }}>
 
 
       {/* Game over — shown inline where letters normally appear */}
@@ -1237,8 +1241,9 @@ function Room() {
             </>
           ) : (
             <>
-              <p style={{ margin: "0 0 10px", fontSize: 15, color: C.textMuted }}>
-                Type a sentence where each word starts with the letters above.
+              {/* Why the acro wasn't accepted — shown in place of the hint, so the box never grows */}
+              <p style={{ margin: "0 0 10px", fontSize: 15, color: acroError ? C.brand : C.textMuted, fontWeight: acroError ? 600 : 400 }}>
+                {acroError || "Type a sentence where each word starts with the letters above."}
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <input
@@ -1258,10 +1263,6 @@ function Room() {
                 <Btn onClick={handleSubmitAcro}>{isEditing ? "Update" : "Submit"}</Btn>
                 {isEditing && <BtnSecondary onClick={() => { setIsEditing(false); setAcroError(""); saveDraft("", true); }}>Cancel</BtnSecondary>}
               </div>
-              {/* Why the acro wasn't accepted */}
-              {acroError && (
-                <p style={{ margin: "8px 0 0", color: C.brand, fontSize: 15, textAlign: "center" }}>{acroError}</p>
-              )}
             </>
           )}
         </Panel>
