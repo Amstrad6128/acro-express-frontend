@@ -1162,8 +1162,9 @@ function Room() {
       </div>
 
       {/* Stage — always the height the writing phase needs (timer + letters + acro box), in every phase, so the boxes below never move. Passengers and the
-          chats get all the remaining space. On short screens the stage shrinks and scrolls inside. */}
-      <div style={{ flex: "0 1 calc(2 * clamp(4px, 2vh, 24px) + clamp(28px, 6vh, 46px) + clamp(4px, 1.5vh, 12px) + clamp(3rem, 11vh, 6rem) + 173px)", minHeight: 0, overflowY: "auto", display: "flow-root" }}>
+          chats get all the remaining space. On short screens the stage shrinks and scrolls inside.
+          scrollbarWidth "none" hides the scrollbar (rounding made a 1px overflow show one) — the wheel still scrolls. */}
+      <div style={{ flex: "0 1 calc(2 * clamp(4px, 2vh, 24px) + clamp(28px, 6vh, 46px) + clamp(4px, 1.5vh, 12px) + clamp(3rem, 11vh, 6rem) + 173px)", minHeight: 0, overflowY: "auto", scrollbarWidth: "none", display: "flow-root" }}>
 
 
       {/* Game over — shown inline where letters normally appear */}
