@@ -567,6 +567,8 @@ function Room() {
 
   const [maxTimer, setMaxTimer] = useState(60); // tracks initial timer value for the progress bar
   const [topicRequested, setTopicRequested] = useState(false);
+  // True when the topic prompt is for round 1 (Start Game / New Game), false when the round winner sets it
+  const [topicForFirstRound, setTopicForFirstRound] = useState(false);
   const [topicDraft, setTopicDraft] = useState("");
   const [topicTimer, setTopicTimer] = useState(null);
 
@@ -737,6 +739,7 @@ function Room() {
       setPhase(prev => (prev === "GameOver" || prev === "Paused" ? "Starting" : prev));
       // sameId ignores case differences between the backend Guid and localStorage
       if (sameId(auth?.userId, creatorUserId)) {
+        setTopicForFirstRound(true); // a new game always starts at round 1 (3 letters)
         setTopicRequested(true);
         topicRequestedRef.current = true;
         setTopicTimer(25);
@@ -769,6 +772,7 @@ function Room() {
 
         // Round winner picks the next topic (sameId ignores Guid case differences)
         if (sameId(auth?.userId, winnerPlayerId)) {
+          setTopicForFirstRound(false); // topic for the round after the one that just ended
           setTopicRequested(true);
           topicRequestedRef.current = true;
           setTopicTimer(25);
@@ -1097,9 +1101,10 @@ function Room() {
           <p style={{ margin: "0 0 16px", color: C.textMuted, fontSize: 15 }}>
             You have <span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span> — or it defaults to General Acro.
           </p>
-          {/* Letters go 3,4,5,6,7 and repeat — same rule as the server (3 + (round - 1) % 5) */}
+          {/* Letters go 3,4,5,6,7 and repeat — same rule as the server (3 + (round - 1) % 5).
+              Round 1 always has 3; otherwise currentRound is the round that just ended, so the next one has 3 + (currentRound % 5) */}
           <p style={{ margin: "0 0 16px", color: C.textSecond, fontSize: 16 }}>
-            Next round: <span style={{ color: C.brand, fontWeight: 700, fontFamily: NUM_FONT }}>{3 + (currentRound % 5)}</span> letters
+            Next round: <span style={{ color: C.brand, fontWeight: 700, fontFamily: NUM_FONT }}>{topicForFirstRound ? 3 : 3 + (currentRound % 5)}</span> letters
           </p>
           <div style={{ display: "flex", gap: 8, maxWidth: 500, margin: "0 auto" }}>
             <input
