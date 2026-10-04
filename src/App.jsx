@@ -585,8 +585,14 @@ function Room() {
   const playersRef = useRef([]);
   // Narrow screens (phones): the topic moves from the top right to under the letters
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 900);
+  // Short windows (under 800px tall, e.g. Windows display scale 125% or browser zoom):
+  // smaller header, timer and letters, so Passengers and the chats get more height
+  const [isShort, setIsShort] = useState(() => window.innerHeight < 800);
   useEffect(() => {
-    const onResize = () => setIsNarrow(window.innerWidth < 900);
+    const onResize = () => {
+      setIsNarrow(window.innerWidth < 900);
+      setIsShort(window.innerHeight < 800); // re-check the height too when the window changes
+    };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
@@ -651,7 +657,11 @@ function Room() {
       // RoundStarted, so the topic was wiped the moment the round began.
       if (typeof topic === "string") setCurrentTopic(topic);
       setCurrentRound(roundNumber);
-      postSystemMessage(`Round ${roundNumber} has begun.`);
+      // One chat line per round with the topic in it (before, the topic had its own line,
+      // which left less room for real chat on short screens)
+      postSystemMessage(typeof topic === "string" && topic.trim()
+        ? `Round ${roundNumber} has begun — Topic: "${topic}"`
+        : `Round ${roundNumber} has begun.`);
       setMaxTimer(seconds);
 
       if (!topicRequestedRef.current) {
@@ -833,7 +843,7 @@ function Room() {
       setTopicDraft("");
       setTopicTimer(null);
       setCurrentTopic(topic);
-      postSystemMessage(`Topic for this round: "${topic}"`);
+      // No chat line here — RoundStarted (sent right after this) posts the round and topic together
     }, []),
 
     onPrivateMessage: useCallback((senderNickname, message) => {
@@ -1072,10 +1082,16 @@ function Room() {
   const privateMessages = privateChat ? (privateHistory[privateChat.nickname] || []) : [];
   // Topic is shown while players are writing their acros
   const showTopic = !!currentTopic && phase === "Submitting" && !topicRequested;
+  // Stage sizes — compact versions on short windows. Used both by the elements and by the
+  // stage height formula below, so the formula always matches what is drawn.
+  const stagePad = isShort ? "clamp(4px, 1vh, 24px)" : "clamp(4px, 2vh, 24px)";       // space above and below the letters
+  const timerSize = isShort ? "clamp(28px, 5vh, 46px)" : "clamp(28px, 6vh, 46px)";     // countdown number
+  const letterSize = isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters
   const topicBlock = (align) => (
     <div style={{ textAlign: align }}>
       <div style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Topic</div>
-      <div style={{ fontSize: 28, color: C.teal, fontWeight: 700, fontFamily: "Fredoka, sans-serif", lineHeight: 1.15, maxWidth: 420, overflowWrap: "anywhere" }}>{currentTopic}</div>
+      {/* Smaller topic on short windows so it fits in the shorter header */}
+      <div style={{ fontSize: isShort ? 20 : 28, color: C.teal, fontWeight: 700, fontFamily: "Fredoka, sans-serif", lineHeight: 1.15, maxWidth: 420, overflowWrap: "anywhere" }}>{currentTopic}</div>
     </div>
   );
 
@@ -1144,8 +1160,9 @@ function Room() {
         <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} timer={timer} maxTimer={maxTimer} topic={currentTopic} />)}
 
       {/* Header */}
-      {/* minHeight keeps room for the topic (top right), so the header is the same height with or without it */}
-      <div style={{ flexShrink: 0, minHeight: isNarrow ? 0 : 104, display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "clamp(8px, 2vh, 24px)" }}>
+      {/* minHeight keeps room for the topic (top right), so the header is the same height with or without it.
+          Short windows: 86px (smaller topic and gap) instead of 104px */}
+      <div style={{ flexShrink: 0, minHeight: isNarrow ? 0 : (isShort ? 86 : 104), display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "clamp(8px, 2vh, 24px)" }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || `Room #${id}`}</h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
@@ -1155,7 +1172,8 @@ function Room() {
             {/* The timer moved to the centre, above the letters */}
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 16 }}>
+        {/* Gap between the buttons and the topic: 6px on short windows, 16px otherwise */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 6 : 16 }}>
           <div style={{ display: "flex", gap: 8 }}>
             {/* After a game ends the room is back in Waiting, so a new game can be started */}
             {(phase === "Waiting" || phase === "GameOver" || phase === "Paused") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
@@ -1169,7 +1187,7 @@ function Room() {
       {/* Stage — always the height the writing phase needs (timer + letters + acro box), in every phase, so the boxes below never move. Passengers and the
           chats get all the remaining space. On short screens the stage shrinks and scrolls inside.
           scrollbarWidth "none" hides the scrollbar (rounding made a 1px overflow show one) — the wheel still scrolls. */}
-      <div style={{ flex: "0 1 calc(2 * clamp(4px, 2vh, 24px) + clamp(28px, 6vh, 46px) + clamp(4px, 1.5vh, 12px) + clamp(3rem, 11vh, 6rem) + 173px)", minHeight: 0, overflowY: "auto", scrollbarWidth: "none", display: "flow-root" }}>
+      <div style={{ flex: `0 1 calc(2 * ${stagePad} + ${timerSize} + clamp(4px, 1.5vh, 12px) + ${letterSize} + 173px)`, minHeight: 0, overflowY: "auto", scrollbarWidth: "none", display: "flow-root" }}>
 
 
       {/* Game over — shown inline where letters normally appear */}
@@ -1192,16 +1210,16 @@ function Room() {
 
       {/* Letters */}
       {letters.length > 0 && !topicRequested && phase !== "Results" && phase !== "GameOver" && (
-        <div style={{ textAlign: "center", padding: "clamp(4px, 2vh, 24px) 0" }}>
+        <div style={{ textAlign: "center", padding: `${stagePad} 0` }}>
           {/* Countdown — number only, centred above the letters, red in the last 10 seconds */}
           {timer !== null && timer > 0 && (
-            <div style={{ fontSize: "clamp(28px, 6vh, 46px)", fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: "clamp(4px, 1.5vh, 12px)" }}>{timer}</div>
+            <div style={{ fontSize: timerSize, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: "clamp(4px, 1.5vh, 12px)" }}>{timer}</div>
           )}
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             {letters.map((l, i) => (
               <span key={i} style={{
                 fontFamily: "'Bowlby One SC', serif",
-                fontSize: "clamp(3rem, 11vh, 6rem)", // smaller on short laptop screens
+                fontSize: letterSize, // smaller on short laptop screens (even smaller on short windows)
                 lineHeight: 1,
                 color: C.brand,
                 textShadow: `3px 3px 0px rgba(0,0,0,0.5)`,
@@ -1292,8 +1310,10 @@ function Room() {
 
       </div>
 
-      {/* Bottom: players | chat | private chat */}
-      <div style={{ flex: "1 0 170px", minHeight: 170, display: "grid", gridTemplateRows: "minmax(0, 1fr)", gridTemplateColumns: privateChat ? "1fr 2fr 1fr" : "1fr 3fr", gap: 16 }}>
+      {/* Bottom: players | chat | private chat.
+          Always at least 40% of the window height (never below 170px) — on short windows the stage
+          above gives way first (it shrinks and scrolls inside), so the chat stays readable */}
+      <div style={{ flex: "1 0 max(170px, 40vh)", minHeight: "max(170px, 40vh)", display: "grid", gridTemplateRows: "minmax(0, 1fr)", gridTemplateColumns: privateChat ? "1fr 2fr 1fr" : "1fr 3fr", gap: 16 }}>
 
         {/* Players */}
         <Panel style={{ padding: 16, minHeight: 0, overflowY: "auto", boxSizing: "border-box" }}>
