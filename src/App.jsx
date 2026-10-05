@@ -336,7 +336,7 @@ function sameId(a, b) {
   return a.toString().toLowerCase() === b.toString().toLowerCase();
 }
 
-function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer, topic }) {
+function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer, maxTimer, topic }) {
   const [submitted, setSubmitted] = useState(false); // true after "I'm done voting" is clicked
   const [selected, setSelected] = useState(null);    // the currently selected entry id
   const [closed, setClosed] = useState(false);
@@ -359,6 +359,8 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer, t
       // Always send the vote — backend handles re-voting by replacing old vote
       await castVote(roomId, auth.username, entryId);
       setSelected(entryId);
+      // Tell the room which acro I picked, so the results can highlight it
+      onVoteCast?.(entries.find(e => e.id === entryId)?.sentence ?? null);
     } catch (e) { alert(`Vote failed: ${e.message}`); }
   }
 
@@ -370,6 +372,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer, t
       // Guid.Empty signals a blank vote on the backend
       await castVote(roomId, auth.username, "00000000-0000-0000-0000-000000000000");
       setSelected("blank");
+      onVoteCast?.(null); // blank vote — nothing to highlight in the results
     } catch (e) { alert(`Vote failed: ${e.message}`); }
   }
 
@@ -478,7 +481,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, timer, maxTimer, t
 }
 
 // ── Results Screen ─────────────────────────────────────────────
-function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose }) {
+function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote }) {
   const sorted = Object.entries(scores || {}).sort((a, b) => b[1] - a[1]);
   const anyPoints = sorted.some(([, s]) => s > 0);
 
@@ -516,12 +519,16 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
             {sorted.map(([name, score]) => {
               // Winner = wrote the winning acro (several authors if identical acros were merged)
               const isWinner = !!winningAcro && entryByNickname[name] === winningAcro && score > 0;
+              // The acro this player voted for (Sandy: "when I look at the box, I can never remember")
+              const isMyVote = !!myVote && entryByNickname[name] === myVote;
               const colour = isWinner ? C.brand : C.textSecond;
               return (
-                <tr key={name} style={{ background: isWinner ? `${C.brand}1a` : "transparent" }}>
+                <tr key={name} style={{ background: isWinner ? `${C.brand}1a` : "transparent", boxShadow: isMyVote ? `inset 3px 0 0 ${C.teal}` : "none" }}>{/* teal bar on the left = my vote */}
                   <td style={{ ...cell, color: colour, fontWeight: isWinner ? 700 : 400 }}>{name}</td>
                   <td style={{ ...cell, textAlign: "center", color: isWinner ? C.brand : C.teal, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{score}</td>
-                  <td style={{ ...cell, color: isWinner ? C.ivory : C.textSecond, fontStyle: "italic" }}>{entryByNickname[name] || "—"}</td>
+                  <td style={{ ...cell, color: isWinner ? C.ivory : C.textSecond, fontStyle: "italic" }}>{entryByNickname[name] || "—"}
+                    {/* Small tag after the acro I voted for */}
+                    {isMyVote && <span style={{ marginLeft: 8, fontSize: 12, fontStyle: "normal", color: C.teal, fontWeight: 700, whiteSpace: "nowrap" }}>✓ your vote</span>}</td>
                 </tr>
               );
             })}
@@ -543,6 +550,8 @@ function Room() {
 
   const [state, setState] = useState({ loading: true, error: null, data: null });
   const [myDraft, setMyDraft] = useState("");
+  // The acro I voted for this round (null = no vote / blank) — highlighted in the results
+  const [myVote, setMyVote] = useState(null);
   const [phase, setPhase] = useState("Waiting");
   const [currentRound, setCurrentRound] = useState(1);
   const [letters, setLetters] = useState([]);
@@ -583,6 +592,8 @@ function Room() {
   // don't show before the results are revealed (null = show live scores)
   const [frozenScores, setFrozenScores] = useState(null);
   const playersRef = useRef([]);
+  // When each player's leaving was last announced (id → time), so it shows once, not 2–3 times
+  const leftAnnouncedRef = useRef({});
   // Narrow screens (phones): the topic moves from the top right to under the letters
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 900);
   // Short windows (under 800px tall, e.g. Windows display scale 125% or browser zoom):
@@ -652,6 +663,7 @@ function Room() {
       setMyDraft("");
       myDraftRef.current = "";
       setAcroError("");
+      setMyVote(null); // new round — forget last round's vote
       // Show this round's topic next to the acro input.
       // Before, this line cleared the topic — but TopicSet arrives just BEFORE
       // RoundStarted, so the topic was wiped the moment the round began.
@@ -865,9 +877,16 @@ function Room() {
       refreshRoomState();
     }, []),
 
-    onPlayerLeft: useCallback(() => {
+    onPlayerLeft: useCallback((leftId) => {
       refreshRoomState();
-      postSystemMessage("A player has left the room.");
+      // The server can announce the same departure up to 3 times, sometimes with a
+      // connection id instead of the player id. Only announce players we know, once per 30 s.
+      const leaver = playersRef.current.find(p => sameId(p.id, leftId));
+      const lastTime = leaver ? leftAnnouncedRef.current[leaver.id] : 0;
+      if (leaver && (!lastTime || Date.now() - lastTime > 30000)) {
+        leftAnnouncedRef.current[leaver.id] = Date.now(); // remember, so the repeats are skipped
+        postSystemMessage(`${leaver.nickname} has left the room.`);
+      }
     }, []),
 
     onChatMessage: useCallback(() => { }, []),
@@ -1107,7 +1126,7 @@ function Room() {
         <div style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", width: "min(900px, calc(100% - 32px))", maxHeight: "calc(100vh - 100px)", overflowY: "auto", zIndex: 40, display: "flex", flexDirection: "column", gap: 16 }}>
           {phase === "Results" && !resultsClosed && (
             <ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players}
-              round={currentRound} topic={currentTopic} onClose={() => setResultsClosed(true)} />
+              round={currentRound} topic={currentTopic} onClose={() => setResultsClosed(true)} myVote={myVote} />
           )}
           {topicRequested && (
         <Panel style={{ padding: 20, borderColor: C.teal, textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
@@ -1157,7 +1176,7 @@ function Room() {
 
       {/* Voting overlay */}
       {phase === "Voting" && (
-        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} timer={timer} maxTimer={maxTimer} topic={currentTopic} />)}
+        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} onVoteCast={setMyVote} timer={timer} maxTimer={maxTimer} topic={currentTopic} />)}
 
       {/* Header */}
       {/* minHeight keeps room for the topic (top right), so the header is the same height with or without it.
@@ -1186,8 +1205,9 @@ function Room() {
 
       {/* Stage — always the height the writing phase needs (timer + letters + acro box), in every phase, so the boxes below never move. Passengers and the
           chats get all the remaining space. On short screens the stage shrinks and scrolls inside.
-          scrollbarWidth "none" hides the scrollbar (rounding made a 1px overflow show one) — the wheel still scrolls. */}
-      <div style={{ flex: `0 1 calc(2 * ${stagePad} + ${timerSize} + clamp(4px, 1.5vh, 12px) + ${letterSize} + 173px)`, minHeight: 0, overflowY: "auto", scrollbarWidth: "none", display: "flow-root" }}>
+          scrollbarWidth "none" hides the scrollbar (rounding made a 1px overflow show one) — the wheel still scrolls.
+          flex "0 0": the stage never shrinks, so the acro box is never pushed out of sight (Deb lost it). */}
+      <div style={{ flex: `0 0 calc(2 * ${stagePad} + ${timerSize} + clamp(4px, 1.5vh, 12px) + ${letterSize} + 173px)`, minHeight: 0, overflowY: "auto", scrollbarWidth: "none", display: "flow-root" }}>
 
 
       {/* Game over — shown inline where letters normally appear */}
@@ -1311,9 +1331,9 @@ function Room() {
       </div>
 
       {/* Bottom: players | chat | private chat.
-          Always at least 40% of the window height (never below 170px) — on short windows the stage
-          above gives way first (it shrinks and scrolls inside), so the chat stays readable */}
-      <div style={{ flex: "1 0 max(170px, 40vh)", minHeight: "max(170px, 40vh)", display: "grid", gridTemplateRows: "minmax(0, 1fr)", gridTemplateColumns: privateChat ? "1fr 2fr 1fr" : "1fr 3fr", gap: 16 }}>
+          Gets all the height the stage leaves (never below 170px). The stage keeps its full height,
+          so the acro box always stays visible — short windows get the compact stage instead */}
+      <div style={{ flex: "1 0 170px", minHeight: 170, display: "grid", gridTemplateRows: "minmax(0, 1fr)", gridTemplateColumns: privateChat ? "1fr 2fr 1fr" : "1fr 3fr", gap: 16 }}>
 
         {/* Players */}
         <Panel style={{ padding: 16, minHeight: 0, overflowY: "auto", boxSizing: "border-box" }}>
