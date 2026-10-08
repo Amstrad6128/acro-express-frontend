@@ -572,6 +572,15 @@ function Room() {
 
   const [creatorId, setCreatorId] = useState(null);
   const [gameWinner, setGameWinner] = useState(null); // null = no game over, object = { name, message }
+  // Seconds until the server starts the next game by itself (null = no countdown running).
+  // It keeps counting below 0: from 0 to -10 we wait for the server, after that the
+  // New Game button comes back in case the automatic start didn't happen.
+  const [nextGameIn, setNextGameIn] = useState(null);
+  useEffect(() => {
+    if (nextGameIn === null || nextGameIn <= -10) return;            // no countdown, or gave up waiting
+    const t = setTimeout(() => setNextGameIn(n => (n === null ? null : n - 1)), 1000); // one second later
+    return () => clearTimeout(t);                                      // stop if it changes meanwhile
+  }, [nextGameIn]);
   const [resultsClosed, setResultsClosed] = useState(false); // × on the results panel
 
   const [maxTimer, setMaxTimer] = useState(60); // tracks initial timer value for the progress bar
@@ -664,6 +673,7 @@ function Room() {
       myDraftRef.current = "";
       setAcroError("");
       setMyVote(null); // new round — forget last round's vote
+      setNextGameIn(null); // a round has started — no game-over countdown any more
       // Show this round's topic next to the acro input.
       // Before, this line cleared the topic — but TopicSet arrives just BEFORE
       // RoundStarted, so the topic was wiped the moment the round began.
@@ -758,6 +768,7 @@ function Room() {
       // A new game is starting — leave the Game Over screen (hides the New Game button,
       // so nobody else clicks it and gets a "round already in progress" error)
       setGameWinner(null);
+      setNextGameIn(null); // the new game is starting — stop the countdown
       setPhase(prev => (prev === "GameOver" || prev === "Paused" ? "Starting" : prev));
       // sameId ignores case differences between the backend Guid and localStorage
       if (sameId(auth?.userId, creatorUserId)) {
@@ -835,6 +846,7 @@ function Room() {
       setLetters([]);
       setTimer(null);
       setFrozenScores(null);
+      setNextGameIn(30); // the server starts the next game after a 30-second break
       setPhase("GameOver");
     }, []),
 
@@ -1195,7 +1207,8 @@ function Room() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 6 : 16 }}>
           <div style={{ display: "flex", gap: 8 }}>
             {/* After a game ends the room is back in Waiting, so a new game can be started */}
-            {(phase === "Waiting" || phase === "GameOver" || phase === "Paused") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
+            {/* Hidden during the 30-second break after a game — the next game starts by itself */}
+            {(phase === "Waiting" || (phase === "GameOver" && (nextGameIn === null || nextGameIn <= -10)) || phase === "Paused") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
             <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
           </div>
           {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
@@ -1223,7 +1236,10 @@ function Room() {
             {gameWinner.message}
           </p>
           <p style={{ margin: "0 0 24px", fontSize: 15, color: C.textMuted }}>
-            Press New Game to start the next departure.
+            {/* Countdown during the break; "Departing…" while the server starts it; the old hint if it didn't */}
+            {nextGameIn > 0 ? `The next journey starts in ${nextGameIn}s`
+              : nextGameIn !== null && nextGameIn > -10 ? "Departing…"
+              : "Press New Game to start the next departure."}
           </p>
         </Panel>
       )}
