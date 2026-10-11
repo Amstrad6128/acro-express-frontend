@@ -1247,10 +1247,13 @@ function Room() {
       {/* Letters */}
       {letters.length > 0 && !topicRequested && phase !== "Results" && phase !== "GameOver" && (
         <div style={{ textAlign: "center", padding: `${stagePad} 0` }}>
-          {/* Countdown — number only, centred above the letters, red in the last 10 seconds */}
-          {timer !== null && timer > 0 && (
-            <div style={{ fontSize: timerSize, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: "clamp(4px, 1.5vh, 12px)" }}>{timer}</div>
-          )}
+          {/* Countdown — number only, centred above the letters, red in the last 10 seconds.
+              The line is always there; when the timer has ended it is only made invisible, so the
+              letters below keep their place (before, they jumped up when the timer ended). */}
+          <div style={{ fontSize: timerSize, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: "clamp(4px, 1.5vh, 12px)", visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
+            {/* "0" keeps the line one number tall while it is hidden */}
+            {timer !== null && timer > 0 ? timer : 0}
+          </div>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             {letters.map((l, i) => (
               <span key={i} style={{
