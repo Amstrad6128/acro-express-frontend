@@ -329,6 +329,19 @@ const NUM_FONT = "'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-seri
 // Compares two ids (Guids) safely: ignores case and null/undefined.
 // The backend sends Guids as lowercase strings, but localStorage values or older
 // payloads may differ in case — a plain === check let players see their own entry.
+// Room screen fit (see `view` in Room): the size the room layout needs, and the smallest
+// scale before it switches to a scrolling page.
+const ROOM_FIT_W = 1000;   // CSS px wide
+const ROOM_FIT_H = 640;    // CSS px tall
+const ROOM_MIN_SCALE = 0.7;
+function measureRoomView() {
+  const w = window.innerWidth, h = window.innerHeight;          // includes zoom and Windows scaling
+  const fit = Math.min(1, w / ROOM_FIT_W, h / ROOM_FIT_H);       // 1 = fits as it is
+  if (fit >= ROOM_MIN_SCALE)
+    return { scale: fit, scroll: false, w: w / fit, h: h / fit }; // laid out at w×h, then shrunk to the window
+  return { scale: 1, scroll: true, w, h };                        // too small: normal size, page scrolls
+}
+
 function sameId(a, b) {
   // Missing ids never match — prevents undefined === undefined being "true"
   if (!a || !b) return false;
@@ -630,19 +643,23 @@ function Room() {
     }
     knownPlayersRef.current = new Set(ids);                         // remember for the next comparison
   }, [state.data]);
-  // Narrow screens (phones): the topic moves from the top right to under the letters
-  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 900);
-  // Short windows (under 800px tall, e.g. Windows display scale 125% or browser zoom):
-  // smaller header, timer and letters, so Passengers and the chats get more height
-  const [isShort, setIsShort] = useState(() => window.innerHeight < 800);
+  // Room screen size. The window size the browser reports already includes browser zoom and
+  // Windows display scaling, so zooming in is the same as a smaller window.
+  // - Big enough (about 1000×640): the room is drawn normally.
+  // - Smaller: the whole room shrinks proportionally to fit (scale), like a game window, so
+  //   nothing is cut off or covered (Deb and Acronymist lost the acro box / chat at high zoom).
+  // - Below 70% it would be too small to read: the room becomes a normal scrolling page instead.
+  const [view, setView] = useState(measureRoomView);
   useEffect(() => {
-    const onResize = () => {
-      setIsNarrow(window.innerWidth < 900);
-      setIsShort(window.innerHeight < 800); // re-check the height too when the window changes
-    };
+    const onResize = () => setView(measureRoomView());   // re-measure when the window or zoom changes
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+  // Narrow (phones, very heavy zoom): the topic moves from the top right to under the letters,
+  // and Passengers / chats are stacked. view.w is the width the room is laid out at.
+  const isNarrow = view.w < 900;
+  // Short (under 800px tall, e.g. Windows display scale 125%): smaller header, timer and letters
+  const isShort = view.h < 800;
   const [privateChatInput, setPrivateChatInput] = useState("");
   const [unreadFrom, setUnreadFrom] = useState({});
   const privateChatBottomRef = useRef(null);
@@ -1149,7 +1166,8 @@ function Room() {
     <div style={{ textAlign: align }}>
       <div style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Topic</div>
       {/* Smaller topic on short windows so it fits in the shorter header */}
-      <div style={{ fontSize: isShort ? 20 : 28, color: C.teal, fontWeight: 700, fontFamily: "Fredoka, sans-serif", lineHeight: 1.15, maxWidth: 420, overflowWrap: "anywhere" }}>{currentTopic}</div>
+      {/* margin auto centres the 420px-wide topic box under the letters (it slipped to the left) */}
+      <div style={{ fontSize: isShort ? 20 : 28, color: C.teal, fontWeight: 700, fontFamily: "Fredoka, sans-serif", lineHeight: 1.15, maxWidth: 420, overflowWrap: "anywhere", margin: align === "center" ? "0 auto" : undefined }}>{currentTopic}</div>
     </div>
   );
 
@@ -1157,7 +1175,9 @@ function Room() {
     // Wide side margins on desktop (like AcroChallenge), tighter on phones
     // The page fills the window exactly: header on top, the stage takes whatever space is left,
     // and Passengers + chats are pinned to the bottom, so they never move between phases
-    <div style={{ height: "100vh", boxSizing: "border-box", overflow: "hidden", display: "flex", flexDirection: "column", color: C.textPrimary, padding: isNarrow ? 16 : "clamp(12px, 3vh, 24px) 64px" }}>
+    // Fit mode: laid out at view.w × view.h and shrunk with `zoom`, so it fills the window exactly.
+    // Scroll mode (window too small even at 70%): normal height, the page scrolls with a scrollbar.
+    <div style={{ height: view.scroll ? "auto" : view.h, minHeight: view.scroll ? "100vh" : undefined, zoom: view.scale, boxSizing: "border-box", overflow: view.scroll ? "visible" : "hidden", display: "flex", flexDirection: "column", color: C.textPrimary, padding: isNarrow ? 16 : "clamp(12px, 3vh, 24px) 64px" }}>
 
       {/* Floating panels (like AcroChallenge): round results on top, the winner's topic
           prompt under it. They float above the page, so nothing underneath moves. */}
@@ -1247,7 +1267,9 @@ function Room() {
           chats get all the remaining space. On short screens the stage shrinks and scrolls inside.
           scrollbarWidth "none" hides the scrollbar (rounding made a 1px overflow show one) — the wheel still scrolls.
           flex "0 0": the stage never shrinks, so the acro box is never pushed out of sight (Deb lost it). */}
-      <div style={{ flex: `0 0 calc(2 * ${stagePad} + ${timerSize} + clamp(4px, 1.5vh, 12px) + ${letterSize} + 173px)`, minHeight: 0, overflowY: "auto", scrollbarWidth: "none", display: "flow-root" }}>
+      {/* Scroll mode: the stage is as tall as its contents (the topic under the letters included),
+          because the page scrolls anyway — nothing inside it can be cut off or covered. */}
+      <div style={{ flex: view.scroll ? "0 0 auto" : `0 0 calc(2 * ${stagePad} + ${timerSize} + clamp(4px, 1.5vh, 12px) + ${letterSize} + 173px)`, minHeight: 0, overflowY: view.scroll ? "visible" : "auto", scrollbarWidth: "none", display: "flow-root" }}>
 
 
       {/* Game over — shown inline where letters normally appear */}
@@ -1338,8 +1360,10 @@ function Room() {
               <div style={{ display: "flex", gap: 8 }}>
                 <input
                   id="acroInput"
+                  // Scroll mode: bring the acro box into the middle of the screen when it is clicked
+                  onFocus={e => { if (view.scroll) e.target.scrollIntoView({ block: "center", behavior: "smooth" }); }}
                   // Clear teal border so the typing field stands out inside the lighter box
-                  style={{ flex: 1, background: C.bgApp, border: `2px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 20, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+                  style={{ flex: 1, minWidth: 0 /* may get narrower than its default, so Submit fits on phones */, background: C.bgApp, border: `2px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 20, outline: "none", fontFamily: "inherit", textAlign: "center" }}
                   placeholder="Type your acro..."
                   value={myDraft}
                   onChange={e => {
@@ -1378,11 +1402,23 @@ function Room() {
 
       {/* Bottom: players | chat | private chat.
           Gets all the height the stage leaves (never below 170px). The stage keeps its full height,
-          so the acro box always stays visible — short windows get the compact stage instead */}
-      <div style={{ flex: "1 0 170px", minHeight: 170, display: "grid", gridTemplateRows: "minmax(0, 1fr)", gridTemplateColumns: privateChat ? "1fr 2fr 1fr" : "1fr 3fr", gap: 16 }}>
+          so the acro box always stays visible — short windows get the compact stage instead.
+          Scroll mode: a fixed comfortable height (380px) instead; when narrow, the boxes are stacked
+          (Passengers, Room Chat, private chat) and each chat gets 360px. */}
+      <div style={{
+        flex: view.scroll ? "0 0 auto" : "1 0 170px",
+        minHeight: 170,
+        height: view.scroll && !isNarrow ? 380 : undefined,
+        display: "grid",
+        gridTemplateRows: isNarrow ? undefined : "minmax(0, 1fr)",
+        gridAutoRows: isNarrow ? "auto" : undefined,
+        gridTemplateColumns: isNarrow ? "1fr" : (privateChat ? "1fr 2fr 1fr" : "1fr 3fr"),
+        gap: 16
+      }}>
 
         {/* Players */}
-        <Panel style={{ padding: 16, minHeight: 0, overflowY: "auto", boxSizing: "border-box" }}>
+        {/* Stacked (narrow): at most 200px tall, scrolls inside when there are many passengers */}
+        <Panel style={{ padding: 16, minHeight: 0, maxHeight: isNarrow ? 200 : undefined, overflowY: "auto", boxSizing: "border-box" }}>
           <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Passengers</h2>
           {players.length === 0 ? (
             <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No passengers yet</p>
@@ -1418,7 +1454,8 @@ function Room() {
         </Panel>
 
         {/* Room chat */}
-        <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        {/* Stacked (narrow): a fixed 360px so the messages and the input are always visible */}
+        <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 0, height: isNarrow ? 360 : undefined }}>
           <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}` }}>
             <h2 style={{ margin: 0, fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Room Chat</h2>
           </div>
@@ -1454,7 +1491,7 @@ function Room() {
 
         {/* Private chat */}
         {privateChat && (
-          <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 0, borderColor: C.lavender }}>
+          <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 0, height: isNarrow ? 360 : undefined, borderColor: C.lavender }}>
             <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2 style={{ margin: 0, fontSize: 14, color: C.lavender, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Private · {privateChat.nickname}
