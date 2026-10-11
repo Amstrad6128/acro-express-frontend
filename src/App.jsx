@@ -603,6 +603,33 @@ function Room() {
   const playersRef = useRef([]);
   // When each player's leaving was last announced (id → time), so it shows once, not 2–3 times
   const leftAnnouncedRef = useRef({});
+  // Players in the last Passengers list we saw (lower-case ids); null until the room first loads
+  const knownPlayersRef = useRef(null);
+  // When each player's arrival was last announced (id → time), so it shows once
+  const joinAnnouncedRef = useRef({});
+  // "<name> has joined the room." — announced when a new name appears in Passengers.
+  // Comparing lists (instead of using the PlayerJoined event) means a reconnect after a
+  // network blip doesn't announce the player again: they never left the list.
+  useEffect(() => {
+    const list = state.data?.players;
+    if (!list) return;                                              // room not loaded (or closed)
+    const ids = list.map(p => String(p.id).toLowerCase());
+    if (knownPlayersRef.current === null) {                         // first load: everyone already here
+      knownPlayersRef.current = new Set(ids);
+      return;
+    }
+    for (const p of list) {
+      const id = String(p.id).toLowerCase();
+      if (knownPlayersRef.current.has(id)) continue;                // was here already
+      if (sameId(p.id, auth?.userId)) continue;                     // don't announce yourself
+      const lastTime = joinAnnouncedRef.current[id];
+      if (!lastTime || Date.now() - lastTime > 30000) {             // once per 30 s, like the leave message
+        joinAnnouncedRef.current[id] = Date.now();
+        postSystemMessage(`${p.nickname} has joined the room.`);
+      }
+    }
+    knownPlayersRef.current = new Set(ids);                         // remember for the next comparison
+  }, [state.data]);
   // Narrow screens (phones): the topic moves from the top right to under the letters
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 900);
   // Short windows (under 800px tall, e.g. Windows display scale 125% or browser zoom):
