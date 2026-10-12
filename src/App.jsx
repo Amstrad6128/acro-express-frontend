@@ -294,6 +294,8 @@ function Lobby() {
                 ) : (
                   messages.map((m, i) => (
                     <div key={i} style={{ fontSize: 15 }}>
+                      {/* When it was written — lobby messages are kept, so they can be from yesterday */}
+                      <span style={{ color: C.textMuted, fontSize: 12, marginRight: 6, fontVariantNumeric: "tabular-nums" }}>{lobbyTime(m.time)}</span>
                       <span style={{ color: C.teal, fontWeight: 600 }}>{m.username}: </span>
                       <span style={{ color: C.textSecond }}>{m.message}</span>
                     </div>
@@ -340,6 +342,18 @@ function measureRoomView() {
   if (fit >= ROOM_MIN_SCALE)
     return { scale: fit, scroll: false, w: w / fit, h: h / fit }; // laid out at w×h, then shrunk to the window
   return { scale: 1, scroll: true, w, h };                        // too small: normal size, page scrolls
+}
+
+// Time shown before a lobby message: "21:14" today, "Yesterday 21:14", or "11 Oct 21:14"
+function lobbyTime(date) {
+  if (!(date instanceof Date) || isNaN(date)) return "";
+  const hm = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const day = new Date(date); day.setHours(0, 0, 0, 0);
+  const daysAgo = Math.round((today - day) / 86400000);
+  if (daysAgo === 0) return hm;
+  if (daysAgo === 1) return `Yesterday ${hm}`;
+  return `${date.toLocaleDateString([], { day: "numeric", month: "short" })} ${hm}`;
 }
 
 function sameId(a, b) {
@@ -701,6 +715,9 @@ function Room() {
   const chatListRef = useRef(null);
   // Live connection: "connected" or "reconnecting" (shows a banner)
   const [connStatus, setConnStatus] = useState("connected");
+  // Short private notice, e.g. "Acro not entered. It needed 3 words: B T V" (null = none)
+  const [notice, setNotice] = useState(null);
+  const noticeTimerRef = useRef(null);
   // The 3-second room check can't reach the server (also shows the banner)
   const [pollFailing, setPollFailing] = useState(false);
   // The room loaded at least once — after that, a failed check keeps the room on screen
@@ -736,6 +753,14 @@ function Room() {
   }
 
   const signalRHandlers = {
+    // From the server, to this player only: the unsent acro couldn't be entered at time-up.
+    // Shown as a banner for 10 seconds, and as a line in my own chat.
+    onAcroNotEntered: useCallback((message) => {
+      setNotice(message);
+      postSystemMessage(message);
+      clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = setTimeout(() => setNotice(null), 10000);
+    }, []),
     // From useSignalR: the live connection dropped ("reconnecting") or works again ("connected")
     onConnectionChange: useCallback((status) => setConnStatus(status), []),
     // 4th argument (topic) is new — the backend now sends it with every RoundStarted
@@ -1317,6 +1342,13 @@ function Room() {
     // Scroll mode (window too small even at 70%): normal height, the page scrolls with a scrollbar.
     <div style={{ height: view.scroll ? "auto" : view.h, minHeight: view.scroll ? "100vh" : undefined, zoom: view.scale, boxSizing: "border-box", overflow: view.scroll ? "visible" : "hidden", display: "flex", flexDirection: "column", color: C.textPrimary, padding: isNarrow ? 16 : "clamp(12px, 3vh, 24px) 64px" }}>
 
+      {/* Private notice (e.g. acro not entered) — bold and short, above everything for 10 s */}
+      {notice && (
+        <div style={{ position: "fixed", top: 52, left: "50%", transform: "translateX(-50%)", zIndex: 60, background: C.brand, color: "#fff", padding: "8px 18px", borderRadius: 10, fontSize: 16, fontWeight: 700, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", maxWidth: "calc(100% - 32px)", textAlign: "center" }}>
+          {notice}
+        </div>
+      )}
+
       {/* Live connection lost — shown until it works again (it keeps trying by itself) */}
       {(connStatus === "reconnecting" || pollFailing) && (
         <div style={{ position: "fixed", top: 10, left: "50%", transform: "translateX(-50%)", zIndex: 60, background: C.brand, color: "#fff", padding: "6px 16px", borderRadius: 999, fontSize: 14, fontWeight: 600, boxShadow: "0 6px 20px rgba(0,0,0,0.4)" }}>
@@ -1499,7 +1531,8 @@ function Room() {
           ) : (
             <>
               {/* Why the acro wasn't accepted — shown in place of the hint, so the box never grows */}
-              <p style={{ margin: "0 0 10px", fontSize: 15, color: acroError ? C.brand : C.textMuted, fontWeight: acroError ? 600 : 400 }}>
+              {/* Instructions are short and bold ("Use 3 words, one for each letter: B T V") — the player is in a hurry */}
+              <p style={{ margin: "0 0 10px", fontSize: acroError ? 16 : 15, color: acroError ? C.brand : C.textMuted, fontWeight: acroError ? 700 : 400 }}>
                 {acroError || "Type a sentence where each word starts with the letters above."}
               </p>
               <div style={{ display: "flex", gap: 8 }}>

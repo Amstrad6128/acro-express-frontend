@@ -38,6 +38,8 @@ export function useSignalR(roomId, handlers = {}) {
     connection.on("TopicSet", (...args) => handlersRef.current.onTopicSet?.(...args));
     connection.on("TopicRequested", (...args) => handlersRef.current.onTopicRequested?.(...args));
     connection.on("GamePaused", (...args) => handlersRef.current.onGamePaused?.(...args));
+    // Sent only to this player: their unsent acro couldn't be entered at time-up
+    connection.on("AcroNotEntered", (...args) => handlersRef.current.onAcroNotEntered?.(...args));
 
     // ── Chat events ──────────────────────────────────────
     connection.on("ReceiveRoomMessage", (...args) => handlersRef.current.onRoomMessage?.(...args));

@@ -23,6 +23,7 @@ export function useLobbyHub(username) {
     connection.off("LobbyPlayerJoined");
     connection.off("LobbyPlayerLeft");
     connection.off("ReceiveLobbyMessage");
+    connection.off("LobbyHistory");
 
     connection.on("LobbyPlayers", (playerList) => {
       setPlayers(playerList);
@@ -36,8 +37,14 @@ export function useLobbyHub(username) {
       setPlayers(prev => prev.filter(p => p !== username));
     });
 
-    connection.on("ReceiveLobbyMessage", (username, message) => {
-      setMessages(prev => [...prev, { username, message, time: new Date() }]);
+    // sentAtUtc (3rd, new) = when the server stored it; older servers don't send it
+    connection.on("ReceiveLobbyMessage", (username, message, sentAtUtc) => {
+      setMessages(prev => [...prev, { username, message, time: sentAtUtc ? new Date(sentAtUtc) : new Date() }]);
+    });
+
+    // The last 100 stored lobby messages, sent when we enter the lobby (oldest first)
+    connection.on("LobbyHistory", (history) => {
+      setMessages((history || []).map(m => ({ username: m.username, message: m.message, time: new Date(m.sentAtUtc) })));
     });
 
     try {
