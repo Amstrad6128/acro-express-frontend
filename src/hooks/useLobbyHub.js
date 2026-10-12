@@ -14,7 +14,8 @@ export function useLobbyHub(username) {
     if (!username) return;
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${API_URL}/lobbyhub`)
+      // The login token: the server takes the player's name from it (not from what the page sends)
+      .withUrl(`${API_URL}/lobbyhub`, { accessTokenFactory: () => getAuth()?.token })
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Warning)
       .build();

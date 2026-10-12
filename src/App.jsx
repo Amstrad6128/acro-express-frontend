@@ -19,6 +19,7 @@ const THEMES = {
     teal: "#6FB7C8", tealLight: "#8FD0DE", lavender: "#B7B3E6", ivory: "#F2E6D8",
     success: "#4FAF8F", navy2: "#24314D", navy3: "#2C3B5F", bgGradient: "none",
     danger: "#8B2020", dangerHover: "#A52828",
+    fieldLine: "#2B3758", focusLine: "#6FB7C8",
   },
   twilight: {  // Twilight — the same sky just after sunset, less dark (Fran)
     name: "Twilight",
@@ -29,6 +30,7 @@ const THEMES = {
     teal: "#94DCE8", tealLight: "#B2E6EF", lavender: "#D4D0F7", ivory: "#FFF4E8",
     success: "#5CC09D", navy2: "#36415E", navy3: "#414D70", bgGradient: "none",
     danger: "#A63A3A", dangerHover: "#BC4A4A",
+    fieldLine: "#6274A6", focusLine: "#94DCE8",
   },
   nightfall: { // Nightfall — mossy olive greens with a lime glow, from Damon's "Mossy hollow" palette
                 // (#636B2F moss, #BAC095 sage, #D4DE95 lime, #3D4127 olive) plus a deeper olive background
@@ -36,9 +38,10 @@ const THEMES = {
     bgApp: "#23261A", bgPanel: "#3D4127", bgPanel2: "#474C2E", border: "#636B2F",
     textPrimary: "#F4F6E6", textSecond: "#E1E5C8", textMuted: "#BAC095",
     brand: "#D4DE95", brandHover: "#E0E9A6", onBrand: "#2A2E14",
-    teal: "#D4DE95", tealLight: "#E4ECB0", lavender: "#C9D0A8", ivory: "#F1EFD8",
+    teal: "#D4DE95", tealLight: "#E4ECB0", lavender: "#B9A0D8", ivory: "#F1EFD8",   // lavender = plum accent
     success: "#A8C766", navy2: "#474C2E", navy3: "#565D2B", bgGradient: "none",
     danger: "#9A3B22", dangerHover: "#B04A2E",
+    fieldLine: "#B9A0D8", focusLine: "#B9A0D8",   // purple outlines (Damon)
   },
   daybreak: {  // Daybreak — from Damon's Midjourney picture: sky blue, cloud lavender,
                // salmon towers, teal domes, a pink horizon at dawn
@@ -50,12 +53,14 @@ const THEMES = {
     success: "#74CDAC", navy2: "#385786", navy3: "#42639A",
     bgGradient: "linear-gradient(180deg, #4A78A3 0%, #6E8FC2 62%, #C9A3C2 86%, #EDA79F 100%)",
     danger: "#A8455A", dangerHover: "#BC566B",
+    fieldLine: "#7184B8", focusLine: "#86D0D2",
   },
 };
 const THEME_KEYS = ["midnight", "twilight", "nightfall", "daybreak"];
 const COLOR_NAMES = ["bgApp", "bgPanel", "bgPanel2", "border", "textPrimary", "textSecond", "textMuted",
   "brand", "brandHover", "onBrand", "teal", "tealLight", "lavender", "ivory", "success", "navy2", "navy3",
-  "danger", "dangerHover"];   // danger = red for actions like Log out
+  "danger", "dangerHover",    // danger = red for actions like Log out
+  "fieldLine", "focusLine"];   // outlines of text boxes (fieldLine) and of the main boxes/buttons (focusLine)
 // C.brand → "var(--c-brand)" and so on
 const C = Object.fromEntries(COLOR_NAMES.map(n => [n, `var(--c-${n})`]));
 
@@ -267,7 +272,7 @@ const Input = ({ id, value, onChange, onKeyDown, placeholder, type = "text", sty
     autoFocus={autoFocus}
     style={{
       background: C.bgApp,
-      border: `1px solid ${C.border}`,
+      border: `1px solid ${C.fieldLine}`,
       borderRadius: 8,
       padding: "8px 12px",
       color: C.textPrimary,
@@ -428,7 +433,7 @@ function Lobby() {
                   value={newRoomName}
                   onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
                   onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
-                  style={{ flex: 1, background: C.bgApp, border: `2px solid ${C.teal}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit" }}
+                  style={{ flex: 1, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit" }}
                 />
                 <Btn onClick={handleCreate}>Create</Btn>
                 <BtnSecondary onClick={cancelCreate}>Cancel</BtnSecondary>
@@ -514,7 +519,7 @@ function Lobby() {
                 <input
                   id="lobbyChatInput"
                   name="lobbyChatInput"
-                  style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
+                  style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
                   placeholder="Say something..."
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
@@ -1623,7 +1628,7 @@ function Room() {
             {/* Not while the first topic is being chosen: round 1 already exists then (currentRoundNumber > 0)
                 — clicking it gave "round already in progress" */}
             {((phase === "Waiting" && !topicRequested && !(data.currentRoundNumber > 0)) || (phase === "GameOver" && (nextGameIn === null || nextGameIn <= -10)) || phase === "Paused") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
-            <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
+            <BtnSecondary onClick={handleLeaveRoom} style={{ border: `1px solid ${C.focusLine}` }}>← Back to Lobby</BtnSecondary>
           </div>
           {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
           {showTopic && !isNarrow && topicBlock("right")}
@@ -1671,7 +1676,7 @@ function Room() {
               id="topicInput"
               autoFocus
               // Slimmer than before (was 10px padding, 18px text) — the button takes the same height
-              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.focusLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit", textAlign: "center" }}
               placeholder="Type a topic..."
               value={topicDraft}
               onChange={e => { setTopicDraft(e.target.value); setTopicError(""); }}
@@ -1781,7 +1786,7 @@ function Room() {
                   // Scroll mode: bring the acro box into the middle of the screen when it is clicked
                   onFocus={e => { if (view.scroll) e.target.scrollIntoView({ block: "center", behavior: "smooth" }); }}
                   // Clear teal border so the typing field stands out inside the lighter box
-                  style={{ flex: 1, minWidth: 0 /* may get narrower than its default, so Submit fits on phones */, background: C.bgApp, border: `2px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 20, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+                  style={{ flex: 1, minWidth: 0 /* may get narrower than its default, so Submit fits on phones */, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 20, outline: "none", fontFamily: "inherit", textAlign: "center" }}
                   placeholder="Type your acro..."
                   value={myDraft}
                   onChange={e => {
@@ -1914,7 +1919,7 @@ function Room() {
           <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
             <input
               id="chatInput"
-              style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
+              style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
               placeholder="Say something..."
               value={roomChatInput}
               onChange={e => setRoomChatInput(e.target.value)}
@@ -1949,7 +1954,7 @@ function Room() {
             <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
               <input
                 id="privateChatInput"
-                style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
+                style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
                 placeholder={`Message ${privateChat.nickname}...`}
                 value={privateChatInput}
                 onChange={e => setPrivateChatInput(e.target.value)}
