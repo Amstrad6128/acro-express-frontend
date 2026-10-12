@@ -96,24 +96,43 @@ function setSoundSettings(next) {
 // Closes when you click outside it or press Escape.
 function HeaderMenu({ label, children, width = 230 }) {
   const [open, setOpen] = useState(false);
+  // Phones (narrow screens): the menu opens as a panel in the middle of the screen, always fully
+  // visible with big rows — under the button it could end up partly off-screen (Sandy, 2026-10-12)
+  const [sheet, setSheet] = useState(false);
   const boxRef = useRef(null);
   useEffect(() => {
     if (!open) return;
+    // "pointerdown" = a mouse press OR a finger tap (mousedown wasn't reliable on every phone)
     const onDown = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
     const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onDown);
+    document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+    return () => { document.removeEventListener("pointerdown", onDown); document.removeEventListener("keydown", onKey); };
   }, [open]);
+  const toggle = () => {
+    setSheet(window.innerWidth < 600);   // decide each time it opens (the phone may have been turned)
+    setOpen(o => !o);
+  };
+  const panel = { background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", boxShadow: "0 12px 32px rgba(0,0,0,0.35)", textAlign: "left" };
   return (
     <div ref={boxRef} style={{ position: "relative" }}>
-      <button onClick={() => setOpen(o => !o)} aria-expanded={open}
+      <button onClick={toggle} aria-expanded={open}
         style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>
         {label} <span style={{ color: C.textMuted, fontSize: 11, marginLeft: 2 }}>▾</span>
       </button>
-      {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 70, width, background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", boxShadow: "0 12px 32px rgba(0,0,0,0.35)", textAlign: "left" }}>
-          {children(() => setOpen(false))}
+      {open && !sheet && (
+        // Computer: a small menu right under the button
+        <div style={{ ...panel, position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 70, width }}>
+          {children(() => setOpen(false), false)}
+        </div>
+      )}
+      {open && sheet && (
+        // Phone: a dimmed screen with the menu centred near the top; tapping the dim area closes it
+        <div onPointerDown={e => { if (e.target === e.currentTarget) setOpen(false); }}
+          style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,0.45)", display: "flex", justifyContent: "center", alignItems: "flex-start", paddingTop: "15vh" }}>
+          <div style={{ ...panel, width: "min(320px, calc(100vw - 32px))", padding: "14px 14px", fontSize: 16 }}>
+            {children(() => setOpen(false), true)}
+          </div>
         </div>
       )}
     </div>
@@ -125,7 +144,7 @@ function ThemePicker() {
   const [current, setCurrent] = useState(loadThemeKey);
   return (
     <HeaderMenu label={<>Express Colors: <span style={{ color: C.teal, fontWeight: 600 }}>{THEMES[current].name}</span></>}>
-      {(close) => (
+      {(close, big) => (
         <>
           <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>Pick a look for your screen. Only you see it.</div>
           {THEME_KEYS.map(key => {
@@ -133,7 +152,7 @@ function ThemePicker() {
             const active = key === current;
             return (
               <button key={key} onClick={() => { applyTheme(key); setCurrent(key); close(); }}
-                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", background: active ? C.navy3 : "transparent", border: "none", borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 15, fontFamily: "inherit", padding: "6px 8px", textAlign: "left" }}>
+                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", background: active ? C.navy3 : "transparent", border: "none", borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: big ? 17 : 15, fontFamily: "inherit", padding: big ? "12px 10px" : "6px 8px", textAlign: "left" }}>   {/* big = phone panel: rows easy to tap */}
                 {/* a dot in the palette's own colours: its background with its accent as the rim */}
                 <span style={{ width: 14, height: 14, borderRadius: "50%", background: t.bgApp, border: `2px solid ${t.brand}`, flexShrink: 0 }} />
                 <span style={{ flex: 1, fontWeight: active ? 700 : 400 }}>{t.name}</span>
@@ -321,6 +340,15 @@ function Lobby() {
     lobbyBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Phones: one column, smaller side margins — the two-column lobby was wider than the screen
+  // and the whole page slid sideways (Sandy, 2026-10-12)
+  const [phone, setPhone] = useState(() => window.innerWidth < 600);
+  useEffect(() => {
+    const onResize = () => setPhone(window.innerWidth < 600);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   function cancelCreate() {
     setCreating(false); setNewRoomName(""); setCreateError("");
   }
@@ -337,8 +365,10 @@ function Lobby() {
   }
 
   return (
-    <div style={{ height: "100vh", overflowY: "auto", color: C.textPrimary }}>
-      <div style={{ borderBottom: `1px solid ${C.border}`, padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", color: C.textPrimary }}>
+      {/* flexWrap: on phones the title gets the first line and the menu + status move below it,
+          instead of being squeezed and cut off (the page used to shift sideways) */}
+      <div style={{ borderBottom: `1px solid ${C.border}`, padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 10, columnGap: 16, ...(phone && { padding: "12px 16px" }) }}>
         <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand, margin: 0, letterSpacing: "-0.5px" }}>Acro Express</h1>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <ThemePicker />
@@ -346,7 +376,7 @@ function Lobby() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 24px" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: phone ? "16px 16px" : "24px 24px" }}>
 
         {auth && (
           <Panel style={{ padding: "16px 20px", marginBottom: 20, borderColor: C.teal }}>
@@ -418,7 +448,7 @@ function Lobby() {
         </Panel>}
 
         {auth && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 3fr", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: phone ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 3fr)", gap: 16 }}>
             <Panel style={{ padding: 16 }}>
               <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Online Players ({players.length})
@@ -459,7 +489,7 @@ function Lobby() {
                 <input
                   id="lobbyChatInput"
                   name="lobbyChatInput"
-                  style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
+                  style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
                   placeholder="Say something..."
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
