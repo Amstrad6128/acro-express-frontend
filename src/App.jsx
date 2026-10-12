@@ -18,6 +18,7 @@ const THEMES = {
     brand: "#F26A5E", brandHover: "#FF7A6B", onBrand: "#FFF8F6",
     teal: "#6FB7C8", tealLight: "#8FD0DE", lavender: "#B7B3E6", ivory: "#F2E6D8",
     success: "#4FAF8F", navy2: "#24314D", navy3: "#2C3B5F", bgGradient: "none",
+    danger: "#8B2020", dangerHover: "#A52828",
   },
   twilight: {  // Twilight — the same sky just after sunset, less dark (Fran)
     name: "Twilight",
@@ -26,6 +27,7 @@ const THEMES = {
     brand: "#F27D6E", brandHover: "#FF8E7F", onBrand: "#FFFFFF",
     teal: "#7FCAD8", tealLight: "#A0DAE5", lavender: "#C4C0EF", ivory: "#F5ECE1",
     success: "#5CC09D", navy2: "#36415E", navy3: "#414D70", bgGradient: "none",
+    danger: "#A63A3A", dangerHover: "#BC4A4A",
   },
   lamplight: { // Lamplight — green-black with amber gold, brass lamps glowing in the carriage
     name: "Lamplight",
@@ -34,6 +36,7 @@ const THEMES = {
     brand: "#FFB300", brandHover: "#FFC433", onBrand: "#1E1500",
     teal: "#2DD4BF", tealLight: "#66E3D2", lavender: "#BCDCCB", ivory: "#F5ECD7",
     success: "#4FBF8F", navy2: "#183031", navy3: "#21403E", bgGradient: "none",
+    danger: "#9A3B22", dangerHover: "#B04A2E",
   },
   daybreak: {  // Daybreak — from Damon's Midjourney picture: sky blue, cloud lavender,
                // salmon towers, teal domes, a pink horizon at dawn
@@ -44,11 +47,13 @@ const THEMES = {
     teal: "#86D0D2", tealLight: "#A9E0E1", lavender: "#CFCCF3", ivory: "#FFF1E3",
     success: "#74CDAC", navy2: "#385786", navy3: "#42639A",
     bgGradient: "linear-gradient(180deg, #4A78A3 0%, #6E8FC2 62%, #C9A3C2 86%, #EDA79F 100%)",
+    danger: "#A8455A", dangerHover: "#BC566B",
   },
 };
 const THEME_KEYS = ["midnight", "twilight", "lamplight", "daybreak"];
 const COLOR_NAMES = ["bgApp", "bgPanel", "bgPanel2", "border", "textPrimary", "textSecond", "textMuted",
-  "brand", "brandHover", "onBrand", "teal", "tealLight", "lavender", "ivory", "success", "navy2", "navy3"];
+  "brand", "brandHover", "onBrand", "teal", "tealLight", "lavender", "ivory", "success", "navy2", "navy3",
+  "danger", "dangerHover"];   // danger = red for actions like Log out
 // C.brand → "var(--c-brand)" and so on
 const C = Object.fromEntries(COLOR_NAMES.map(n => [n, `var(--c-${n})`]));
 
@@ -357,7 +362,7 @@ function Lobby() {
             {auth ? `Welcome, ${auth.username}!` : "Sign in to play"}
           </h2>
           {auth ? (
-            <Btn onClick={doLogout} color="#8B2020" hoverColor="#A52828">Log out</Btn>
+            <Btn onClick={doLogout} color={C.danger} hoverColor={C.dangerHover} style={{ color: "#FFF8F6" }}>Log out</Btn>
           ) : (
             <>
               <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>

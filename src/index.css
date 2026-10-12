@@ -86,5 +86,5 @@ body {
 /* Styled scrollbars */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2B3758; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #6FB7C8; }
+::-webkit-scrollbar-thumb { background: var(--c-border, #2B3758); border-radius: 3px; }   /* palette colours */
+::-webkit-scrollbar-thumb:hover { background: var(--c-teal, #6FB7C8); }
