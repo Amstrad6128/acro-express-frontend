@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import * as signalR from "@microsoft/signalr";
 import { API_URL, getAuth, joinRoom } from "../services/api";
+import { receivePm } from "../pm";
 
 // Wait before each reconnect attempt: right away, 2 s, 5 s, 10 s, then every 15 s — and never give up.
 // (The default gave up after 4 tries, about 42 s, and the page silently stopped updating.)
@@ -45,7 +46,9 @@ export function useSignalR(roomId, handlers = {}) {
 
     // ── Chat events ──────────────────────────────────────
     connection.on("ReceiveRoomMessage", (...args) => handlersRef.current.onRoomMessage?.(...args));
-    connection.on("ReceivePrivateMessage", (...args) => handlersRef.current.onPrivateMessage?.(...args));
+    // Private messages (stored on the server; tabs and unread counts live in src/pm.js).
+    // The old "ReceivePrivateMessage" is only for pages opened before 2026-10-12, so it's not listened to.
+    connection.on("PrivateMessage", (m) => receivePm(m));
 
     // ── Player events ────────────────────────────────────
     connection.on("PlayerJoined", (...args) => handlersRef.current.onPlayerJoined?.(...args));

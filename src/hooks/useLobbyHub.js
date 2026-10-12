@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import * as signalR from "@microsoft/signalr";
 import { API_URL, getAuth } from "../services/api";
+import { receivePm } from "../pm";
 
 // username: the logged-in player's name — the lobby connection is made only once
 // someone is logged in (before, visitors on the login screen showed as a blank name)
@@ -25,6 +26,9 @@ export function useLobbyHub(username) {
     connection.off("LobbyPlayerLeft");
     connection.off("ReceiveLobbyMessage");
     connection.off("LobbyHistory");
+    connection.off("PrivateMessage");
+    // Private messages reach you in the lobby too (shared with the room — src/pm.js)
+    connection.on("PrivateMessage", (m) => receivePm(m));
 
     connection.on("LobbyPlayers", (playerList) => {
       setPlayers(playerList);

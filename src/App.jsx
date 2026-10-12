@@ -3,6 +3,7 @@ import { Routes, Route, useParams, useNavigate } from "react-router-dom";
 import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, getAuth, doneVoting } from "./services/api";
 import { useSignalR } from "./hooks/useSignalR";
 import { useLobbyHub } from "./hooks/useLobbyHub";
+import { usePm, openPm, closePm, sendPm, setPmDraft, dismissPmToast, setPmChime } from "./pm";
 
 // ── Design tokens ──────────────────────────────────────────────
 // ── Colour schemes ─────────────────────────────────────────────
@@ -286,6 +287,120 @@ const Input = ({ id, value, onChange, onKeyDown, placeholder, type = "text", sty
   />
 );
 
+// ── Private messages ───────────────────────────────────────────
+// A soft two-note chime for a new private message (follows the Sound setting; silent when muted)
+let pmAudioCtx = null;
+function playPmChime() {
+  const gain = soundGain();
+  if (gain <= 0) return;
+  try {
+    pmAudioCtx = pmAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = pmAudioCtx, t = ctx.currentTime;
+    [880, 1320].forEach((freq, i) => {
+      const start = t + i * 0.12;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.25 * gain, start + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+      o.connect(g).connect(ctx.destination);
+      o.start(start); o.stop(start + 0.4);
+    });
+  } catch { /* no sound available */ }
+}
+setPmChime(playPmChime);
+
+// The private chat: one tab per person you're talking with (Damon). Switching tabs keeps every
+// conversation and anything half-typed; ✕ closes a tab but the conversation comes back when reopened.
+// Used in the lobby and in the room.
+function PrivateChatPanel({ style = {}, listMaxHeight }) {
+  const pm = usePm();
+  const me = getAuth()?.username;
+  const listRef = useRef(null);
+  const inputRef = useRef(null);
+  const active = pm.active;
+  const messages = active ? (pm.convos[active] || []) : [];
+  // Keep the newest message in view (scrolls only the message list)
+  useEffect(() => {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages.length, active]);
+  // Put the cursor in the box when the player opens or switches a tab themselves — not when a
+  // message arrives (that would take the cursor out of the acro box mid-typing)
+  const seenFocus = useRef(pm.focus);
+  useEffect(() => {
+    if (pm.focus !== seenFocus.current) { seenFocus.current = pm.focus; inputRef.current?.focus(); }
+  }, [pm.focus]);
+  if (!active) return null;
+  const draft = pm.drafts[active] || "";
+  const send = () => sendPm(active, draft);
+  return (
+    <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 0, borderColor: C.lavender, ...style }}>
+      {/* Tabs — they scroll sideways when there are many (phones) */}
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, padding: "8px 10px 0", borderBottom: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0 }}>
+        <span style={{ fontSize: 12, color: C.lavender, textTransform: "uppercase", letterSpacing: "0.1em", alignSelf: "center", margin: "0 6px 4px 4px", flexShrink: 0 }}>Private</span>
+        {pm.tabs.map(name => {
+          const on = name === active;
+          const unread = pm.unread[name] || 0;
+          return (
+            <div key={name} style={{ display: "flex", alignItems: "center", flexShrink: 0, background: on ? C.bgApp : "transparent", border: `1px solid ${on ? C.lavender : "transparent"}`, borderBottom: "none", borderRadius: "8px 8px 0 0", marginBottom: -1 }}>
+              <button onClick={() => openPm(name)} title={`Chat with ${name}`}
+                style={{ background: "none", border: "none", color: on ? C.textPrimary : C.textSecond, cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: on ? 700 : 400, padding: "6px 2px 6px 10px", whiteSpace: "nowrap" }}>
+                {name}
+                {unread > 0 && <span style={{ marginLeft: 6, background: C.brand, color: C.onBrand, fontSize: 11, borderRadius: 999, padding: "1px 6px" }}>{unread}</span>}
+              </button>
+              <button onClick={() => closePm(name)} title={`Close the chat with ${name}`} aria-label={`Close the chat with ${name}`}
+                style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "4px 8px 4px 6px" }}>×</button>
+            </div>
+          );
+        })}
+      </div>
+      <div ref={listRef} style={{ flex: 1, minHeight: 0, maxHeight: listMaxHeight, overflowY: "auto", padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+        {messages.length === 0 ? (
+          <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>Start a private conversation with {active}...</p>
+        ) : messages.map(m => (
+          <div key={m.id} style={{ fontSize: 15, overflowWrap: "anywhere" }}>
+            <span style={{ color: String(m.fromName).toLowerCase() === String(me).toLowerCase() ? C.teal : C.lavender, fontWeight: 600 }}>{m.fromName}: </span>
+            <span style={{ color: C.textSecond }}>{m.message}</span>
+          </div>
+        ))}
+      </div>
+      {pm.error && <div style={{ padding: "0 16px 6px", color: C.brand, fontSize: 13 }}>{pm.error}</div>}
+      <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
+        <input
+          ref={inputRef}
+          id="privateChatInput"
+          maxLength={1000}
+          style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
+          placeholder={`Message ${active}...`}
+          value={draft}
+          onChange={e => setPmDraft(active, e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") send(); }}
+        />
+        <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.lavender, border: `1px solid ${C.lavender}` }} onClick={send}>Send</Btn>
+      </div>
+    </Panel>
+  );
+}
+
+// "✉ Fran: nice one! · Reply" — shown for a message in a conversation that isn't on screen,
+// until Reply (opens that tab) or ✕
+function PmToast() {
+  const pm = usePm();
+  if (!pm.toast) return null;
+  return (
+    <div role="status" style={{ position: "fixed", top: 52, left: "50%", transform: "translateX(-50%)", zIndex: 80, width: "min(440px, calc(100vw - 32px))", boxSizing: "border-box", background: C.bgPanel2, border: `1px solid ${C.lavender}`, borderRadius: 10, boxShadow: "0 12px 32px rgba(0,0,0,0.4)", padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ fontSize: 18, color: C.lavender }}>✉</span>
+      <div style={{ flex: 1, minWidth: 0, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ color: C.lavender, fontWeight: 700 }}>{pm.toast.name}:</span>{" "}
+        <span style={{ color: C.textSecond, fontStyle: "italic" }}>{pm.toast.text}</span>
+      </div>
+      <Btn onClick={() => openPm(pm.toast.name)} style={{ padding: "4px 12px", fontSize: 14 }}>Reply</Btn>
+      <button onClick={dismissPmToast} aria-label="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 16, padding: 4 }}>✕</button>
+    </div>
+  );
+}
+
 // ── Lobby ──────────────────────────────────────────────────────
 function Lobby() {
   const [status, setStatus] = useState("loading...");
@@ -298,6 +413,7 @@ function Lobby() {
   });
   const navigate = useNavigate();
   const { players, messages, sendMessage } = useLobbyHub(auth?.username);
+  const pm = usePm();   // private messages (shared with the room)
   const [chatInput, setChatInput] = useState("");
   const lobbyBottomRef = useRef(null);
   // Create Room: an inline name field instead of the browser's pop-up
@@ -478,7 +594,7 @@ function Lobby() {
         </Panel>}
 
         {auth && (
-          <div style={{ display: "grid", gridTemplateColumns: phone ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 3fr)", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: phone ? "minmax(0, 1fr)" : (pm.active ? "minmax(0, 1fr) minmax(0, 2fr) minmax(0, 2fr)" : "minmax(0, 1fr) minmax(0, 3fr)"), gap: 16 }}>
             <Panel style={{ padding: 16 }}>
               <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Online Players ({players.length})
@@ -487,11 +603,19 @@ function Lobby() {
                 <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No one else here yet</p>
               ) : (
                 <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
-                  {players.map((p, i) => (
-                    <li key={i} style={{ fontSize: 15, color: C.textSecond, padding: "4px 8px", background: C.bgApp, borderRadius: 6 }}>
-                      <span style={{ color: C.success }}>●</span> {p}
-                    </li>
-                  ))}
+                  {players.map((p, i) => {
+                    // Click a name to message them privately (not yourself)
+                    const isMe = String(p).toLowerCase() === String(auth?.username).toLowerCase();
+                    return (
+                      <li key={i} onClick={() => { if (!isMe) openPm(p); }} title={isMe ? undefined : `Message ${p}`}
+                        style={{ fontSize: 15, color: C.textSecond, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: isMe ? "default" : "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                        <span style={{ color: C.success }}>●</span> {p}
+                        {isMe && <span style={{ color: C.teal }}>(you)</span>}
+                        {(pm.unread[p] || 0) > 0 && <span style={{ marginLeft: "auto", background: C.brand, color: C.onBrand, fontSize: 11, borderRadius: 999, padding: "1px 6px" }}>{pm.unread[p]}</span>}
+                        {!isMe && <span style={{ marginLeft: (pm.unread[p] || 0) > 0 ? 4 : "auto", color: C.lavender, fontSize: 13 }} aria-hidden>✉</span>}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </Panel>
@@ -528,8 +652,12 @@ function Lobby() {
                 <Btn onClick={() => { if (chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } }}>Send</Btn>
               </div>
             </Panel>
+
+            {/* Private messages — one tab per person */}
+            <PrivateChatPanel listMaxHeight={180} />
           </div>
         )}
+        <PmToast />
       </div>
     </div>
   );
@@ -848,13 +976,8 @@ function Room() {
   const [topicError, setTopicError] = useState("");
   const [topicTimer, setTopicTimer] = useState(null);
 
-  const [privateChat, setPrivateChat] = useState(null);
-  // Every private conversation, keyed by the other player's nickname.
-  // Messages are stored here even while that chat is closed, so the first message
-  // isn't lost and double-clicking a name no longer wipes the conversation.
-  const [privateHistory, setPrivateHistory] = useState({});
-  const privateChatRef = useRef(null);
-  useEffect(() => { privateChatRef.current = privateChat; }, [privateChat]);
+  // Private messages: tabs, unread counts and history are shared with the lobby (src/pm.js)
+  const pm = usePm();
   // Passenger scores frozen during voting and the drumroll, so the new totals
   // don't show before the results are revealed (null = show live scores)
   const [frozenScores, setFrozenScores] = useState(null);
@@ -905,9 +1028,6 @@ function Room() {
   const isNarrow = view.w < 900;
   // Short (under 800px tall, e.g. Windows display scale 125%): smaller header, timer and letters
   const isShort = view.h < 800;
-  const [privateChatInput, setPrivateChatInput] = useState("");
-  const [unreadFrom, setUnreadFrom] = useState({});
-  const privateChatBottomRef = useRef(null);
 
   // Refs
   const myDraftRef = useRef("");
@@ -944,7 +1064,6 @@ function Room() {
   const leavingRef = useRef(false);
   // When the poll last re-joined us (so it doesn't try more than every 5 s)
   const lastRejoinRef = useRef(0);
-  const privateChatListRef = useRef(null);
 
   // 🔊 / volume changed in the header: apply it to the sounds playing at this moment
   useEffect(() => {
@@ -1213,17 +1332,6 @@ function Room() {
       // No chat line here — RoundStarted (sent right after this) posts the round and topic together
     }, []),
 
-    onPrivateMessage: useCallback((senderNickname, message) => {
-      // Always keep the message — before, it was dropped if this chat wasn't open
-      setPrivateHistory(prev => ({
-        ...prev,
-        [senderNickname]: [...(prev[senderNickname] || []), { nickname: senderNickname, message, time: new Date() }]
-      }));
-      // Red unread badge only if this conversation isn't the one on screen
-      if (privateChatRef.current?.nickname !== senderNickname)
-        setUnreadFrom(prev => ({ ...prev, [senderNickname]: (prev[senderNickname] || 0) + 1 }));
-    }, []),
-
     onRoomMessage: useCallback((nickname, message) => {
       setRoomMessages(prev => [...prev, { nickname, message, time: new Date() }]);
     }, []),
@@ -1256,10 +1364,6 @@ function Room() {
     const el = chatListRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [roomMessages]);
-  useEffect(() => {
-    const el = privateChatListRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [privateHistory, privateChat]);
 
   // Topic countdown
   useEffect(() => {
@@ -1279,20 +1383,6 @@ function Room() {
     try {
       const conn = connectionRef.current;
       if (conn) { await conn.invoke("SendRoomMessage", id, auth.username, text); setRoomChatInput(""); }
-    } catch (e) { console.error(e); }
-  }
-
-  async function sendPrivateMessage() {
-    const text = privateChatInput.trim();
-    if (!text || !auth || !privateChat) return;
-    try {
-      const conn = connectionRef.current;
-      if (conn) {
-        await conn.invoke("SendPrivateMessage", privateChat.userId, auth.username, text);
-        const to = privateChat.nickname;
-        setPrivateHistory(prev => ({ ...prev, [to]: [...(prev[to] || []), { nickname: auth.username, message: text, time: new Date() }] }));
-        setPrivateChatInput("");
-      }
     } catch (e) { console.error(e); }
   }
 
@@ -1534,8 +1624,6 @@ function Room() {
   playersRef.current = players;
   // Score shown in Passengers — frozen during voting/drumroll, live otherwise
   const shownScore = p => (frozenScores && frozenScores[p.id] !== undefined ? frozenScores[p.id] : p.score);
-  // Messages of the open private chat (kept per person, survives closing/reopening)
-  const privateMessages = privateChat ? (privateHistory[privateChat.nickname] || []) : [];
   // Station shown in the header: 0 before the first round of a game (waiting, or the first topic
   // being chosen), otherwise the current round's number. During the round winner's topic prompt
   // it stays on the station just reached — the prompt itself says "Next up: Station N+1".
@@ -1835,7 +1923,7 @@ function Room() {
         display: "grid",
         gridTemplateRows: isNarrow ? undefined : "minmax(0, 1fr)",
         gridAutoRows: isNarrow ? "auto" : undefined,
-        gridTemplateColumns: isNarrow ? "1fr" : (privateChat ? "1fr 2fr 1fr" : "1fr 3fr"),
+        gridTemplateColumns: isNarrow ? "1fr" : (pm.active ? "minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.4fr)" : "1fr 3fr"),
         gap: 16
       }}>
 
@@ -1857,15 +1945,10 @@ function Room() {
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
               {[...players].sort((a, b) => shownScore(b) - shownScore(a)).map(p => (
                 <li key={p.id}
+                  title={p.id !== auth?.userId ? `Message ${p.nickname}` : undefined}
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
-                  onDoubleClick={() => {
-                    if (p.id !== auth?.userId) {
-                      // Opens (or re-opens) the chat — the history lives in privateHistory,
-                      // so this no longer wipes earlier messages
-                      setPrivateChat({ userId: p.id, nickname: p.nickname });
-                      setUnreadFrom(prev => ({ ...prev, [p.nickname]: 0 }));
-                    }
-                  }}>
+                  // One click (was a double click, awkward on phones) opens or switches to their tab
+                  onClick={() => { if (p.id !== auth?.userId) openPm(p.nickname); }}>
                   {/* Left side: a fixed tick column, then the name — the ✓ sits outside the name in its own
                       16px column, so names never move when someone submits (Damon's request) */}
                   <span style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
@@ -1879,9 +1962,9 @@ function Room() {
                     {p.id === auth?.userId && <span style={{ color: C.teal, marginLeft: 4 }}>(you)</span>}
                     {/* Window closed / connection lost — removed after about 10 seconds */}
                     {p.isConnected === false && <span style={{ marginLeft: 4, fontStyle: "italic" }}>(away)</span>}
-                    {unreadFrom[p.nickname] > 0 && (
+                    {(pm.unread[p.nickname] || 0) > 0 && (
                       <span style={{ marginLeft: 6, background: C.brand, color: C.onBrand, fontSize: 10, borderRadius: 999, padding: "1px 6px" }}>
-                        {unreadFrom[p.nickname]}
+                        {pm.unread[p.nickname]}
                       </span>
                     )}
                   </span>
@@ -1929,43 +2012,10 @@ function Room() {
           </div>
         </Panel>
 
-        {/* Private chat */}
-        {privateChat && (
-          <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 0, height: isNarrow ? 360 : undefined, borderColor: C.lavender }}>
-            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ margin: 0, fontSize: 14, color: C.lavender, textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                Private · {privateChat.nickname}
-              </h2>
-              <button onClick={() => setPrivateChat(null)} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
-            </div>
-            <div ref={privateChatListRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
-              {privateMessages.length === 0 ? (
-                <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>Start a private conversation...</p>
-              ) : (
-                privateMessages.map((m, i) => (
-                  <div key={i} style={{ fontSize: 15 }}>
-                    <span style={{ color: m.nickname === auth?.username ? C.teal : C.lavender, fontWeight: 600 }}>{m.nickname}: </span>
-                    <span style={{ color: C.textSecond }}>{m.message}</span>
-                  </div>
-                ))
-              )}
-              <div ref={privateChatBottomRef} />
-            </div>
-            <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
-              <input
-                id="privateChatInput"
-                style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
-                placeholder={`Message ${privateChat.nickname}...`}
-                value={privateChatInput}
-                onChange={e => setPrivateChatInput(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") sendPrivateMessage(); }}
-                autoFocus
-              />
-              <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.lavender, border: `1px solid ${C.lavender}` }} onClick={sendPrivateMessage}>Send</Btn>
-            </div>
-          </Panel>
-        )}
+        {/* Private messages — one tab per person (shared with the lobby) */}
+        <PrivateChatPanel style={{ height: isNarrow ? 360 : undefined }} />
       </div>
+      <PmToast />
     </div>
   );
 }
