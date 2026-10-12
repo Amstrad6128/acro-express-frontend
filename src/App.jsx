@@ -494,7 +494,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
 }
 
 // ── Results Screen ─────────────────────────────────────────────
-function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote }) {
+function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote, votes, myName }) {
   const sorted = Object.entries(scores || {}).sort((a, b) => b[1] - a[1]);
   const anyPoints = sorted.some(([, s]) => s > 0);
 
@@ -524,6 +524,8 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
           <thead>
             <tr style={{ color: C.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em" }}>
               <th style={cell}>Name</th>
+              {/* Votes the acro got (sent by the server since 2026-10-12; hidden if missing) */}
+              {votes && <th style={{ ...cell, textAlign: "center", width: 70 }}>Votes</th>}
               <th style={{ ...cell, textAlign: "center", width: 80 }}>Points</th>
               <th style={cell}>Acro</th>
             </tr>
@@ -544,7 +546,13 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
                   // The winner keeps a coral bar on the left, also when the row is my vote
                   boxShadow: isWinner ? `inset 4px 0 0 ${C.brand}` : "none"
                 }}>
-                  <td style={{ ...cell, color: onRibbon || colour, fontWeight: isWinner || isMyVote ? 700 : 400 }}>{name}</td>
+                  <td style={{ ...cell, color: onRibbon || colour, fontWeight: isWinner || isMyVote ? 700 : 400 }}>
+                    {/* ⭐ = round winner, (you) = my own row */}
+                    {isWinner && <span title="Round winner" style={{ marginRight: 6 }}>⭐</span>}
+                    {name}
+                    {name === myName && <span style={{ marginLeft: 6, fontWeight: 400, color: onRibbon || C.teal }}>(you)</span>}
+                  </td>
+                  {votes && <td style={{ ...cell, textAlign: "center", color: onRibbon || C.textSecond, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{votes[name] ?? 0}</td>}
                   <td style={{ ...cell, textAlign: "center", color: onRibbon || (isWinner ? C.brand : C.teal), fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{score}</td>
                   <td style={{ ...cell, color: onRibbon || (isWinner ? C.ivory : C.textSecond), fontStyle: "italic", fontWeight: isMyVote ? 700 : 400 }}>{entryByNickname[name] || "—"}</td>
                 </tr>
@@ -576,6 +584,8 @@ function Room() {
   const [entries, setEntries] = useState([]);
   const [scores, setScores] = useState({});
   const [winningAcro, setWinningAcro] = useState(null);
+  // Votes each player's acro got in the last round (nickname -> votes); null = server didn't send them
+  const [roundVotes, setRoundVotes] = useState(null);
   const [timer, setTimer] = useState(null);
   const [submittedAcro, setSubmittedAcro] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -606,6 +616,8 @@ function Room() {
   // True when the topic prompt is for round 1 (Start Game / New Game), false when the round winner sets it
   const [topicForFirstRound, setTopicForFirstRound] = useState(false);
   const [topicDraft, setTopicDraft] = useState("");
+  // Error from the server when the topic is refused (e.g. too short)
+  const [topicError, setTopicError] = useState("");
   const [topicTimer, setTopicTimer] = useState(null);
 
   const [privateChat, setPrivateChat] = useState(null);
@@ -846,7 +858,8 @@ function Room() {
       }
     }, [auth]),
 
-    onRoundEnded: useCallback((roundScores, winning, winnerPlayerId) => {
+    // roundVotesMap (4th) = votes per player's acro — sent by newer servers only
+    onRoundEnded: useCallback((roundScores, winning, winnerPlayerId, roundVotesMap) => {
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
 
@@ -861,6 +874,7 @@ function Room() {
 
       setTimeout(() => {
         setScores(roundScores || {});
+        setRoundVotes(roundVotesMap || null);
         setWinningAcro(winning);
         setPhase("Results");
         setTimer(null);
@@ -1188,6 +1202,27 @@ function Room() {
 
   handleSubmitAcroRef.current = handleSubmitAcro;
 
+  // Sends the topic from the prompt. Needs at least 2 letters or digits (same rule as the server,
+  // which refuses shorter ones too) — "l" and "s" were accepted by accident before.
+  async function submitTopic() {
+    const topic = topicDraft.trim();
+    if ((topic.match(/[\p{L}\p{N}]/gu) || []).length < 2) {
+      setTopicError("The topic needs at least 2 letters.");
+      return;
+    }
+    try {
+      const { setTopic } = await import("./services/api");
+      await setTopic(id, topic);
+      setTopicRequested(false);
+      setTopicDraft("");
+      setTopicError("");
+      setTopicTimer(null);
+    } catch (e) {
+      // Show the server's reason (the error text arrives as "400: <reason>")
+      setTopicError((e.message || "").replace(/^\d{3}:\s*/, "") || "The topic wasn't accepted.");
+    }
+  }
+
   async function handleStartRound() {
     try {
       await startRound(id);
@@ -1232,6 +1267,17 @@ function Room() {
   const shownScore = p => (frozenScores && frozenScores[p.id] !== undefined ? frozenScores[p.id] : p.score);
   // Messages of the open private chat (kept per person, survives closing/reopening)
   const privateMessages = privateChat ? (privateHistory[privateChat.nickname] || []) : [];
+  // Phase title shown in the header (replaces the technical "Phase: Submitting")
+  // (Results first: the round winner's topic prompt opens while the results are shown)
+  const phaseTitle =
+    phase === "Results" || phase === "Ended" ? "Results"
+    : topicRequested || phase === "Starting" ? "Choosing the topic"
+    : phase === "Submitting" ? "Write your acro"
+    : phase === "Voting" ? "Voting"
+    : phase === "Tallying" ? "Counting votes"
+    : phase === "GameOver" ? "Final Stop"
+    : phase === "Paused" ? "Paused"
+    : "Waiting to start";
   // Topic is shown while players are writing their acros
   const showTopic = !!currentTopic && phase === "Submitting" && !topicRequested;
   // Stage sizes — compact versions on short windows. Used both by the elements and by the
@@ -1276,7 +1322,8 @@ function Room() {
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
           <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
             Round <span style={{ color: C.teal, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
-            {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase === "Tallying" ? "Counting votes" : phase}</span>
+            {/* What's happening now, in words (first step towards the "Departure Board" announcer) */}
+            {" · "}<span style={{ color: C.ivory, fontFamily: "Fredoka, sans-serif", fontSize: 20, fontWeight: 600 }}>{phaseTitle}</span>
             {/* The timer moved to the centre, above the letters */}
           </div>
         </div>
@@ -1311,7 +1358,8 @@ function Room() {
             // Results get 3 parts of the width, the topic prompt 2 (each takes all of it when alone)
             <div style={{ flex: "3 1 0", minWidth: isNarrow ? "100%" : 0 }}>
             <ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players}
-              round={currentRound} topic={currentTopic} onClose={() => setResultsClosed(true)} myVote={myVote} />
+              round={currentRound} topic={currentTopic} onClose={() => setResultsClosed(true)} myVote={myVote}
+              votes={roundVotes} myName={auth?.username} />
             </div>
           )}
           {topicRequested && (
@@ -1335,27 +1383,13 @@ function Room() {
               style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 18, outline: "none", fontFamily: "inherit", textAlign: "center" }}
               placeholder="Type a topic..."
               value={topicDraft}
-              onChange={e => setTopicDraft(e.target.value)}
-              onKeyDown={async e => {
-                if (e.key === "Enter" && topicDraft.trim()) {
-                  const { setTopic } = await import("./services/api");
-                  await setTopic(id, topicDraft.trim());
-                  setTopicRequested(false);
-                  setTopicDraft("");
-                  setTopicTimer(null);
-                }
-              }}
+              onChange={e => { setTopicDraft(e.target.value); setTopicError(""); }}
+              onKeyDown={e => { if (e.key === "Enter") submitTopic(); }}
             />
-            <Btn onClick={async () => {
-              if (topicDraft.trim()) {
-                const { setTopic } = await import("./services/api");
-                await setTopic(id, topicDraft.trim());
-                setTopicRequested(false);
-                setTopicDraft("");
-                setTopicTimer(null);
-              }
-            }}>Set Topic</Btn>
+            <Btn onClick={submitTopic}>Set Topic</Btn>
           </div>
+          {/* Why the topic wasn't accepted (e.g. "l" — at least 2 letters) */}
+          {topicError && <p style={{ margin: "10px 0 0", color: C.brand, fontSize: 14, fontWeight: 600 }}>{topicError}</p>}
         </Panel>
         </div>
           )}
