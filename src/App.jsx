@@ -30,13 +30,14 @@ const THEMES = {
     success: "#5CC09D", navy2: "#36415E", navy3: "#414D70", bgGradient: "none",
     danger: "#A63A3A", dangerHover: "#BC4A4A",
   },
-  lamplight: { // Lamplight — green-black with amber gold, brass lamps glowing in the carriage
-    name: "Lamplight",
-    bgApp: "#0A1516", bgPanel: "#122223", bgPanel2: "#183031", border: "#28473F",
-    textPrimary: "#F3F4F0", textSecond: "#CDD9D1", textMuted: "#98AD9F",
-    brand: "#FFB300", brandHover: "#FFC433", onBrand: "#1E1500",
-    teal: "#2DD4BF", tealLight: "#66E3D2", lavender: "#BCDCCB", ivory: "#F5ECD7",
-    success: "#4FBF8F", navy2: "#183031", navy3: "#21403E", bgGradient: "none",
+  nightfall: { // Nightfall — mossy olive greens with a lime glow, from Damon's "Mossy hollow" palette
+                // (#636B2F moss, #BAC095 sage, #D4DE95 lime, #3D4127 olive) plus a deeper olive background
+    name: "Nightfall",
+    bgApp: "#23261A", bgPanel: "#3D4127", bgPanel2: "#474C2E", border: "#636B2F",
+    textPrimary: "#F4F6E6", textSecond: "#E1E5C8", textMuted: "#BAC095",
+    brand: "#D4DE95", brandHover: "#E0E9A6", onBrand: "#2A2E14",
+    teal: "#D4DE95", tealLight: "#E4ECB0", lavender: "#C9D0A8", ivory: "#F1EFD8",
+    success: "#A8C766", navy2: "#474C2E", navy3: "#565D2B", bgGradient: "none",
     danger: "#9A3B22", dangerHover: "#B04A2E",
   },
   daybreak: {  // Daybreak — from Damon's Midjourney picture: sky blue, cloud lavender,
@@ -51,7 +52,7 @@ const THEMES = {
     danger: "#A8455A", dangerHover: "#BC566B",
   },
 };
-const THEME_KEYS = ["midnight", "twilight", "lamplight", "daybreak"];
+const THEME_KEYS = ["midnight", "twilight", "nightfall", "daybreak"];
 const COLOR_NAMES = ["bgApp", "bgPanel", "bgPanel2", "border", "textPrimary", "textSecond", "textMuted",
   "brand", "brandHover", "onBrand", "teal", "tealLight", "lavender", "ivory", "success", "navy2", "navy3",
   "danger", "dangerHover"];   // danger = red for actions like Log out
@@ -60,7 +61,11 @@ const C = Object.fromEntries(COLOR_NAMES.map(n => [n, `var(--c-${n})`]));
 
 // The palette this browser chose last time (Midnight if none or unknown)
 function loadThemeKey() {
-  try { const k = localStorage.getItem("acro.theme"); return THEMES[k] ? k : "midnight"; } catch { return "midnight"; }
+  try {
+    let k = localStorage.getItem("acro.theme");
+    if (k === "lamplight") k = "nightfall";   // the green palette's old name — keep the player's choice
+    return THEMES[k] ? k : "midnight";
+  } catch { return "midnight"; }
 }
 // Puts a scheme's colours into the CSS variables on <html> and remembers the choice
 function applyTheme(key) {
