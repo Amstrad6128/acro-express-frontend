@@ -2,6 +2,12 @@ import { useEffect, useRef, useCallback } from "react";
 import * as signalR from "@microsoft/signalr";
 import { API_URL, getAuth, joinRoom } from "../services/api";
 
+// Wait before each reconnect attempt: right away, 2 s, 5 s, 10 s, then every 15 s — and never give up.
+// (The default gave up after 4 tries, about 42 s, and the page silently stopped updating.)
+const RETRY_POLICY = {
+  nextRetryDelayInMilliseconds: (ctx) => [0, 2000, 5000, 10000][ctx.previousRetryCount] ?? 15000,
+};
+
 export function useSignalR(roomId, handlers = {}) {
   const connectionRef = useRef(null);
   const handlersRef = useRef(handlers);
@@ -20,7 +26,7 @@ export function useSignalR(roomId, handlers = {}) {
       .withUrl(`${API_URL}/gamehub`, {
         accessTokenFactory: () => token,
       })
-      .withAutomaticReconnect()
+      .withAutomaticReconnect(RETRY_POLICY)
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
@@ -41,35 +47,68 @@ export function useSignalR(roomId, handlers = {}) {
     connection.on("PlayerJoined", (...args) => handlersRef.current.onPlayerJoined?.(...args));
     connection.on("PlayerLeft", (...args) => handlersRef.current.onPlayerLeft?.(...args));
 
+    // Tells the page whether the live connection works ("connected") or not ("reconnecting"),
+    // so it can show a "Reconnecting…" banner
+    const status = (s) => handlersRef.current.onConnectionChange?.(s);
+
+    // Joins the room on this connection: the hub group (live updates) and the room itself
+    // (Passengers; the server gives the score back if it's the same game)
+    const joinEverything = async () => {
+      const a = getAuth();
+      await connection.invoke("JoinRoom", roomId, a?.userId?.toString());
+      if (a?.userId) await joinRoom(roomId, { id: a.userId, nickname: a.username, score: 0 });
+    };
+
+    // Connection lost — the automatic reconnect (RETRY_POLICY) is trying again
+    connection.onreconnecting(() => status("reconnecting"));
+
     // After an automatic reconnect the server sees a NEW connection, which isn't in the
     // room yet — re-join, otherwise no more game updates arrive and the inactivity
-    // cleanup would treat the player as gone
+    // cleanup would treat the player as gone. The room join also covers the case where
+    // the server removed us while we were disconnected (e.g. during a server restart).
     connection.onreconnected(async () => {
       try {
-        await connection.invoke("JoinRoom", roomId, getAuth()?.userId?.toString());
-        // Also re-join the room itself, in case the server removed us while we were
-        // disconnected (e.g. during a server restart) — this restores our score too
-        const a = getAuth();
-        if (a?.userId) await joinRoom(roomId, { id: a.userId, nickname: a.username, score: 0 });
+        await joinEverything();
       } catch (err) {
         console.error("SignalR re-join failed:", err);
       }
+      status("connected");
     });
 
-    try {
-      await connection.start();
-      const auth = getAuth();
-      await connection.invoke("JoinRoom", roomId, auth?.userId?.toString());
-      connectionRef.current = connection;
-      console.log("SignalR connected to room", roomId);
-    } catch (err) {
-      console.error("SignalR connection failed:", err);
-    }
+    // Starts the connection; on failure tries again every 5 s until it works.
+    // firstTime: the page joins the room itself when it opens, so only the hub group is needed then.
+    const startLoop = async (firstTime) => {
+      if (connection.__stopped) return;                     // the page was left meanwhile
+      try {
+        await connection.start();
+        if (firstTime) await connection.invoke("JoinRoom", roomId, getAuth()?.userId?.toString());
+        else await joinEverything();
+        status("connected");
+        console.log("SignalR connected to room", roomId);
+      } catch (err) {
+        console.error("SignalR connection failed, trying again in 5 s:", err);
+        status("reconnecting");
+        setTimeout(() => startLoop(false), 5000);
+      }
+    };
+
+    // The connection closed for good (e.g. the automatic reconnect was cut short) —
+    // unless we closed it ourselves, start a new one
+    connection.onclose(() => {
+      if (connection.__stopped) return;
+      status("reconnecting");
+      setTimeout(() => startLoop(false), 5000);
+    });
+
+    // Remember the connection before starting, so a second connect() doesn't open another one
+    connectionRef.current = connection;
+    await startLoop(true);
   }, [roomId]);
 
   const disconnect = useCallback(async () => {
     const conn = connectionRef.current;
     if (!conn) return;
+    conn.__stopped = true;   // we're closing it on purpose — don't reconnect
     try {
       await conn.invoke("LeaveRoom", roomId);
       await conn.stop();

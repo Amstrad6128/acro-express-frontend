@@ -680,6 +680,20 @@ function Room() {
   // Chat scroll containers — we scroll these directly instead of scrollIntoView,
   // which also scrolled the whole page down every time a message arrived
   const chatListRef = useRef(null);
+  // Live connection: "connected" or "reconnecting" (shows a banner)
+  const [connStatus, setConnStatus] = useState("connected");
+  // The 3-second room check can't reach the server (also shows the banner)
+  const [pollFailing, setPollFailing] = useState(false);
+  // The room loaded at least once — after that, a failed check keeps the room on screen
+  const roomLoadedRef = useRef(false);
+  // The room no longer exists on the server (everyone left, or closed after 5 minutes)
+  const [roomClosed, setRoomClosed] = useState(false);
+  // Last known room name, so the title never falls back to "Room #<id>"
+  const roomNameRef = useRef("");
+  // Set while leaving with Back to Lobby, so the poll below doesn't join the room again
+  const leavingRef = useRef(false);
+  // When the poll last re-joined us (so it doesn't try more than every 5 s)
+  const lastRejoinRef = useRef(0);
   const privateChatListRef = useRef(null);
 
   // Unlock audio on first user interaction
@@ -703,6 +717,8 @@ function Room() {
   }
 
   const signalRHandlers = {
+    // From useSignalR: the live connection dropped ("reconnecting") or works again ("connected")
+    onConnectionChange: useCallback((status) => setConnStatus(status), []),
     // 4th argument (topic) is new — the backend now sends it with every RoundStarted
     onRoundStarted: useCallback((roundNumber, lettersStr, seconds, topic) => {
       setLetters(typeof lettersStr === "string" ? lettersStr.split("") : lettersStr);
@@ -939,7 +955,8 @@ function Room() {
       // connection id instead of the player id. Only announce players we know, once per 30 s.
       const leaver = playersRef.current.find(p => sameId(p.id, leftId));
       const lastTime = leaver ? leftAnnouncedRef.current[leaver.id] : 0;
-      if (leaver && (!lastTime || Date.now() - lastTime > 30000)) {
+      // Not about yourself: if the server removed you, the page joins you again straight away
+      if (leaver && !sameId(leaver.id, auth?.userId) && (!lastTime || Date.now() - lastTime > 30000)) {
         leftAnnouncedRef.current[leaver.id] = Date.now(); // remember, so the repeats are skipped
         postSystemMessage(`${leaver.nickname} has left the room.`);
       }
@@ -997,6 +1014,7 @@ function Room() {
   }
 
   async function handleLeaveRoom() {
+    leavingRef.current = true;   // leaving on purpose — the poll must not join us again
     // Stop all audio
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
@@ -1034,7 +1052,32 @@ function Room() {
     try {
       const { fetchRoomState } = await import("./services/api");
       const data = await fetchRoomState(id);
+      // The room no longer exists → show "This room has closed" instead of an empty room
+      // (keeps the last good room data; before, the title became "Room #<id>")
+      if (data?.notFound) { setRoomClosed(true); return; }
+      if (data?.name) roomNameRef.current = data.name;      // remember the name
+      roomLoadedRef.current = true;
+      setPollFailing(false);                                 // the server answers again
       setState({ loading: false, error: null, data });
+
+      // Self-heal: the room exists but we're not in Passengers any more — removed as "away"
+      // after a dropped connection, a server restart, or a second tab that was closed.
+      // Join again, so chat, topics and acros work for us again (the server gives the score
+      // back if it's the same game). Not while leaving, and at most every 5 seconds.
+      const me = auth?.userId;
+      if (me && !leavingRef.current && Array.isArray(data?.players)
+          && !data.players.some(p => sameId(p.id, me))
+          && Date.now() - lastRejoinRef.current > 5000) {
+        lastRejoinRef.current = Date.now();
+        joinRoom(id, { id: me, nickname: auth.username, score: 0 }).catch(e => {
+          console.warn("Re-join failed:", e);
+          // 401 = the server no longer knows our login (it restarted) — go to the login screen
+          // instead of staying in a room we can't play in
+          if (String(e?.message || "").startsWith("401")) { localStorage.removeItem("acro.auth"); navigate("/"); }
+        });
+        // Also join the live updates again, in case this connection lost the room group
+        connectionRef.current?.invoke("JoinRoom", id, String(me)).catch(() => { });
+      }
       if (data?.letters) setLetters(typeof data.letters === "string" ? data.letters.split("") : data.letters);
 
       // If server says Voting but frontend missed the SignalR event — force it.
@@ -1061,7 +1104,13 @@ function Room() {
         if (prev === "Submitting" || prev === "Voting" || prev === "Tallying" || prev === "Results" || prev === "GameOver" || prev === "Paused") return prev;
         return data?.phase || prev;
       });
-    } catch (err) { setState({ loading: false, error: String(err?.message || err), data: null }); }
+    } catch (err) {
+      // Server unreachable (restart, network blip): keep the room on screen with "Reconnecting…"
+      // and keep checking every 3 s. Only a room that never loaded shows the error page.
+      // (Before, one failed check replaced the whole room with "Error: Failed to fetch".)
+      if (roomLoadedRef.current) setPollFailing(true);
+      else setState({ loading: false, error: String(err?.message || err), data: null });
+    }
   }
 
   useEffect(() => {
@@ -1140,11 +1189,34 @@ function Room() {
     } catch (e) { alert(`Start failed: ${e.message}`); }
   }
 
+  // The room closed: stop the music and close the live connection
+  useEffect(() => {
+    if (!roomClosed) return;
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
+    if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
+    disconnect();
+  }, [roomClosed]);
+
   if (state.loading) return <div style={{ minHeight: "100vh", background: C.bgApp, color: C.textPrimary, padding: 24 }}>Loading room...</div>;
   if (state.error) return (
     <div style={{ minHeight: "100vh", background: C.bgApp, color: C.textPrimary, padding: 24 }}>
       <p style={{ color: C.brand }}>Error: {state.error}</p>
       <Btn onClick={() => navigate("/")}>Back to Lobby</Btn>
+    </div>
+  );
+  // The room was deleted on the server while this page was open
+  if (roomClosed) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, color: C.textPrimary }}>
+      <Panel style={{ padding: 32, textAlign: "center", maxWidth: 480, borderColor: C.teal }}>
+        <h2 style={{ margin: "0 0 12px", fontFamily: "Fredoka, sans-serif", fontSize: 26, color: C.ivory }}>
+          {roomNameRef.current ? `"${roomNameRef.current}" has closed` : "This room has closed"}
+        </h2>
+        <p style={{ margin: "0 0 24px", color: C.textSecond, fontSize: 16 }}>
+          Everyone left, or your connection was lost for a while.
+        </p>
+        <Btn onClick={() => navigate("/")}>Back to Lobby</Btn>
+      </Panel>
     </div>
   );
 
@@ -1178,6 +1250,13 @@ function Room() {
     // Fit mode: laid out at view.w × view.h and shrunk with `zoom`, so it fills the window exactly.
     // Scroll mode (window too small even at 70%): normal height, the page scrolls with a scrollbar.
     <div style={{ height: view.scroll ? "auto" : view.h, minHeight: view.scroll ? "100vh" : undefined, zoom: view.scale, boxSizing: "border-box", overflow: view.scroll ? "visible" : "hidden", display: "flex", flexDirection: "column", color: C.textPrimary, padding: isNarrow ? 16 : "clamp(12px, 3vh, 24px) 64px" }}>
+
+      {/* Live connection lost — shown until it works again (it keeps trying by itself) */}
+      {(connStatus === "reconnecting" || pollFailing) && (
+        <div style={{ position: "fixed", top: 10, left: "50%", transform: "translateX(-50%)", zIndex: 60, background: C.brand, color: "#fff", padding: "6px 16px", borderRadius: 999, fontSize: 14, fontWeight: 600, boxShadow: "0 6px 20px rgba(0,0,0,0.4)" }}>
+          Reconnecting…
+        </div>
+      )}
 
       {/* Floating panels (like AcroChallenge): round results on top, the winner's topic
           prompt under it. They float above the page, so nothing underneath moves. */}
@@ -1242,7 +1321,7 @@ function Room() {
           Short windows: 86px (smaller topic and gap) instead of 104px */}
       <div style={{ flexShrink: 0, minHeight: isNarrow ? 0 : (isShort ? 86 : 104), display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "clamp(8px, 2vh, 24px)" }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || `Room #${id}`}</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || roomNameRef.current || `Room #${id}`}</h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
           <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
             Round <span style={{ color: C.teal, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
