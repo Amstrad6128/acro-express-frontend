@@ -40,6 +40,8 @@ export function useSignalR(roomId, handlers = {}) {
     connection.on("GamePaused", (...args) => handlersRef.current.onGamePaused?.(...args));
     // Sent only to this player: their unsent acro couldn't be entered at time-up
     connection.on("AcroNotEntered", (...args) => handlersRef.current.onAcroNotEntered?.(...args));
+    // Who has submitted an acro this round (player ids only, never the acros)
+    connection.on("SubmittedPlayers", (...args) => handlersRef.current.onSubmittedPlayers?.(...args));
 
     // ── Chat events ──────────────────────────────────────
     connection.on("ReceiveRoomMessage", (...args) => handlersRef.current.onRoomMessage?.(...args));

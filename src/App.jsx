@@ -717,6 +717,8 @@ function Room() {
   const [connStatus, setConnStatus] = useState("connected");
   // Short private notice, e.g. "Acro not entered. It needed 3 words: B T V" (null = none)
   const [notice, setNotice] = useState(null);
+  // Players who have submitted this round (lower-case ids) — names turn teal in Passengers
+  const [submittedIds, setSubmittedIds] = useState([]);
   const noticeTimerRef = useRef(null);
   // The 3-second room check can't reach the server (also shows the banner)
   const [pollFailing, setPollFailing] = useState(false);
@@ -753,6 +755,10 @@ function Room() {
   }
 
   const signalRHandlers = {
+    // Someone submitted (or changed) an acro: the server sends everyone who has submitted so far
+    onSubmittedPlayers: useCallback((ids) => {
+      setSubmittedIds((ids || []).map(x => String(x).toLowerCase()));
+    }, []),
     // From the server, to this player only: the unsent acro couldn't be entered at time-up.
     // Shown as a banner for 10 seconds, and as a line in my own chat.
     onAcroNotEntered: useCallback((message) => {
@@ -779,6 +785,7 @@ function Room() {
       setMyVote(null); // new round — forget last round's vote
       clearTimeout(topicPromptTimerRef.current); // a round started — no topic prompt pending any more
       setNextGameIn(null); // a round has started — no game-over countdown any more
+      setSubmittedIds([]); // nobody has submitted yet in the new round
       // Show this round's topic next to the acro input.
       // Before, this line cleared the topic — but TopicSet arrives just BEFORE
       // RoundStarted, so the topic was wiped the moment the round began.
@@ -1150,6 +1157,9 @@ function Room() {
 
       // Fallback for the topic label in case TopicSet/RoundStarted was missed
       if (data?.phase === "Submitting" && data?.currentTopic) setCurrentTopic(data.currentTopic);
+      // Who has submitted (also after a page reload, or if an update was missed)
+      if (data?.phase === "Submitting" && Array.isArray(data?.submittedPlayerIds))
+        setSubmittedIds(data.submittedPlayerIds.map(x => String(x).toLowerCase()));
 
       setPhase(prev => {
         // "GameOver" is kept too — otherwise the poll replaced it within 3s and the winner panel vanished
@@ -1597,7 +1607,15 @@ function Room() {
         {/* Players */}
         {/* Stacked (narrow): at most 200px tall, scrolls inside when there are many passengers */}
         <Panel style={{ padding: 16, minHeight: 0, maxHeight: isNarrow ? 200 : undefined, overflowY: "auto", boxSizing: "border-box" }}>
-          <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Passengers</h2>
+          <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            Passengers
+            {/* While writing: how many of the connected players have submitted (like Acrophobia) */}
+            {phase === "Submitting" && (
+              <span style={{ marginLeft: 8, color: C.teal, textTransform: "none", letterSpacing: 0, fontWeight: 600 }}>
+                · {players.filter(p => p.isConnected !== false && submittedIds.includes(String(p.id).toLowerCase())).length} of {players.filter(p => p.isConnected !== false).length} submitted
+              </span>
+            )}
+          </h2>
           {players.length === 0 ? (
             <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No passengers yet</p>
           ) : (
@@ -1613,7 +1631,9 @@ function Room() {
                       setUnreadFrom(prev => ({ ...prev, [p.nickname]: 0 }));
                     }
                   }}>
-                  <span style={{ color: p.isConnected === false ? C.textMuted : C.textSecond, opacity: p.isConnected === false ? 0.6 : 1 }}>
+                  {/* Submitted this round (while writing): name in teal with a ✓ */}
+                  <span style={{ color: p.isConnected === false ? C.textMuted : (phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? C.teal : C.textSecond), fontWeight: phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? 700 : 400, opacity: p.isConnected === false ? 0.6 : 1 }}>
+                    {phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) && <span title="Submitted" style={{ marginRight: 4 }}>✓</span>}
                     {p.nickname}
                     {p.id === auth?.userId && <span style={{ color: C.teal, marginLeft: 4 }}>(you)</span>}
                     {/* Window closed / connection lost — removed after about 10 seconds */}
