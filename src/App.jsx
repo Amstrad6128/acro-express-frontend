@@ -510,9 +510,9 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
 
   // One table, one column (like AcroChallenge): Name | Points | Acro.
   // The winning entry is shown by colour — no separate "winning entry" box.
-  const cell = { padding: "8px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "left" };
+  const cell = { padding: "6px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "left" };   // a bit more compact (was 8px)
   return (
-    <Panel style={{ padding: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+    <Panel style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <h2 style={{ margin: 0, color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 20 }}>
           Round <span style={{ fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{round}</span>{topic ? ` – ${topic}` : ""}
@@ -535,19 +535,18 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
               // The acro this player voted for (Sandy: "when I look at the box, I can never remember")
               const isMyVote = !!myVote && entryByNickname[name] === myVote;
               const colour = isWinner ? C.brand : C.textSecond;
+              // My vote: a teal ribbon across the whole row — name, points and acro — so I remember
+              // who wrote it too (only I see my own vote). Dark text on the ribbon.
+              const onRibbon = isMyVote ? C.bgApp : null;
               return (
-                <tr key={name} style={{ background: isWinner ? `${C.brand}1a` : "transparent" }}>
-                  <td style={{ ...cell, color: colour, fontWeight: isWinner ? 700 : 400 }}>{name}</td>
-                  <td style={{ ...cell, textAlign: "center", color: isWinner ? C.brand : C.teal, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{score}</td>
-                  <td style={{ ...cell, color: isWinner ? C.ivory : C.textSecond, fontStyle: "italic" }}>
-                    {/* The acro I voted for sits on a teal ribbon (only I see my own vote).
-                        Replaces the thin bar + small "✓ your vote" tag — Sandy still couldn't tell. */}
-                    {isMyVote ? (
-                      <span title="Your vote" style={{ background: C.teal, color: C.bgApp, fontWeight: 700, padding: "3px 10px", borderRadius: 6, boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone", lineHeight: 1.9 }}>
-                        {entryByNickname[name]}
-                      </span>
-                    ) : (entryByNickname[name] || "—")}
-                  </td>
+                <tr key={name} title={isMyVote ? "Your vote" : undefined} style={{
+                  background: isMyVote ? C.teal : (isWinner ? `${C.brand}1a` : "transparent"),
+                  // The winner keeps a coral bar on the left, also when the row is my vote
+                  boxShadow: isWinner ? `inset 4px 0 0 ${C.brand}` : "none"
+                }}>
+                  <td style={{ ...cell, color: onRibbon || colour, fontWeight: isWinner || isMyVote ? 700 : 400 }}>{name}</td>
+                  <td style={{ ...cell, textAlign: "center", color: onRibbon || (isWinner ? C.brand : C.teal), fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{score}</td>
+                  <td style={{ ...cell, color: onRibbon || (isWinner ? C.ivory : C.textSecond), fontStyle: "italic", fontWeight: isMyVote ? 700 : 400 }}>{entryByNickname[name] || "—"}</td>
                 </tr>
               );
             })}
@@ -1264,16 +1263,60 @@ function Room() {
         </div>
       )}
 
-      {/* Floating panels (like AcroChallenge): round results on top, the winner's topic
-          prompt under it. They float above the page, so nothing underneath moves. */}
+      {/* Voting overlay */}
+      {phase === "Voting" && (
+        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} onVoteCast={setMyVote} timer={timer} maxTimer={maxTimer} topic={currentTopic} />)}
+
+      {/* Header */}
+      {/* minHeight keeps room for the topic (top right), so the header is the same height with or without it.
+          Short windows: 86px (smaller topic and gap) instead of 104px */}
+      <div style={{ flexShrink: 0, minHeight: isNarrow ? 0 : (isShort ? 86 : 104), display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "clamp(8px, 2vh, 24px)" }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || roomNameRef.current || `Room #${id}`}</h1>
+          {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
+          <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
+            Round <span style={{ color: C.teal, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
+            {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase === "Tallying" ? "Counting votes" : phase}</span>
+            {/* The timer moved to the centre, above the letters */}
+          </div>
+        </div>
+        {/* Gap between the buttons and the topic: 6px on short windows, 16px otherwise */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 6 : 16 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            {/* After a game ends the room is back in Waiting, so a new game can be started */}
+            {/* Hidden during the 30-second break after a game — the next game starts by itself */}
+            {(phase === "Waiting" || (phase === "GameOver" && (nextGameIn === null || nextGameIn <= -10)) || phase === "Paused") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
+            <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
+          </div>
+          {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
+          {showTopic && !isNarrow && topicBlock("right")}
+        </div>
+      </div>
+
+      {/* Stage — always the height the writing phase needs (timer + letters + acro box), in every phase, so the boxes below never move. Passengers and the
+          chats get all the remaining space. On short screens the stage shrinks and scrolls inside.
+          scrollbarWidth "none" hides the scrollbar (rounding made a 1px overflow show one) — the wheel still scrolls.
+          flex "0 0": the stage never shrinks, so the acro box is never pushed out of sight (Deb lost it). */}
+      {/* Scroll mode: the stage is as tall as its contents (the topic under the letters included),
+          because the page scrolls anyway — nothing inside it can be cut off or covered. */}
+      <div style={{ flex: view.scroll ? "0 0 auto" : `0 0 calc(2 * ${stagePad} + ${timerSize} + clamp(4px, 1.5vh, 12px) + ${letterSize} + 173px)`, minHeight: 0, overflowY: view.scroll ? "visible" : "auto", scrollbarWidth: (phase === "Results" && !resultsClosed) || topicRequested ? "thin" : "none", display: "flow-root" }}>
+      {/* (scrollbar: hidden normally, slim while results are shown, in case a long list doesn't fit) */}
+
+      {/* Round results and the winner's topic prompt — inside the stage, where the letters are
+          (like Acrophobia). Before, they floated over the page and covered "Round N" in the header.
+          Side by side on wide screens (results left, topic prompt right), stacked on narrow ones. */}
       {((phase === "Results" && !resultsClosed) || topicRequested) && (
-        <div style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", width: "min(900px, calc(100% - 32px))", maxHeight: "calc(100vh - 100px)", overflowY: "auto", zIndex: 40, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", flexWrap: isNarrow ? "wrap" : "nowrap", gap: 16, alignItems: "flex-start", marginBottom: 16 }}>
           {phase === "Results" && !resultsClosed && (
+            // Results get 3 parts of the width, the topic prompt 2 (each takes all of it when alone)
+            <div style={{ flex: "3 1 0", minWidth: isNarrow ? "100%" : 0 }}>
             <ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players}
               round={currentRound} topic={currentTopic} onClose={() => setResultsClosed(true)} myVote={myVote} />
+            </div>
           )}
           {topicRequested && (
-        <Panel style={{ padding: 20, borderColor: C.teal, textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+        <div style={{ flex: "2 1 0", minWidth: isNarrow ? "100%" : 0 }}>
+        <Panel style={{ padding: 20, borderColor: C.teal, textAlign: "center" }}>
           <h2 style={{ margin: "0 0 8px", fontFamily: "Fredoka, sans-serif", fontSize: 22, color: C.teal }}>
             Set the topic for this round
           </h2>
@@ -1314,47 +1357,10 @@ function Room() {
             }}>Set Topic</Btn>
           </div>
         </Panel>
+        </div>
           )}
         </div>
       )}
-
-      {/* Voting overlay */}
-      {phase === "Voting" && (
-        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} onVoteCast={setMyVote} timer={timer} maxTimer={maxTimer} topic={currentTopic} />)}
-
-      {/* Header */}
-      {/* minHeight keeps room for the topic (top right), so the header is the same height with or without it.
-          Short windows: 86px (smaller topic and gap) instead of 104px */}
-      <div style={{ flexShrink: 0, minHeight: isNarrow ? 0 : (isShort ? 86 : 104), display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "clamp(8px, 2vh, 24px)" }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || roomNameRef.current || `Room #${id}`}</h1>
-          {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
-          <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
-            Round <span style={{ color: C.teal, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
-            {" · "}Phase: <span style={{ color: C.textPrimary, fontWeight: 600 }}>{phase === "Tallying" ? "Counting votes" : phase}</span>
-            {/* The timer moved to the centre, above the letters */}
-          </div>
-        </div>
-        {/* Gap between the buttons and the topic: 6px on short windows, 16px otherwise */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 6 : 16 }}>
-          <div style={{ display: "flex", gap: 8 }}>
-            {/* After a game ends the room is back in Waiting, so a new game can be started */}
-            {/* Hidden during the 30-second break after a game — the next game starts by itself */}
-            {(phase === "Waiting" || (phase === "GameOver" && (nextGameIn === null || nextGameIn <= -10)) || phase === "Paused") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
-            <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
-          </div>
-          {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
-          {showTopic && !isNarrow && topicBlock("right")}
-        </div>
-      </div>
-
-      {/* Stage — always the height the writing phase needs (timer + letters + acro box), in every phase, so the boxes below never move. Passengers and the
-          chats get all the remaining space. On short screens the stage shrinks and scrolls inside.
-          scrollbarWidth "none" hides the scrollbar (rounding made a 1px overflow show one) — the wheel still scrolls.
-          flex "0 0": the stage never shrinks, so the acro box is never pushed out of sight (Deb lost it). */}
-      {/* Scroll mode: the stage is as tall as its contents (the topic under the letters included),
-          because the page scrolls anyway — nothing inside it can be cut off or covered. */}
-      <div style={{ flex: view.scroll ? "0 0 auto" : `0 0 calc(2 * ${stagePad} + ${timerSize} + clamp(4px, 1.5vh, 12px) + ${letterSize} + 173px)`, minHeight: 0, overflowY: view.scroll ? "visible" : "auto", scrollbarWidth: "none", display: "flow-root" }}>
 
 
       {/* Game over — shown inline where letters normally appear */}
@@ -1476,8 +1482,8 @@ function Room() {
         </Panel>
       )}
 
-      {/* Waiting */}
-      {phase === "Waiting" && (
+      {/* Waiting (not while the topic prompt for round 1 is open — it sits in the stage too) */}
+      {phase === "Waiting" && !topicRequested && (
         <Panel style={{ padding: 16, marginBottom: 16, textAlign: "center" }}>
           <p style={{ color: C.textMuted, margin: 0 }}>Waiting for the game to start...</p>
         </Panel>
