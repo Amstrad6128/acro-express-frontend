@@ -1340,7 +1340,9 @@ function Room() {
           <div style={{ display: "flex", gap: 8 }}>
             {/* After a game ends the room is back in Waiting, so a new game can be started */}
             {/* Hidden during the 30-second break after a game — the next game starts by itself */}
-            {(phase === "Waiting" || (phase === "GameOver" && (nextGameIn === null || nextGameIn <= -10)) || phase === "Paused") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
+            {/* Not while the first topic is being chosen: round 1 already exists then (currentRoundNumber > 0)
+                — clicking it gave "round already in progress" */}
+            {((phase === "Waiting" && !topicRequested && !(data.currentRoundNumber > 0)) || (phase === "GameOver" && (nextGameIn === null || nextGameIn <= -10)) || phase === "Paused") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
             <BtnSecondary onClick={handleLeaveRoom}>← Back to Lobby</BtnSecondary>
           </div>
           {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
@@ -1373,7 +1375,8 @@ function Room() {
         <div>
         <Panel style={{ padding: 20, borderColor: C.teal, textAlign: "center" }}>
           <h2 style={{ margin: "0 0 8px", fontFamily: "Fredoka, sans-serif", fontSize: 22, color: C.teal }}>
-            Set the topic for this round
+            {/* The topic is chosen BEFORE the round it belongs to (the round starts with the countdown) */}
+            Set the topic for the next round
           </h2>
           <p style={{ margin: "0 0 16px", color: C.textMuted, fontSize: 15 }}>
             You have <span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span> — or it defaults to General Acro.
@@ -1387,13 +1390,15 @@ function Room() {
             <input
               id="topicInput"
               autoFocus
-              style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 18, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+              // Slimmer than before (was 10px padding, 18px text) — the button takes the same height
+              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit", textAlign: "center" }}
               placeholder="Type a topic..."
               value={topicDraft}
               onChange={e => { setTopicDraft(e.target.value); setTopicError(""); }}
               onKeyDown={e => { if (e.key === "Enter") submitTopic(); }}
             />
-            <Btn onClick={submitTopic}>Set Topic</Btn>
+            {/* nowrap: "Set Topic" stays on one line */}
+            <Btn onClick={submitTopic} style={{ whiteSpace: "nowrap" }}>Set Topic</Btn>
           </div>
           {/* Why the topic wasn't accepted (e.g. "l" — at least 2 letters) */}
           {topicError && <p style={{ margin: "10px 0 0", color: C.brand, fontSize: 14, fontWeight: 600 }}>{topicError}</p>}
