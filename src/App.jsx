@@ -442,11 +442,30 @@ function Lobby() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {roomList.map(room => (
                 <div key={room.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px" }}>
-                  <div>
+                  {/* minWidth 0: long name lists wrap instead of pushing the Join button off the row */}
+                  <div style={{ minWidth: 0, flex: 1, marginRight: 12 }}>
                     <p style={{ margin: 0, fontWeight: 600, color: C.textPrimary }}>{room.name}</p>
-                    <p style={{ margin: 0, fontSize: 14, color: C.textMuted }}>{room.playerCount}/{room.maxPlayers} players · {room.status}</p>
+                    {/* Is a game going on, how far, who leads (Sandy, Deb) */}
+                    <p style={{ margin: "2px 0 0", fontSize: 14, color: C.textSecond }}>
+                      {room.gameOn ? (
+                        <>
+                          <span style={{ color: C.success }}>●</span> <span style={{ fontWeight: 600 }}>Game on</span>
+                          {room.station > 0 && <> · Station <span style={{ fontFamily: NUM_FONT }}>{room.station}</span></>}
+                          {room.leaderName && <> · leader <span style={{ color: C.teal, fontWeight: 600 }}>{room.leaderName}</span> <span style={{ fontFamily: NUM_FONT }}>{room.leaderScore}</span> of <span style={{ fontFamily: NUM_FONT }}>{room.winScore || 30}</span></>}
+                        </>
+                      ) : (
+                        <><span style={{ color: C.textMuted }}>○</span> Waiting for players</>
+                      )}
+                    </p>
+                    {/* Everyone in the room — friends can see where their friends are */}
+                    <p style={{ margin: "2px 0 0", fontSize: 14, color: C.textMuted, overflowWrap: "anywhere" }}>
+                      {(room.playingNames || []).length > 0 && <span style={{ color: C.textSecond }}>{room.playingNames.join(", ")}</span>}
+                      {(room.awayNames || []).length > 0 && <>{(room.playingNames || []).length > 0 && ", "}<span style={{ fontStyle: "italic" }}>{room.awayNames.map(n => `${n} (away)`).join(", ")}</span></>}
+                      {(room.playingNames || []).length + (room.awayNames || []).length > 0 && " · "}
+                      {(room.playingNames || []).length} {room.gameOn ? "playing" : "here"}
+                    </p>
                   </div>
-                  <BtnSecondary onClick={() => navigate(`/room/${room.id}`)}>Join</BtnSecondary>
+                  <BtnSecondary onClick={() => navigate(`/room/${room.id}`)}>{room.gameOn ? "Join game" : "Join"}</BtnSecondary>
                 </div>
               ))}
             </div>
