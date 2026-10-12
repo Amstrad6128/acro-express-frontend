@@ -11,33 +11,33 @@ import { useLobbyHub } from "./hooks/useLobbyHub";
 // variables, so switching a scheme recolours the whole page at once without a reload.
 // onBrand = text colour on a "brand" (button) background; bgGradient = optional sky behind the page.
 const THEMES = {
-  night: {   // Night Express — the original look
-    name: "Night Express",
+  midnight: {  // Midnight — the original night ride
+    name: "Midnight",
     bgApp: "#070b14", bgPanel: "#131A2E", bgPanel2: "#1A233B", border: "#2B3758",
     textPrimary: "#F3F4F8", textSecond: "#C7CEE0", textMuted: "#94A0BE",
     brand: "#F26A5E", brandHover: "#FF7A6B", onBrand: "#FFF8F6",
     teal: "#6FB7C8", tealLight: "#8FD0DE", lavender: "#B7B3E6", ivory: "#F2E6D8",
     success: "#4FAF8F", navy2: "#24314D", navy3: "#2C3B5F", bgGradient: "none",
   },
-  dusk: {    // Dusk — the same look, less dark (Fran)
-    name: "Dusk",
+  twilight: {  // Twilight — the same sky just after sunset, less dark (Fran)
+    name: "Twilight",
     bgApp: "#232B3F", bgPanel: "#2E3852", bgPanel2: "#36415E", border: "#4A5880",
     textPrimary: "#F5F6FA", textSecond: "#D5DBEA", textMuted: "#AAB4CD",
     brand: "#F27D6E", brandHover: "#FF8E7F", onBrand: "#FFFFFF",
     teal: "#7FCAD8", tealLight: "#A0DAE5", lavender: "#C4C0EF", ivory: "#F5ECE1",
     success: "#5CC09D", navy2: "#36415E", navy3: "#414D70", bgGradient: "none",
   },
-  emerald: { // Emerald Express — green-black with amber gold, like brass and lamps
-    name: "Emerald Express",
+  lamplight: { // Lamplight — green-black with amber gold, brass lamps glowing in the carriage
+    name: "Lamplight",
     bgApp: "#0A1516", bgPanel: "#122223", bgPanel2: "#183031", border: "#28473F",
     textPrimary: "#F3F4F0", textSecond: "#CDD9D1", textMuted: "#98AD9F",
     brand: "#FFB300", brandHover: "#FFC433", onBrand: "#1E1500",
     teal: "#2DD4BF", tealLight: "#66E3D2", lavender: "#BCDCCB", ivory: "#F5ECD7",
     success: "#4FBF8F", navy2: "#183031", navy3: "#21403E", bgGradient: "none",
   },
-  sky: {     // Sky Station — from Damon's Midjourney picture: sky blue, cloud lavender,
-             // salmon towers, teal domes, a pink horizon
-    name: "Sky Station",
+  daybreak: {  // Daybreak — from Damon's Midjourney picture: sky blue, cloud lavender,
+               // salmon towers, teal domes, a pink horizon at dawn
+    name: "Daybreak",
     bgApp: "#4A78A3", bgPanel: "#2F4A75", bgPanel2: "#385786", border: "#7184B8",
     textPrimary: "#FFF6EC", textSecond: "#E6E8F6", textMuted: "#BCC3E2",
     brand: "#F2967C", brandHover: "#F8AA93", onBrand: "#22304F",
@@ -46,19 +46,19 @@ const THEMES = {
     bgGradient: "linear-gradient(180deg, #4A78A3 0%, #6E8FC2 62%, #C9A3C2 86%, #EDA79F 100%)",
   },
 };
-const THEME_KEYS = ["night", "dusk", "emerald", "sky"];
+const THEME_KEYS = ["midnight", "twilight", "lamplight", "daybreak"];
 const COLOR_NAMES = ["bgApp", "bgPanel", "bgPanel2", "border", "textPrimary", "textSecond", "textMuted",
   "brand", "brandHover", "onBrand", "teal", "tealLight", "lavender", "ivory", "success", "navy2", "navy3"];
 // C.brand → "var(--c-brand)" and so on
 const C = Object.fromEntries(COLOR_NAMES.map(n => [n, `var(--c-${n})`]));
 
-// The scheme this browser chose last time (Night Express if none or unknown)
+// The palette this browser chose last time (Midnight if none or unknown)
 function loadThemeKey() {
-  try { const k = localStorage.getItem("acro.theme"); return THEMES[k] ? k : "night"; } catch { return "night"; }
+  try { const k = localStorage.getItem("acro.theme"); return THEMES[k] ? k : "midnight"; } catch { return "midnight"; }
 }
 // Puts a scheme's colours into the CSS variables on <html> and remembers the choice
 function applyTheme(key) {
-  const t = THEMES[key] || THEMES.night;
+  const t = THEMES[key] || THEMES.midnight;
   const root = document.documentElement;
   for (const n of COLOR_NAMES) root.style.setProperty(`--c-${n}`, t[n]);
   root.style.setProperty("--c-bgGradient", t.bgGradient);
@@ -87,47 +87,84 @@ function setSoundSettings(next) {
   window.dispatchEvent(new Event("acro-sound-change"));
 }
 
-// Colour scheme swatches, shown in the lobby and the room header: click one and the colours
-// change at once (Damon: see the change on the fly, no settings page)
-function ThemePicker() {
-  const [current, setCurrent] = useState(loadThemeKey);
+// A small header button that opens a menu underneath it (used by "Express Colors" and "Sound").
+// Closes when you click outside it or press Escape.
+function HeaderMenu({ label, children, width = 230 }) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open]);
   return (
-    <div style={{ display: "flex", gap: 6, alignItems: "center" }} title="Colour scheme">
-      {THEME_KEYS.map(key => {
-        const t = THEMES[key];
-        const active = key === current;
-        return (
-          <button key={key} aria-label={t.name} title={t.name}
-            onClick={() => { applyTheme(key); setCurrent(key); }}
-            style={{
-              width: 22, height: 22, borderRadius: "50%", padding: 0, cursor: "pointer",
-              // half background, half accent — a tiny preview of the scheme
-              background: `linear-gradient(135deg, ${t.bgPanel} 50%, ${t.brand} 50%)`,
-              border: `2px solid ${active ? t.teal : "transparent"}`,
-              boxShadow: active ? `0 0 0 2px ${t.bgApp}` : "none",
-            }} />
-        );
-      })}
+    <div ref={boxRef} style={{ position: "relative" }}>
+      <button onClick={() => setOpen(o => !o)} aria-expanded={open}
+        style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>
+        {label} <span style={{ color: C.textMuted, fontSize: 11, marginLeft: 2 }}>▾</span>
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 70, width, background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", boxShadow: "0 12px 32px rgba(0,0,0,0.35)", textAlign: "left" }}>
+          {children(() => setOpen(false))}
+        </div>
+      )}
     </div>
   );
 }
 
-// Sound control for the room header: speaker button (on/off) and a volume slider
-function SoundControl() {
-  const [s, setS] = useState(soundSettings);
-  const change = (next) => { setSoundSettings(next); setS(next); };
+// "Express Colors: Midnight ▾" — pick a palette; the page recolours at once (Damon: no settings page)
+function ThemePicker() {
+  const [current, setCurrent] = useState(loadThemeKey);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <button onClick={() => change({ ...s, on: !s.on })} title={s.on ? "Sound on: click to mute" : "Muted: click for sound"}
-        aria-label={s.on ? "Mute sound" : "Turn sound on"}
-        style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, color: s.on ? C.teal : C.textMuted, cursor: "pointer", fontSize: 16, padding: "3px 8px", lineHeight: 1.2 }}>
-        {s.on ? "🔊" : "🔇"}
-      </button>
-      <input type="range" min="0" max="100" step="5" value={Math.round(s.volume * 100)} aria-label="Volume"
-        title={`Volume ${Math.round(s.volume * 100)}%`}
-        onChange={e => change({ on: true, volume: Number(e.target.value) / 100 })}
-        style={{ width: 80, accentColor: "var(--c-teal)" }} />
-    </div>
+    <HeaderMenu label={<>Express Colors: <span style={{ color: C.teal, fontWeight: 600 }}>{THEMES[current].name}</span></>}>
+      {(close) => (
+        <>
+          <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>Pick a look for your screen. Only you see it.</div>
+          {THEME_KEYS.map(key => {
+            const t = THEMES[key];
+            const active = key === current;
+            return (
+              <button key={key} onClick={() => { applyTheme(key); setCurrent(key); close(); }}
+                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", background: active ? C.navy3 : "transparent", border: "none", borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 15, fontFamily: "inherit", padding: "6px 8px", textAlign: "left" }}>
+                {/* a dot in the palette's own colours: its background with its accent as the rim */}
+                <span style={{ width: 14, height: 14, borderRadius: "50%", background: t.bgApp, border: `2px solid ${t.brand}`, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontWeight: active ? 700 : 400 }}>{t.name}</span>
+                {active && <span style={{ color: C.teal }}>✓</span>}
+              </button>
+            );
+          })}
+        </>
+      )}
+    </HeaderMenu>
+  );
+}
+
+// "Sound: 70% ▾" (or "Sound: Off") — volume slider and a Mute / Unmute button for all game sounds
+function SoundControl() {
+  const [st, setSt] = useState(soundSettings);
+  const change = (next) => { setSoundSettings(next); setSt(next); };
+  const pct = Math.round(st.volume * 100);
+  return (
+    <HeaderMenu width={210} label={<>Sound: <span style={{ color: C.teal, fontWeight: 600 }}>{st.on ? `${pct}%` : "Off"}</span></>}>
+      {() => (
+        <>
+          <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>Music and sound effects</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <input type="range" min="0" max="100" step="5" value={pct} aria-label="Volume"
+              onChange={e => change({ on: true, volume: Number(e.target.value) / 100 })}
+              style={{ flex: 1, accentColor: "var(--c-teal)" }} />
+            <span style={{ color: C.textSecond, fontSize: 13, width: 36, textAlign: "right" }}>{pct}%</span>
+          </div>
+          <button onClick={() => change({ ...st, on: !st.on })}
+            style={{ marginTop: 10, width: "100%", background: "transparent", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "5px 8px" }}>
+            {st.on ? "Mute" : "Unmute"}
+          </button>
+        </>
+      )}
+    </HeaderMenu>
   );
 }
 
@@ -1512,7 +1549,7 @@ function Room() {
         {/* Gap between the buttons and the topic: 6px on short windows, 16px otherwise */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 6 : 16 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {/* Colour scheme swatches and sound control — change them any time, even mid-game */}
+            {/* "Express Colors" and "Sound" menus — change them any time, even mid-game */}
             <ThemePicker />
             <SoundControl />
             {/* After a game ends the room is back in Waiting, so a new game can be started */}
