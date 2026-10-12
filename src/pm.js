@@ -13,7 +13,8 @@ let state = {
   active: null, // the tab on screen (null = panel closed)
   unread: {},   // name -> number of messages not seen yet
   drafts: {},   // name -> what was typed but not sent
-  toast: null,  // { name, text } — the "new message" pop-up
+  toasts: [],   // pop-ups, one per sender: { name, count, text } — oldest first (Damon: a 2nd sender
+                //   used to replace the 1st pop-up)
   error: "",    // last sending problem, shown under the box
   focus: 0,     // goes up when the player opens a tab → the panel focuses the message box
 };
@@ -67,7 +68,11 @@ export function receivePm(m) {
     if (!state.active) state.active = other;                       // nothing open → show this one
     if (!sameName(state.active, other)) {
       state.unread = { ...state.unread, [other]: (state.unread[other] || 0) + 1 };
-      state.toast = { name: other, text: m.message };              // pop-up until Reply or ✕
+      // Their pop-up: a new one, or the existing one updated ("Fran (2)" + the latest text)
+      const i = state.toasts.findIndex(t => sameName(t.name, other));
+      state.toasts = i >= 0
+        ? state.toasts.map((t, j) => j === i ? { ...t, count: t.count + 1, text: m.message } : t)
+        : [...state.toasts, { name: other, count: 1, text: m.message }];
     }
     if (document.hidden) unseenWhileAway++;
     chime();
@@ -121,7 +126,7 @@ export function openPm(name) {
   if (!existing) state.tabs = [...state.tabs, key];
   state.active = key;
   state.unread = { ...state.unread, [key]: 0 };
-  if (state.toast && sameName(state.toast.name, key)) state.toast = null;
+  state.toasts = state.toasts.filter(t => !sameName(t.name, key));   // their pop-up goes
   state.error = "";
   state.focus++;
   emit();
@@ -136,7 +141,7 @@ export function closePm(name) {
 }
 
 export function setPmDraft(name, text) { state.drafts = { ...state.drafts, [name]: text }; emit(); }
-export function dismissPmToast() { state.toast = null; emit(); }
+export function dismissPmToast(name) { state.toasts = state.toasts.filter(t => !sameName(t.name, name)); emit(); }
 export function setPmChime(fn) { chime = fn || (() => { }); }
 
 // For components: the current private-message state; loads the history once per login

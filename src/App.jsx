@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Routes, Route, useParams, useNavigate } from "react-router-dom";
-import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, getAuth, doneVoting } from "./services/api";
+import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, getAuth, doneVoting, API_URL } from "./services/api";
 import { useSignalR } from "./hooks/useSignalR";
 import { useLobbyHub } from "./hooks/useLobbyHub";
 import { usePm, openPm, closePm, sendPm, setPmDraft, dismissPmToast, setPmChime } from "./pm";
@@ -134,14 +134,14 @@ function HeaderMenu({ label, children, width = 230 }) {
       </button>
       {open && !sheet && (
         // Computer: a small menu right under the button
-        <div style={{ ...panel, position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 70, width }}>
+        <div style={{ ...panel, position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 85 /* above message pop-ups (80) */, width }}>
           {children(() => setOpen(false), false)}
         </div>
       )}
       {open && sheet && (
         // Phone: a dimmed screen with the menu centred near the top; tapping the dim area closes it
         <div onPointerDown={e => { if (e.target === e.currentTarget) setOpen(false); }}
-          style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(0,0,0,0.45)", display: "flex", justifyContent: "center", alignItems: "flex-start", paddingTop: "15vh" }}>
+          style={{ position: "fixed", inset: 0, zIndex: 85, background: "rgba(0,0,0,0.45)", display: "flex", justifyContent: "center", alignItems: "flex-start", paddingTop: "15vh" }}>
           <div style={{ ...panel, width: "min(320px, calc(100vw - 32px))", padding: "14px 14px", fontSize: 16 }}>
             {children(() => setOpen(false), true)}
           </div>
@@ -336,14 +336,14 @@ function PrivateChatPanel({ style = {}, listMaxHeight }) {
   const send = () => sendPm(active, draft);
   return (
     <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 0, borderColor: C.lavender, ...style }}>
-      {/* Tabs — they scroll sideways when there are many (phones) */}
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, padding: "8px 10px 0", borderBottom: `1px solid ${C.border}`, overflowX: "auto", flexShrink: 0 }}>
+      {/* Tabs — many tabs wrap onto a second line (a scrolling row showed stray scrollbars — Damon) */}
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 2, padding: "8px 10px 0", borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
         <span style={{ fontSize: 12, color: C.lavender, textTransform: "uppercase", letterSpacing: "0.1em", alignSelf: "center", margin: "0 6px 4px 4px", flexShrink: 0 }}>Private</span>
         {pm.tabs.map(name => {
           const on = name === active;
           const unread = pm.unread[name] || 0;
           return (
-            <div key={name} style={{ display: "flex", alignItems: "center", flexShrink: 0, background: on ? C.bgApp : "transparent", border: `1px solid ${on ? C.lavender : "transparent"}`, borderBottom: "none", borderRadius: "8px 8px 0 0", marginBottom: -1 }}>
+            <div key={name} style={{ display: "flex", alignItems: "center", flexShrink: 0, background: on ? C.bgApp : "transparent", borderTop: `1px solid ${on ? C.lavender : "transparent"}`, borderLeft: `1px solid ${on ? C.lavender : "transparent"}`, borderRight: `1px solid ${on ? C.lavender : "transparent"}`, borderRadius: "8px 8px 0 0", marginBottom: -1 }}>
               <button onClick={() => openPm(name)} title={`Chat with ${name}`}
                 style={{ background: "none", border: "none", color: on ? C.textPrimary : C.textSecond, cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: on ? 700 : 400, padding: "6px 2px 6px 10px", whiteSpace: "nowrap" }}>
                 {name}
@@ -383,21 +383,98 @@ function PrivateChatPanel({ style = {}, listMaxHeight }) {
   );
 }
 
-// "✉ Fran: nice one! · Reply" — shown for a message in a conversation that isn't on screen,
-// until Reply (opens that tab) or ✕
+// "✉ Fran (2): see you next station! · Reply ✕" — one pop-up per person whose conversation isn't on
+// screen, stacked (oldest on top). A 2nd message from the same person updates their pop-up. At most 3
+// are shown; more people → "+ N more people · Show". Reply opens that tab and closes its pop-up.
 function PmToast() {
   const pm = usePm();
-  if (!pm.toast) return null;
+  const list = pm.toasts || [];
+  if (list.length === 0) return null;
+  const shown = list.slice(0, 3), hidden = list.slice(3);
+  const card = { boxSizing: "border-box", background: C.bgPanel2, border: `1px solid ${C.lavender}`, borderRadius: 10, boxShadow: "0 12px 32px rgba(0,0,0,0.4)", padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 };
   return (
-    <div role="status" style={{ position: "fixed", top: 52, left: "50%", transform: "translateX(-50%)", zIndex: 80, width: "min(440px, calc(100vw - 32px))", boxSizing: "border-box", background: C.bgPanel2, border: `1px solid ${C.lavender}`, borderRadius: 10, boxShadow: "0 12px 32px rgba(0,0,0,0.4)", padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 }}>
-      <span style={{ fontSize: 18, color: C.lavender }}>✉</span>
-      <div style={{ flex: 1, minWidth: 0, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        <span style={{ color: C.lavender, fontWeight: 700 }}>{pm.toast.name}:</span>{" "}
-        <span style={{ color: C.textSecond, fontStyle: "italic" }}>{pm.toast.text}</span>
-      </div>
-      <Btn onClick={() => openPm(pm.toast.name)} style={{ padding: "4px 12px", fontSize: 14 }}>Reply</Btn>
-      <button onClick={dismissPmToast} aria-label="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 16, padding: 4 }}>✕</button>
+    <div style={{ position: "fixed", top: 52, left: "50%", transform: "translateX(-50%)", zIndex: 80, width: "min(440px, calc(100vw - 32px))", display: "flex", flexDirection: "column", gap: 8 }}>
+      {shown.map(t => (
+        <div key={t.name} role="status" style={card}>
+          <span style={{ fontSize: 18, color: C.lavender }}>✉</span>
+          <div style={{ flex: 1, minWidth: 0, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ color: C.lavender, fontWeight: 700 }}>{t.name}{t.count > 1 ? ` (${t.count})` : ""}:</span>{" "}
+            <span style={{ color: C.textSecond, fontStyle: "italic" }}>{t.text}</span>
+          </div>
+          <Btn onClick={() => openPm(t.name)} style={{ padding: "4px 12px", fontSize: 14 }}>Reply</Btn>
+          <button onClick={() => dismissPmToast(t.name)} aria-label={`Close the message from ${t.name}`} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 16, padding: 4 }}>✕</button>
+        </div>
+      ))}
+      {hidden.length > 0 && (
+        <div role="status" style={card}>
+          <span style={{ fontSize: 18, color: C.lavender }}>✉</span>
+          <div style={{ flex: 1, fontSize: 15, color: C.textSecond }}>+ {hidden.length} more {hidden.length === 1 ? "person" : "people"}</div>
+          <Btn onClick={() => openPm(hidden[0].name)} style={{ padding: "4px 12px", fontSize: 14 }}>Show</Btn>
+        </div>
+      )}
     </div>
+  );
+}
+
+// A player's name you can click to message them privately (your own name isn't clickable).
+// Used in Lobby Chat, Train Chat and Departures (Damon: every name you see is one click from a chat).
+function NameLink({ name, style }) {
+  const me = getAuth()?.username;
+  if (!name || String(name).toLowerCase() === String(me).toLowerCase()) return <span style={style}>{name}</span>;
+  return (
+    <span role="button" tabIndex={0} title={`Message ${name}`}
+      onClick={e => { e.stopPropagation(); openPm(name); }}
+      onKeyDown={e => { if (e.key === "Enter") openPm(name); }}
+      style={{ cursor: "pointer", ...style }}>{name}</span>
+  );
+}
+
+// "👥 Online 12 ▾" on a Sky Train: everyone online and where they are — at the Grand Sky Station or on
+// which train. Click a name to message them. Refreshes every 15 s (api/online).
+function OnlineButton() {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    let stop = false;
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/online`, { headers: { Authorization: `Bearer ${getAuth()?.token}` } });
+        if (res.ok && !stop) setData(await res.json());
+      } catch { /* try again next time */ }
+    };
+    load();
+    const iv = setInterval(load, 15000);
+    return () => { stop = true; clearInterval(iv); };
+  }, []);
+  const me = String(getAuth()?.username || "").toLowerCase();
+  const total = data ? new Set([...data.station, ...data.trains.flatMap(t => t.players)].map(n => n.toLowerCase())).size : null;
+  const group = (title, names, close, big) => (
+    <div key={title} style={{ marginBottom: 8 }}>
+      <div style={{ color: C.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em", margin: "6px 0 2px" }}>{title}</div>
+      {names.length === 0 && <div style={{ color: C.textMuted, fontSize: 14, fontStyle: "italic" }}>Nobody</div>}
+      {names.map(n => n.toLowerCase() === me ? (
+        <div key={n} style={{ color: C.textSecond, fontSize: big ? 17 : 15, padding: big ? "8px 8px" : "3px 8px" }}>{n} <span style={{ color: C.teal }}>(you)</span></div>
+      ) : (
+        <button key={n} onClick={() => { openPm(n); close(); }} title={`Message ${n}`}
+          style={{ display: "flex", justifyContent: "space-between", width: "100%", background: "transparent", border: "none", borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: big ? 17 : 15, padding: big ? "8px 8px" : "3px 8px", textAlign: "left" }}>
+          <span>{n}</span><span style={{ color: C.lavender }} aria-hidden>✉</span>
+        </button>
+      ))}
+    </div>
+  );
+  return (
+    <HeaderMenu width={260} label={<>👥 Online{total !== null && <span style={{ color: C.teal, fontWeight: 600 }}> {total}</span>}</>}>
+      {(close, big) => (
+        <div style={{ maxHeight: "55vh", overflowY: "auto" }}>
+          <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 4 }}>Click a name to send a private message.</div>
+          {!data ? <div style={{ color: C.textMuted, fontSize: 14 }}>Loading…</div> : (
+            <>
+              {group("Grand Sky Station", data.station, close, big)}
+              {data.trains.map(t => group(`🚆 ${t.name}`, t.players, close, big))}
+            </>
+          )}
+        </div>
+      )}
+    </HeaderMenu>
   );
 }
 
@@ -688,8 +765,9 @@ function Lobby() {
                     </p>
                     {/* Everyone in the room — friends can see where their friends are */}
                     <p style={{ margin: "2px 0 0", fontSize: 14, color: C.textMuted, overflowWrap: "anywhere" }}>
-                      {(room.playingNames || []).length > 0 && <span style={{ color: C.textSecond }}>{room.playingNames.join(", ")}</span>}
-                      {(room.awayNames || []).length > 0 && <>{(room.playingNames || []).length > 0 && ", "}<span style={{ fontStyle: "italic" }}>{room.awayNames.map(n => `${n} (away)`).join(", ")}</span></>}
+                      {/* Every name can be clicked to message that person */}
+                      {(room.playingNames || []).map((n, i) => <span key={n}>{i > 0 && ", "}<NameLink name={n} style={{ color: C.textSecond }} /></span>)}
+                      {(room.awayNames || []).length > 0 && <>{(room.playingNames || []).length > 0 && ", "}<span style={{ fontStyle: "italic" }}>{room.awayNames.map((n, i) => <span key={n}>{i > 0 && ", "}<NameLink name={n} /> (away)</span>)}</span></>}
                       {(room.playingNames || []).length + (room.awayNames || []).length > 0 && " · "}
                       {(room.playingNames || []).length} {room.gameOn ? "playing" : "here"}
                     </p>
@@ -740,7 +818,7 @@ function Lobby() {
                     <div key={i} style={{ fontSize: 15 }}>
                       {/* When it was written — lobby messages are kept, so they can be from yesterday */}
                       <span style={{ color: C.textMuted, fontSize: 12, marginRight: 6, fontVariantNumeric: "tabular-nums" }}>{lobbyTime(m.time)}</span>
-                      <span style={{ color: C.teal, fontWeight: 600 }}>{m.username}: </span>
+                      <NameLink name={m.username} style={{ color: C.teal, fontWeight: 600 }} /><span style={{ color: C.teal, fontWeight: 600 }}>: </span>
                       <span style={{ color: C.textSecond }}>{m.message}</span>
                     </div>
                   ))
@@ -1705,7 +1783,9 @@ function Room() {
     disconnect();
   }, [roomClosed]);
 
-  if (state.loading) return <div style={{ minHeight: "100vh", background: C.bgApp, color: C.textPrimary, padding: 24 }}>Boarding...</div>;
+  // Not when the train turned out to be closed: then the "has left service" screen below shows
+  // (opening a link to a closed train used to stay on "Boarding..." forever)
+  if (state.loading && !roomClosed) return <div style={{ minHeight: "100vh", background: C.bgApp, color: C.textPrimary, padding: 24 }}>Boarding...</div>;
   if (state.error) return (
     <div style={{ minHeight: "100vh", background: C.bgApp, color: C.textPrimary, padding: 24 }}>
       <p style={{ color: C.brand }}>Error: {state.error}</p>
@@ -1817,6 +1897,7 @@ function Room() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 6 : 16 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
             {/* "Express Colors" and "Sound" menus — change them any time, even mid-game */}
+            <OnlineButton />
             <HowToPlay winScore={data.winScore || 30} />
             <ThemePicker />
             <SoundControl />
@@ -2100,7 +2181,7 @@ function Room() {
                   <div key={i} style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic", textAlign: "center", padding: "2px 0" }}>{m.message}</div>
                 ) : (
                   <div key={i} style={{ fontSize: 15 }}>
-                    <span style={{ color: C.teal, fontWeight: 600 }}>{m.nickname}: </span>
+                    <NameLink name={m.nickname} style={{ color: C.teal, fontWeight: 600 }} /><span style={{ color: C.teal, fontWeight: 600 }}>: </span>
                     <span style={{ color: C.textSecond }}>{m.message}</span>
                   </div>
                 )
