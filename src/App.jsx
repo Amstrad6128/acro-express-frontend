@@ -616,6 +616,8 @@ function Room() {
   // True when the topic prompt is for round 1 (Start Game / New Game), false when the round winner sets it
   const [topicForFirstRound, setTopicForFirstRound] = useState(false);
   const [topicDraft, setTopicDraft] = useState("");
+  // Waits 8 s after the results appear before opening the winner's topic prompt
+  const topicPromptTimerRef = useRef(null);
   // Error from the server when the topic is refused (e.g. too short)
   const [topicError, setTopicError] = useState("");
   const [topicTimer, setTopicTimer] = useState(null);
@@ -750,6 +752,7 @@ function Room() {
       myDraftRef.current = "";
       setAcroError("");
       setMyVote(null); // new round — forget last round's vote
+      clearTimeout(topicPromptTimerRef.current); // a round started — no topic prompt pending any more
       setNextGameIn(null); // a round has started — no game-over countdown any more
       // Show this round's topic next to the acro input.
       // Before, this line cleared the topic — but TopicSet arrives just BEFORE
@@ -882,12 +885,17 @@ function Room() {
         // Reveal: Passengers now show the new totals
         setFrozenScores(null);
 
-        // Round winner picks the next topic (sameId ignores Guid case differences)
+        // Round winner picks the next topic (sameId ignores Guid case differences) — but only
+        // after everyone has had 8 seconds with the results. The prompt then REPLACES the results
+        // for the winner (they never show together). The server waits 40 s, enough for this.
         if (sameId(auth?.userId, winnerPlayerId)) {
-          setTopicForFirstRound(false); // topic for the round after the one that just ended
-          setTopicRequested(true);
-          topicRequestedRef.current = true;
-          setTopicTimer(25);
+          clearTimeout(topicPromptTimerRef.current);
+          topicPromptTimerRef.current = setTimeout(() => {
+            setTopicForFirstRound(false); // topic for the round after the one that just ended
+            setTopicRequested(true);
+            topicRequestedRef.current = true;
+            setTopicTimer(25);
+          }, 8000);
         }
       }, 4180);
     }, [auth]),
@@ -1268,10 +1276,10 @@ function Room() {
   // Messages of the open private chat (kept per person, survives closing/reopening)
   const privateMessages = privateChat ? (privateHistory[privateChat.nickname] || []) : [];
   // Phase title shown in the header (replaces the technical "Phase: Submitting")
-  // (Results first: the round winner's topic prompt opens while the results are shown)
+  // (The round winner's topic prompt replaces the results after 8 s, so it comes first)
   const phaseTitle =
-    phase === "Results" || phase === "Ended" ? "Results"
-    : topicRequested || phase === "Starting" ? "Choosing the topic"
+    topicRequested || phase === "Starting" ? "Choosing the topic"
+    : phase === "Results" || phase === "Ended" ? "Results"
     : phase === "Submitting" ? "Write your acro"
     : phase === "Voting" ? "Voting"
     : phase === "Tallying" ? "Counting votes"
@@ -1351,19 +1359,18 @@ function Room() {
 
       {/* Round results and the winner's topic prompt — inside the stage, where the letters are
           (like Acrophobia). Before, they floated over the page and covered "Round N" in the header.
-          Side by side on wide screens (results left, topic prompt right), stacked on narrow ones. */}
+          Never both at once: results first; for the round winner the topic prompt replaces them. */}
       {((phase === "Results" && !resultsClosed) || topicRequested) && (
-        <div style={{ display: "flex", flexWrap: isNarrow ? "wrap" : "nowrap", gap: 16, alignItems: "flex-start", marginBottom: 16 }}>
-          {phase === "Results" && !resultsClosed && (
-            // Results get 3 parts of the width, the topic prompt 2 (each takes all of it when alone)
-            <div style={{ flex: "3 1 0", minWidth: isNarrow ? "100%" : 0 }}>
+        <div style={{ marginBottom: 16 }}>
+          {phase === "Results" && !resultsClosed && !topicRequested && (
+            <div>
             <ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players}
               round={currentRound} topic={currentTopic} onClose={() => setResultsClosed(true)} myVote={myVote}
               votes={roundVotes} myName={auth?.username} />
             </div>
           )}
           {topicRequested && (
-        <div style={{ flex: "2 1 0", minWidth: isNarrow ? "100%" : 0 }}>
+        <div>
         <Panel style={{ padding: 20, borderColor: C.teal, textAlign: "center" }}>
           <h2 style={{ margin: "0 0 8px", fontFamily: "Fredoka, sans-serif", fontSize: 22, color: C.teal }}>
             Set the topic for this round
