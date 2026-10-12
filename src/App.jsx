@@ -536,12 +536,18 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
               const isMyVote = !!myVote && entryByNickname[name] === myVote;
               const colour = isWinner ? C.brand : C.textSecond;
               return (
-                <tr key={name} style={{ background: isWinner ? `${C.brand}1a` : "transparent", boxShadow: isMyVote ? `inset 3px 0 0 ${C.teal}` : "none" }}>{/* teal bar on the left = my vote */}
+                <tr key={name} style={{ background: isWinner ? `${C.brand}1a` : "transparent" }}>
                   <td style={{ ...cell, color: colour, fontWeight: isWinner ? 700 : 400 }}>{name}</td>
                   <td style={{ ...cell, textAlign: "center", color: isWinner ? C.brand : C.teal, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{score}</td>
-                  <td style={{ ...cell, color: isWinner ? C.ivory : C.textSecond, fontStyle: "italic" }}>{entryByNickname[name] || "—"}
-                    {/* Small tag after the acro I voted for */}
-                    {isMyVote && <span style={{ marginLeft: 8, fontSize: 12, fontStyle: "normal", color: C.teal, fontWeight: 700, whiteSpace: "nowrap" }}>✓ your vote</span>}</td>
+                  <td style={{ ...cell, color: isWinner ? C.ivory : C.textSecond, fontStyle: "italic" }}>
+                    {/* The acro I voted for sits on a teal ribbon (only I see my own vote).
+                        Replaces the thin bar + small "✓ your vote" tag — Sandy still couldn't tell. */}
+                    {isMyVote ? (
+                      <span title="Your vote" style={{ background: C.teal, color: C.bgApp, fontWeight: 700, padding: "3px 10px", borderRadius: 6, boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone", lineHeight: 1.9 }}>
+                        {entryByNickname[name]}
+                      </span>
+                    ) : (entryByNickname[name] || "—")}
+                  </td>
                 </tr>
               );
             })}
