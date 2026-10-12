@@ -235,7 +235,7 @@ function Lobby() {
               <div style={{ display: "flex", gap: 8 }}>
                 <input
                   autoFocus
-                  maxLength={40}
+                  maxLength={80} // up to 80 characters (was 40) — same limit as the server
                   placeholder="Name your room..."
                   value={newRoomName}
                   onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
