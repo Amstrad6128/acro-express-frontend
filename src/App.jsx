@@ -22,10 +22,11 @@ const THEMES = {
   },
   twilight: {  // Twilight — the same sky just after sunset, less dark (Fran)
     name: "Twilight",
-    bgApp: "#232B3F", bgPanel: "#2E3852", bgPanel2: "#36415E", border: "#4A5880",
-    textPrimary: "#F5F6FA", textSecond: "#D5DBEA", textMuted: "#AAB4CD",
+    // Brighter text, accents and borders for more contrast; the background stays as it was (Damon)
+    bgApp: "#232B3F", bgPanel: "#2E3852", bgPanel2: "#36415E", border: "#6274A6",
+    textPrimary: "#F7F8FC", textSecond: "#E4E8F2", textMuted: "#C2CADF",
     brand: "#F27D6E", brandHover: "#FF8E7F", onBrand: "#FFFFFF",
-    teal: "#7FCAD8", tealLight: "#A0DAE5", lavender: "#C4C0EF", ivory: "#F5ECE1",
+    teal: "#94DCE8", tealLight: "#B2E6EF", lavender: "#D4D0F7", ivory: "#FFF4E8",
     success: "#5CC09D", navy2: "#36415E", navy3: "#414D70", bgGradient: "none",
     danger: "#A63A3A", dangerHover: "#BC4A4A",
   },
@@ -1578,6 +1579,12 @@ function Room() {
             Station <span style={{ color: C.teal, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", fontSize: 28, fontWeight: 700 }}>{headerStation}</span>
             {/* What's happening now, in words (first step towards the "Departure Board" announcer) */}
             {" · "}<span style={{ color: C.ivory, fontFamily: "Fredoka, sans-serif", fontSize: 20, fontWeight: 600 }}>{phaseTitle}</span>
+            {/* What wins the game (the number comes from the server); hidden on the winner screen */}
+            {phase !== "GameOver" && (
+              <span style={{ color: C.textMuted, fontSize: 14, marginLeft: 10, whiteSpace: "nowrap" }}>
+                First to <span style={{ fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{data.winScore || 30}</span> wins
+              </span>
+            )}
             {/* The timer moved to the centre, above the letters */}
           </div>
         </div>
