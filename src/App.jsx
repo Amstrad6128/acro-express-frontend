@@ -1631,9 +1631,15 @@ function Room() {
                       setUnreadFrom(prev => ({ ...prev, [p.nickname]: 0 }));
                     }
                   }}>
-                  {/* Submitted this round (while writing): name in teal with a ✓ */}
+                  {/* Left side: a fixed tick column, then the name — the ✓ sits outside the name in its own
+                      16px column, so names never move when someone submits (Damon's request) */}
+                  <span style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
+                  <span title={phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? "Submitted" : undefined}
+                    style={{ width: 16, flexShrink: 0, color: C.teal, fontWeight: 700 }}>
+                    {phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? "✓" : ""}
+                  </span>
+                  {/* Submitted this round (while writing): name in teal */}
                   <span style={{ color: p.isConnected === false ? C.textMuted : (phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? C.teal : C.textSecond), fontWeight: phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? 700 : 400, opacity: p.isConnected === false ? 0.6 : 1 }}>
-                    {phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) && <span title="Submitted" style={{ marginRight: 4 }}>✓</span>}
                     {p.nickname}
                     {p.id === auth?.userId && <span style={{ color: C.teal, marginLeft: 4 }}>(you)</span>}
                     {/* Window closed / connection lost — removed after about 10 seconds */}
@@ -1643,6 +1649,7 @@ function Room() {
                         {unreadFrom[p.nickname]}
                       </span>
                     )}
+                  </span>
                   </span>
                   <span style={{ color: C.teal, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{shownScore(p)}</span>
                 </li>
