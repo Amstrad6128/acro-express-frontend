@@ -5,24 +5,131 @@ import { useSignalR } from "./hooks/useSignalR";
 import { useLobbyHub } from "./hooks/useLobbyHub";
 
 // ── Design tokens ──────────────────────────────────────────────
-const C = {
-  bgApp: "#070b14",
-  bgPanel: "#131A2E",
-  bgPanel2: "#1A233B",
-  border: "#2B3758",
-  textPrimary: "#F3F4F8",
-  textSecond: "#C7CEE0",
-  textMuted: "#94A0BE",
-  brand: "#F26A5E",
-  brandHover: "#FF7A6B",
-  teal: "#6FB7C8",
-  tealLight: "#8FD0DE",
-  lavender: "#B7B3E6",
-  ivory: "#F2E6D8",
-  success: "#4FAF8F",
-  navy2: "#24314D",
-  navy3: "#2C3B5F",
+// ── Colour schemes ─────────────────────────────────────────────
+// Each player picks one with the swatches in the header (saved in their browser).
+// Every colour name below becomes a CSS variable (--c-bgApp, --c-brand, …); C points at those
+// variables, so switching a scheme recolours the whole page at once without a reload.
+// onBrand = text colour on a "brand" (button) background; bgGradient = optional sky behind the page.
+const THEMES = {
+  night: {   // Night Express — the original look
+    name: "Night Express",
+    bgApp: "#070b14", bgPanel: "#131A2E", bgPanel2: "#1A233B", border: "#2B3758",
+    textPrimary: "#F3F4F8", textSecond: "#C7CEE0", textMuted: "#94A0BE",
+    brand: "#F26A5E", brandHover: "#FF7A6B", onBrand: "#FFF8F6",
+    teal: "#6FB7C8", tealLight: "#8FD0DE", lavender: "#B7B3E6", ivory: "#F2E6D8",
+    success: "#4FAF8F", navy2: "#24314D", navy3: "#2C3B5F", bgGradient: "none",
+  },
+  dusk: {    // Dusk — the same look, less dark (Fran)
+    name: "Dusk",
+    bgApp: "#232B3F", bgPanel: "#2E3852", bgPanel2: "#36415E", border: "#4A5880",
+    textPrimary: "#F5F6FA", textSecond: "#D5DBEA", textMuted: "#AAB4CD",
+    brand: "#F27D6E", brandHover: "#FF8E7F", onBrand: "#FFFFFF",
+    teal: "#7FCAD8", tealLight: "#A0DAE5", lavender: "#C4C0EF", ivory: "#F5ECE1",
+    success: "#5CC09D", navy2: "#36415E", navy3: "#414D70", bgGradient: "none",
+  },
+  emerald: { // Emerald Express — green-black with amber gold, like brass and lamps
+    name: "Emerald Express",
+    bgApp: "#0A1516", bgPanel: "#122223", bgPanel2: "#183031", border: "#28473F",
+    textPrimary: "#F3F4F0", textSecond: "#CDD9D1", textMuted: "#98AD9F",
+    brand: "#FFB300", brandHover: "#FFC433", onBrand: "#1E1500",
+    teal: "#2DD4BF", tealLight: "#66E3D2", lavender: "#BCDCCB", ivory: "#F5ECD7",
+    success: "#4FBF8F", navy2: "#183031", navy3: "#21403E", bgGradient: "none",
+  },
+  sky: {     // Sky Station — from Damon's Midjourney picture: sky blue, cloud lavender,
+             // salmon towers, teal domes, a pink horizon
+    name: "Sky Station",
+    bgApp: "#4A78A3", bgPanel: "#2F4A75", bgPanel2: "#385786", border: "#7184B8",
+    textPrimary: "#FFF6EC", textSecond: "#E6E8F6", textMuted: "#BCC3E2",
+    brand: "#F2967C", brandHover: "#F8AA93", onBrand: "#22304F",
+    teal: "#86D0D2", tealLight: "#A9E0E1", lavender: "#CFCCF3", ivory: "#FFF1E3",
+    success: "#74CDAC", navy2: "#385786", navy3: "#42639A",
+    bgGradient: "linear-gradient(180deg, #4A78A3 0%, #6E8FC2 62%, #C9A3C2 86%, #EDA79F 100%)",
+  },
 };
+const THEME_KEYS = ["night", "dusk", "emerald", "sky"];
+const COLOR_NAMES = ["bgApp", "bgPanel", "bgPanel2", "border", "textPrimary", "textSecond", "textMuted",
+  "brand", "brandHover", "onBrand", "teal", "tealLight", "lavender", "ivory", "success", "navy2", "navy3"];
+// C.brand → "var(--c-brand)" and so on
+const C = Object.fromEntries(COLOR_NAMES.map(n => [n, `var(--c-${n})`]));
+
+// The scheme this browser chose last time (Night Express if none or unknown)
+function loadThemeKey() {
+  try { const k = localStorage.getItem("acro.theme"); return THEMES[k] ? k : "night"; } catch { return "night"; }
+}
+// Puts a scheme's colours into the CSS variables on <html> and remembers the choice
+function applyTheme(key) {
+  const t = THEMES[key] || THEMES.night;
+  const root = document.documentElement;
+  for (const n of COLOR_NAMES) root.style.setProperty(`--c-${n}`, t[n]);
+  root.style.setProperty("--c-bgGradient", t.bgGradient);
+  try { localStorage.setItem("acro.theme", key); } catch { /* private mode: just not remembered */ }
+}
+applyTheme(loadThemeKey());   // before the first render, so the page never flashes the wrong colours
+
+// ── Sound settings ─────────────────────────────────────────────
+// One switch and one volume for all game sounds (song, second tune, drumroll), saved in the
+// browser. Applied as a volume factor on top of the game's own fades — the game's own "muted"
+// (the song plays silently after you submit) is left alone.
+function loadSound() {
+  try {
+    const s = JSON.parse(localStorage.getItem("acro.sound") || "null");
+    if (s && typeof s.on === "boolean" && typeof s.volume === "number") return s;
+  } catch { /* ignore */ }
+  return { on: true, volume: 1 };   // default: sound on, full volume (as before)
+}
+let soundSettings = loadSound();
+// The factor every game sound is multiplied by (0 = silent)
+function soundGain() { return soundSettings.on ? soundSettings.volume : 0; }
+// Saves new settings and tells the room to update the sounds that are playing now
+function setSoundSettings(next) {
+  soundSettings = next;
+  try { localStorage.setItem("acro.sound", JSON.stringify(next)); } catch { /* ignore */ }
+  window.dispatchEvent(new Event("acro-sound-change"));
+}
+
+// Colour scheme swatches, shown in the lobby and the room header: click one and the colours
+// change at once (Damon: see the change on the fly, no settings page)
+function ThemePicker() {
+  const [current, setCurrent] = useState(loadThemeKey);
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "center" }} title="Colour scheme">
+      {THEME_KEYS.map(key => {
+        const t = THEMES[key];
+        const active = key === current;
+        return (
+          <button key={key} aria-label={t.name} title={t.name}
+            onClick={() => { applyTheme(key); setCurrent(key); }}
+            style={{
+              width: 22, height: 22, borderRadius: "50%", padding: 0, cursor: "pointer",
+              // half background, half accent — a tiny preview of the scheme
+              background: `linear-gradient(135deg, ${t.bgPanel} 50%, ${t.brand} 50%)`,
+              border: `2px solid ${active ? t.teal : "transparent"}`,
+              boxShadow: active ? `0 0 0 2px ${t.bgApp}` : "none",
+            }} />
+        );
+      })}
+    </div>
+  );
+}
+
+// Sound control for the room header: speaker button (on/off) and a volume slider
+function SoundControl() {
+  const [s, setS] = useState(soundSettings);
+  const change = (next) => { setSoundSettings(next); setS(next); };
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <button onClick={() => change({ ...s, on: !s.on })} title={s.on ? "Sound on: click to mute" : "Muted: click for sound"}
+        aria-label={s.on ? "Mute sound" : "Turn sound on"}
+        style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, color: s.on ? C.teal : C.textMuted, cursor: "pointer", fontSize: 16, padding: "3px 8px", lineHeight: 1.2 }}>
+        {s.on ? "🔊" : "🔇"}
+      </button>
+      <input type="range" min="0" max="100" step="5" value={Math.round(s.volume * 100)} aria-label="Volume"
+        title={`Volume ${Math.round(s.volume * 100)}%`}
+        onChange={e => change({ on: true, volume: Number(e.target.value) / 100 })}
+        style={{ width: 80, accentColor: "var(--c-teal)" }} />
+    </div>
+  );
+}
 
 // ── Reusable styled components ─────────────────────────────────
 const Panel = ({ children, style = {}, className = "" }) => (
@@ -41,7 +148,7 @@ const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, st
       onMouseLeave={() => setHovered(false)}
       style={{
         background: hovered ? hoverColor : color,
-        color: "#FFF8F6",
+        color: C.onBrand,   // readable on the scheme's brand colour
         border: "none",
         borderRadius: 8,
         padding: "6px 14px",
@@ -191,7 +298,10 @@ function Lobby() {
     <div style={{ height: "100vh", overflowY: "auto", color: C.textPrimary }}>
       <div style={{ borderBottom: `1px solid ${C.border}`, padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand, margin: 0, letterSpacing: "-0.5px" }}>Acro Express</h1>
-        <span style={{ color: C.textMuted, fontSize: 15 }}>{status}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <ThemePicker />
+          <span style={{ color: C.textMuted, fontSize: 15 }}>{status}</span>
+        </div>
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 24px" }}>
@@ -463,7 +573,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
                   disabled={submitted}
                   style={{
                     width: "100%", textAlign: "left", padding: "12px 16px",
-                    background: isSelected ? `${C.brand}22` : C.bgPanel2,
+                    background: isSelected ? `color-mix(in srgb, ${C.brand} 13%, transparent)` : C.bgPanel2,
                     border: `1px solid ${isSelected ? C.brand : C.border}`,
                     borderRadius: 10, color: isSelected ? C.ivory : C.textSecond,
                     fontSize: 16, cursor: submitted ? "not-allowed" : "pointer",
@@ -484,7 +594,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
             <button
               onClick={handleBlankVote}
               style={{
-                background: selected === "blank" ? `${C.textMuted}22` : "transparent",
+                background: selected === "blank" ? `color-mix(in srgb, ${C.textMuted} 13%, transparent)` : "transparent",
                 border: `1px solid ${selected === "blank" ? C.textMuted : C.border}`,
                 borderRadius: 8, padding: "6px 14px", fontSize: 14,
                 color: selected === "blank" ? C.textPrimary : C.textMuted,
@@ -556,7 +666,7 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
               const onRibbon = isMyVote ? C.bgApp : null;
               return (
                 <tr key={name} title={isMyVote ? "Your vote" : undefined} style={{
-                  background: isMyVote ? C.teal : (isWinner ? `${C.brand}1a` : "transparent"),
+                  background: isMyVote ? C.teal : (isWinner ? `color-mix(in srgb, ${C.brand} 10%, transparent)` : "transparent"),
                   // The winner keeps a coral bar on the left, also when the row is my vote
                   boxShadow: isWinner ? `inset 4px 0 0 ${C.brand}` : "none"
                 }}>
@@ -734,6 +844,16 @@ function Room() {
   const lastRejoinRef = useRef(0);
   const privateChatListRef = useRef(null);
 
+  // 🔊 / volume changed in the header: apply it to the sounds playing at this moment
+  useEffect(() => {
+    const onSound = () => {
+      for (const a of [audioRef.current, audio2Ref.current, votingAudioRef.current])
+        if (a) a.volume = soundGain();
+    };
+    window.addEventListener("acro-sound-change", onSound);
+    return () => window.removeEventListener("acro-sound-change", onSound);
+  }, []);
+
   // Unlock audio on first user interaction
   useEffect(() => {
     const unlock = () => {
@@ -815,6 +935,7 @@ function Room() {
 
       const audio = new Audio("/AcroExpress_tunes.m4a");
       audio.loop = false;
+      audio.volume = soundGain();   // the player's sound setting (🔊 and slider in the header)
       audioRef.current = audio;
 
       // The song lasts ~92 seconds and its ending must land on 0: every round
@@ -835,7 +956,7 @@ function Room() {
           let v = 0;
           const fade = setInterval(() => {
             v = Math.min(1, v + 0.1);
-            audio.volume = v;
+            audio.volume = v * soundGain();   // fade up to the player's volume, not to full
             if (v >= 1) clearInterval(fade);
           }, 150);
         }
@@ -904,6 +1025,7 @@ function Room() {
       setTimer(null);
 
       const drumroll = new Audio("/AcroExpress_drumroll.m4a");
+      drumroll.volume = soundGain();   // the player's sound setting
       votingAudioRef.current = drumroll;
       drumroll.play().catch(() => { });
 
@@ -1216,6 +1338,7 @@ function Room() {
         // Restart tune 2 after editing with no changes
         audio2Ref.current = new Audio("/AcroExpress_tunes_02.mp3");
         audio2Ref.current.loop = false;
+        audio2Ref.current.volume = soundGain();   // the player's sound setting
         audio2Ref.current.play().catch(() => { });
         setTimeout(() => document.getElementById("chatInput")?.focus(), 100);
         return;
@@ -1233,6 +1356,7 @@ function Room() {
       // Start tune 2 after submitting
       audio2Ref.current = new Audio("/AcroExpress_tunes_02.mp3");
       audio2Ref.current.loop = false;
+      audio2Ref.current.volume = soundGain();   // the player's sound setting
       audio2Ref.current.play().catch(() => { });
       setTimeout(() => document.getElementById("chatInput")?.focus(), 100);
     } catch (e) {
@@ -1354,14 +1478,14 @@ function Room() {
 
       {/* Private notice (e.g. acro not entered) — bold and short, above everything for 10 s */}
       {notice && (
-        <div style={{ position: "fixed", top: 52, left: "50%", transform: "translateX(-50%)", zIndex: 60, background: C.brand, color: "#fff", padding: "8px 18px", borderRadius: 10, fontSize: 16, fontWeight: 700, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", maxWidth: "calc(100% - 32px)", textAlign: "center" }}>
+        <div style={{ position: "fixed", top: 52, left: "50%", transform: "translateX(-50%)", zIndex: 60, background: C.brand, color: C.onBrand, padding: "8px 18px", borderRadius: 10, fontSize: 16, fontWeight: 700, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", maxWidth: "calc(100% - 32px)", textAlign: "center" }}>
           {notice}
         </div>
       )}
 
       {/* Live connection lost — shown until it works again (it keeps trying by itself) */}
       {(connStatus === "reconnecting" || pollFailing) && (
-        <div style={{ position: "fixed", top: 10, left: "50%", transform: "translateX(-50%)", zIndex: 60, background: C.brand, color: "#fff", padding: "6px 16px", borderRadius: 999, fontSize: 14, fontWeight: 600, boxShadow: "0 6px 20px rgba(0,0,0,0.4)" }}>
+        <div style={{ position: "fixed", top: 10, left: "50%", transform: "translateX(-50%)", zIndex: 60, background: C.brand, color: C.onBrand, padding: "6px 16px", borderRadius: 999, fontSize: 14, fontWeight: 600, boxShadow: "0 6px 20px rgba(0,0,0,0.4)" }}>
           Reconnecting…
         </div>
       )}
@@ -1387,7 +1511,10 @@ function Room() {
         </div>
         {/* Gap between the buttons and the topic: 6px on short windows, 16px otherwise */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 6 : 16 }}>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            {/* Colour scheme swatches and sound control — change them any time, even mid-game */}
+            <ThemePicker />
+            <SoundControl />
             {/* After a game ends the room is back in Waiting, so a new game can be started */}
             {/* Hidden during the 30-second break after a game — the next game starts by itself */}
             {/* Not while the first topic is being chosen: round 1 already exists then (currentRoundNumber > 0)
@@ -1645,7 +1772,7 @@ function Room() {
                     {/* Window closed / connection lost — removed after about 10 seconds */}
                     {p.isConnected === false && <span style={{ marginLeft: 4, fontStyle: "italic" }}>(away)</span>}
                     {unreadFrom[p.nickname] > 0 && (
-                      <span style={{ marginLeft: 6, background: C.brand, color: "#fff", fontSize: 10, borderRadius: 999, padding: "1px 6px" }}>
+                      <span style={{ marginLeft: 6, background: C.brand, color: C.onBrand, fontSize: 10, borderRadius: 999, padding: "1px 6px" }}>
                         {unreadFrom[p.nickname]}
                       </span>
                     )}
