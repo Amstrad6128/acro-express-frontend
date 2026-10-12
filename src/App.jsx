@@ -401,6 +401,109 @@ function PmToast() {
   );
 }
 
+// ── How to play ────────────────────────────────────────────────
+// The rules, written from what the server really does (letters, times, scoring — Services/RoundTimerService.cs
+// and Utils/AcroRules.cs). Special topics as explained by Sandy (2026-10-12). Opens over the page.
+function RulesSection({ icon, title, children }) {
+  return (
+    <section style={{ marginBottom: 18 }}>
+      <h3 style={{ margin: "0 0 6px", fontFamily: "Fredoka, sans-serif", fontSize: 19, color: C.ivory }}>
+        <span aria-hidden style={{ marginRight: 8 }}>{icon}</span>{title}
+      </h3>
+      <div style={{ color: C.textSecond, fontSize: 15, lineHeight: 1.5 }}>{children}</div>
+    </section>
+  );
+}
+const ex = { color: C.teal, fontStyle: "italic" };      // examples
+const rulesList = { margin: "4px 0 0", paddingLeft: 20, listStyle: "disc" };   // bullets (the page resets lists)
+
+function HowToPlay({ winScore = 30 }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+  return (
+    <>
+      <button onClick={() => setOpen(true)}
+        style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>
+        How to play
+      </button>
+      {open && (
+        // Dimmed page; tapping outside the panel closes it
+        <div onPointerDown={e => { if (e.target === e.currentTarget) setOpen(false); }}
+          style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,0.55)", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "5vh 16px", boxSizing: "border-box", textAlign: "left" }}>
+          <div role="dialog" aria-label="How to play" style={{ background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: "min(640px, 100%)", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
+              <h2 style={{ margin: 0, fontFamily: "Fredoka, sans-serif", fontSize: 24, color: C.brand }}>How to play</h2>
+              <button onClick={() => setOpen(false)} aria-label="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>✕</button>
+            </div>
+            <div style={{ overflowY: "auto", padding: "16px 20px 4px" }}>
+              <RulesSection icon="🚉" title="All aboard!">
+                Acro Express is a word game. Board a Sky Train at the Grand Sky Station and travel from station to station.
+                At every station you get a few letters: make a phrase from them, everyone votes for their favourite,
+                and the first passenger to reach <b style={{ color: C.textPrimary }}>{winScore} points</b> wins the journey.
+              </RulesSection>
+              <RulesSection icon="✍️" title="Write your acro">
+                <ul style={rulesList}>
+                  <li>A topic is shown, then the letters — for example <b style={{ color: C.textPrimary }}>B T V</b>.</li>
+                  <li>Write one word for each letter, in order: <span style={ex}>"Bring The Volcano"</span>.</li>
+                  <li>No extra words — not even little ones like "the" or "of". Symbols like + = &gt; &amp; are fine; they don't count as words.</li>
+                  <li>Stations get longer as you travel: 3 letters, then 4, 5, 6 and 7, then back to 3.</li>
+                  <li>You have about a minute (a little more for longer acros). Press Enter or Submit — you can change it until the time is up.</li>
+                  <li>Time ran out while you were still typing? A valid acro is entered for you.</li>
+                </ul>
+              </RulesSection>
+              <RulesSection icon="🗳️" title="Vote">
+                <ul style={rulesList}>
+                  <li>All acros appear without names. Pick your favourite (or "None of the above"), then press Done Voting.</li>
+                  <li>You can't vote for your own.</li>
+                  <li>Vote for what you truly think is the funniest, cleverest or best fit for the topic.</li>
+                </ul>
+              </RulesSection>
+              <RulesSection icon="⭐" title="Points">
+                <ul style={rulesList}>
+                  <li><b style={{ color: C.textPrimary }}>1 point</b> for every vote your acro gets.</li>
+                  <li>The <b style={{ color: C.textPrimary }}>winning acro</b> gets a bonus of <b style={{ color: C.textPrimary }}>1 point per letter</b> (5 letters = +5).</li>
+                  <li>You <b style={{ color: C.textPrimary }}>voted for the winner</b>? +1.</li>
+                  <li><b style={{ color: C.textPrimary }}>Speed bonus +1</b> for the fastest acro that got at least one vote.</li>
+                  <li>Same number of votes? The acro sent first wins.</li>
+                  <li>Identical acros are shown once, and everyone who wrote it shares the votes.</li>
+                </ul>
+              </RulesSection>
+              <RulesSection icon="🎯" title="Topics">
+                The winner of a station picks the topic for the next one. No topic in time? It's "General Acro".
+              </RulesSection>
+              <RulesSection icon="🎭" title="Special topics">
+                Sometimes the topic is a special challenge — your acro still has to fit the letters.
+                <ul style={rulesList}>
+                  <li><b style={{ color: C.textPrimary }}>Word Bank</b> — every letter of the 2nd and 3rd words must also be in the 1st word. <span style={ex}>P A S → "Pastries Ape Sit"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>Word &gt; Chain</b> — each word goes with the next one; put &gt; between the words. <span style={ex}>F T D → "Fire &gt; Truck &gt; Driver"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>Rhyme</b> — use words that rhyme. <span style={ex}>F C S → "Fat Cat Sat"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>A + B = C</b> — the first word plus the second word makes the third. <span style={ex}>S F S → "Sun + Flower = Sunflower"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>Pander</b> — make your acro about someone on the train. Be nice… or at least funny.</li>
+                </ul>
+                <div style={{ marginTop: 6 }}>Tip: put spaces around &gt; + and = so they don't stick to a word ("Fire&gt;Truck" counts as one word).</div>
+              </RulesSection>
+              <RulesSection icon="🏁" title="Final Stop">
+                When someone reaches {winScore}, the highest score wins the journey. After a 30-second break the next journey starts by itself.
+              </RulesSection>
+              <RulesSection icon="💬" title="Tips">
+                Click a name to send a private message. Change your colours under Express Colors, and your sound under Sound.
+              </RulesSection>
+            </div>
+            <div style={{ padding: "12px 20px", borderTop: `1px solid ${C.border}`, textAlign: "right" }}>
+              <Btn onClick={() => setOpen(false)}>All aboard!</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ── Lobby ──────────────────────────────────────────────────────
 function Lobby() {
   const [status, setStatus] = useState("loading...");
@@ -482,13 +585,13 @@ function Lobby() {
 
   async function handleCreate() {
     const name = newRoomName.trim();
-    if (!name) { setCreateError("Give your room a name."); return; }
+    if (!name) { setCreateError("Give your Sky Train a name."); return; }
     try {
       const data = await createRoom(name);
       const id = data?.id || data?.roomId;
       if (!id) throw new Error("No room id");
       navigate(`/room/${encodeURIComponent(id)}`);
-    } catch (e) { setCreateError(`Couldn't create the room: ${e.message}`); }
+    } catch (e) { setCreateError(`Couldn't start the Sky Train: ${String(e.message).replace(/^\d+:\s*/, "")}`); }   // without "409:"
   }
 
   return (
@@ -496,8 +599,13 @@ function Lobby() {
       {/* flexWrap: on phones the title gets the first line and the menu + status move below it,
           instead of being squeezed and cut off (the page used to shift sideways) */}
       <div style={{ borderBottom: `1px solid ${C.border}`, padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 10, columnGap: 16, ...(phone && { padding: "12px 16px" }) }}>
-        <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand, margin: 0, letterSpacing: "-0.5px" }}>Acro Express</h1>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div>
+          <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand, margin: 0, letterSpacing: "-0.5px" }}>Acro Express</h1>
+          {/* The lobby is the Grand Sky Station, where the Sky Trains (rooms) depart (Damon) */}
+          <div style={{ color: C.textMuted, fontSize: 13, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 2 }}>Grand Sky Station</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <HowToPlay winScore={roomList[0]?.winScore || 30} />
           <ThemePicker />
           <span style={{ color: C.textMuted, fontSize: 15 }}>{status}</span>
         </div>
@@ -536,8 +644,8 @@ function Lobby() {
 
         {auth && <Panel style={{ padding: 16, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h2 style={{ margin: 0, fontSize: 16, color: C.textPrimary }}>Game Rooms</h2>
-            {!creating && <Btn onClick={() => setCreating(true)}>+ Create Room</Btn>}
+            <h2 style={{ margin: 0, fontSize: 16, color: C.textPrimary }}>Departures</h2>
+            {!creating && <Btn onClick={() => setCreating(true)}>+ New Sky Train</Btn>}
           </div>
           {creating && (
             <div style={{ marginBottom: 12 }}>
@@ -545,7 +653,7 @@ function Lobby() {
                 <input
                   autoFocus
                   maxLength={80} // up to 80 characters (was 40) — same limit as the server
-                  placeholder="Name your room..."
+                  placeholder="Name your Sky Train..."
                   value={newRoomName}
                   onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
                   onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
@@ -558,7 +666,7 @@ function Lobby() {
             </div>
           )}
           {roomList.length === 0 ? (
-            <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No rooms yet. Create one!</p>
+            <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No Sky Trains at the platforms yet. Start one!</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {roomList.map(room => (
@@ -586,7 +694,7 @@ function Lobby() {
                       {(room.playingNames || []).length} {room.gameOn ? "playing" : "here"}
                     </p>
                   </div>
-                  <BtnSecondary onClick={() => navigate(`/room/${room.id}`)}>{room.gameOn ? "Join game" : "Join"}</BtnSecondary>
+                  <BtnSecondary onClick={() => navigate(`/room/${room.id}`)}>{room.gameOn ? "Board now" : "Board"}</BtnSecondary>
                 </div>
               ))}
             </div>
@@ -1006,7 +1114,7 @@ function Room() {
       const lastTime = joinAnnouncedRef.current[id];
       if (!lastTime || Date.now() - lastTime > 30000) {             // once per 30 s, like the leave message
         joinAnnouncedRef.current[id] = Date.now();
-        postSystemMessage(`${p.nickname} has joined the room.`);
+        postSystemMessage(`${p.nickname} has boarded.`);
       }
     }
     knownPlayersRef.current = new Set(ids);                         // remember for the next comparison
@@ -1349,7 +1457,7 @@ function Room() {
       // Not about yourself: if the server removed you, the page joins you again straight away
       if (leaver && !sameId(leaver.id, auth?.userId) && (!lastTime || Date.now() - lastTime > 30000)) {
         leftAnnouncedRef.current[leaver.id] = Date.now(); // remember, so the repeats are skipped
-        postSystemMessage(`${leaver.nickname} has left the room.`);
+        postSystemMessage(`${leaver.nickname} got off the train.`);
       }
     }, []),
 
@@ -1597,11 +1705,11 @@ function Room() {
     disconnect();
   }, [roomClosed]);
 
-  if (state.loading) return <div style={{ minHeight: "100vh", background: C.bgApp, color: C.textPrimary, padding: 24 }}>Loading room...</div>;
+  if (state.loading) return <div style={{ minHeight: "100vh", background: C.bgApp, color: C.textPrimary, padding: 24 }}>Boarding...</div>;
   if (state.error) return (
     <div style={{ minHeight: "100vh", background: C.bgApp, color: C.textPrimary, padding: 24 }}>
       <p style={{ color: C.brand }}>Error: {state.error}</p>
-      <Btn onClick={() => navigate("/")}>Back to Lobby</Btn>
+      <Btn onClick={() => navigate("/")}>← Grand Sky Station</Btn>
     </div>
   );
   // The room was deleted on the server while this page was open
@@ -1609,12 +1717,12 @@ function Room() {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, color: C.textPrimary }}>
       <Panel style={{ padding: 32, textAlign: "center", maxWidth: 480, borderColor: C.teal }}>
         <h2 style={{ margin: "0 0 12px", fontFamily: "Fredoka, sans-serif", fontSize: 26, color: C.ivory }}>
-          {roomNameRef.current ? `"${roomNameRef.current}" has closed` : "This room has closed"}
+          {roomNameRef.current ? `"${roomNameRef.current}" has left service` : "This Sky Train has left service"}
         </h2>
         <p style={{ margin: "0 0 24px", color: C.textSecond, fontSize: 16 }}>
           Everyone left, or your connection was lost for a while.
         </p>
-        <Btn onClick={() => navigate("/")}>Back to Lobby</Btn>
+        <Btn onClick={() => navigate("/")}>← Grand Sky Station</Btn>
       </Panel>
     </div>
   );
@@ -1689,7 +1797,7 @@ function Room() {
           Short windows: 86px (smaller topic and gap) instead of 104px */}
       <div style={{ flexShrink: 0, minHeight: isNarrow ? 0 : (isShort ? 86 : 104), display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "clamp(8px, 2vh, 24px)" }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || roomNameRef.current || `Room #${id}`}</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || roomNameRef.current || "Sky Train"}</h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
           <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
             {/* Rounds are stations: a game travels Station 0 → 1 → 2 … → Final Stop (round N = Station N) */}
@@ -1709,6 +1817,7 @@ function Room() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 6 : 16 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
             {/* "Express Colors" and "Sound" menus — change them any time, even mid-game */}
+            <HowToPlay winScore={data.winScore || 30} />
             <ThemePicker />
             <SoundControl />
             {/* After a game ends the room is back in Waiting, so a new game can be started */}
@@ -1716,7 +1825,7 @@ function Room() {
             {/* Not while the first topic is being chosen: round 1 already exists then (currentRoundNumber > 0)
                 — clicking it gave "round already in progress" */}
             {((phase === "Waiting" && !topicRequested && !(data.currentRoundNumber > 0)) || (phase === "GameOver" && (nextGameIn === null || nextGameIn <= -10)) || phase === "Paused") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
-            <BtnSecondary onClick={handleLeaveRoom} style={{ border: `1px solid ${C.focusLine}` }}>← Back to Lobby</BtnSecondary>
+            <BtnSecondary onClick={handleLeaveRoom} style={{ border: `1px solid ${C.focusLine}` }}>← Grand Sky Station</BtnSecondary>
           </div>
           {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
           {showTopic && !isNarrow && topicBlock("right")}
@@ -1980,7 +2089,7 @@ function Room() {
         {/* Stacked (narrow): a fixed 360px so the messages and the input are always visible */}
         <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 0, height: isNarrow ? 360 : undefined }}>
           <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}` }}>
-            <h2 style={{ margin: 0, fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Room Chat</h2>
+            <h2 style={{ margin: 0, fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Train Chat</h2>
           </div>
           <div ref={chatListRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
             {roomMessages.length === 0 ? (
