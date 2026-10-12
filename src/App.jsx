@@ -437,7 +437,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
         {/* maxHeight follows the screen height (was a fixed 380px, which only fit ~4 entries) */}
         <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 8, maxHeight: "60vh", overflowY: "auto" }}>
           {visibleEntries.length === 0 ? (
-            <p style={{ color: C.textMuted, fontSize: 15, textAlign: "center" }}>No entries to vote on this round...</p>
+            <p style={{ color: C.textMuted, fontSize: 15, textAlign: "center" }}>No entries to vote on at this station...</p>
           ) : (
             visibleEntries.map((entry) => {
               // sameId() returns false for missing ids, so only the clicked entry lights up
@@ -515,7 +515,7 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
     <Panel style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <h2 style={{ margin: 0, color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 20 }}>
-          Round <span style={{ fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{round}</span>{topic ? ` – ${topic}` : ""}
+          Station <span style={{ fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{round}</span>{topic ? ` – ${topic}` : ""}
         </h2>
         <button onClick={onClose} title="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>×</button>
       </div>
@@ -548,7 +548,7 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
                 }}>
                   <td style={{ ...cell, color: onRibbon || colour, fontWeight: isWinner || isMyVote ? 700 : 400 }}>
                     {/* ⭐ = round winner, (you) = my own row */}
-                    {isWinner && <span title="Round winner" style={{ marginRight: 6 }}>⭐</span>}
+                    {isWinner && <span title="Station winner" style={{ marginRight: 6 }}>⭐</span>}
                     {name}
                     {name === myName && <span style={{ marginLeft: 6, fontWeight: 400, color: onRibbon || C.teal }}>(you)</span>}
                   </td>
@@ -562,7 +562,7 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
         </table>
       </div>
       {!anyPoints && (
-        <p style={{ margin: "10px 0 0", color: C.textMuted, fontSize: 14 }}>No points were awarded in this round.</p>
+        <p style={{ margin: "10px 0 0", color: C.textMuted, fontSize: 14 }}>No points were awarded at this station.</p>
       )}
     </Panel>
   );
@@ -762,8 +762,8 @@ function Room() {
       // One chat line per round with the topic in it (before, the topic had its own line,
       // which left less room for real chat on short screens)
       postSystemMessage(typeof topic === "string" && topic.trim()
-        ? `Round ${roundNumber} has begun — Topic: "${topic}"`
-        : `Round ${roundNumber} has begun.`);
+        ? `Leaving for Station ${roundNumber} — Topic: "${topic}"`
+        : `Leaving for Station ${roundNumber}.`);
       setMaxTimer(seconds);
 
       if (!topicRequestedRef.current) {
@@ -1275,6 +1275,13 @@ function Room() {
   const shownScore = p => (frozenScores && frozenScores[p.id] !== undefined ? frozenScores[p.id] : p.score);
   // Messages of the open private chat (kept per person, survives closing/reopening)
   const privateMessages = privateChat ? (privateHistory[privateChat.nickname] || []) : [];
+  // Station shown in the header: 0 before the first round of a game (waiting, or the first topic
+  // being chosen), otherwise the current round's number. During the round winner's topic prompt
+  // it stays on the station just reached — the prompt itself says "Next up: Station N+1".
+  const firstTopicPending = topicRequested && topicForFirstRound;
+  const headerStation = phase === "Waiting" || phase === "Starting" || firstTopicPending ? 0 : currentRound;
+  // The station the topic prompt is for
+  const nextStation = topicForFirstRound ? 1 : currentRound + 1;
   // Phase title shown in the header (replaces the technical "Phase: Submitting")
   // (The round winner's topic prompt replaces the results after 8 s, so it comes first)
   const phaseTitle =
@@ -1329,7 +1336,8 @@ function Room() {
           <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || roomNameRef.current || `Room #${id}`}</h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
           <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
-            Round <span style={{ color: C.teal, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", fontSize: 28, fontWeight: 700 }}>{currentRound}</span>
+            {/* Rounds are stations: a game travels Station 0 → 1 → 2 … → Final Stop (round N = Station N) */}
+            Station <span style={{ color: C.teal, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", fontSize: 28, fontWeight: 700 }}>{headerStation}</span>
             {/* What's happening now, in words (first step towards the "Departure Board" announcer) */}
             {" · "}<span style={{ color: C.ivory, fontFamily: "Fredoka, sans-serif", fontSize: 20, fontWeight: 600 }}>{phaseTitle}</span>
             {/* The timer moved to the centre, above the letters */}
@@ -1375,16 +1383,16 @@ function Room() {
         <div>
         <Panel style={{ padding: 20, borderColor: C.teal, textAlign: "center" }}>
           <h2 style={{ margin: "0 0 8px", fontFamily: "Fredoka, sans-serif", fontSize: 22, color: C.teal }}>
-            {/* The topic is chosen BEFORE the round it belongs to (the round starts with the countdown) */}
-            Set the topic for the next round
+            {/* The topic is chosen BEFORE the round (station) it belongs to — the round starts with the countdown */}
+            Next up: Station <span style={{ fontFamily: NUM_FONT }}>{nextStation}</span>
           </h2>
           <p style={{ margin: "0 0 16px", color: C.textMuted, fontSize: 15 }}>
-            You have <span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span> — or it defaults to General Acro.
+            Set the topic — you have <span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span>, or it defaults to General Acro.
           </p>
           {/* Letters go 3,4,5,6,7 and repeat — same rule as the server (3 + (round - 1) % 5).
               Round 1 always has 3; otherwise currentRound is the round that just ended, so the next one has 3 + (currentRound % 5) */}
           <p style={{ margin: "0 0 16px", color: C.textSecond, fontSize: 16 }}>
-            Next round: <span style={{ color: C.brand, fontWeight: 700, fontFamily: NUM_FONT }}>{topicForFirstRound ? 3 : 3 + (currentRound % 5)}</span> letters
+            <span style={{ color: C.brand, fontWeight: 700, fontFamily: NUM_FONT }}>{topicForFirstRound ? 3 : 3 + (currentRound % 5)}</span> letters
           </p>
           <div style={{ display: "flex", gap: 8, maxWidth: 500, margin: "0 auto" }}>
             <input
