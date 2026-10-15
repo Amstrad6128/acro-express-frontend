@@ -1512,7 +1512,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
 }
 
 // ── Results Screen ─────────────────────────────────────────────
-function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote, votes, myName }) {
+function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote, votes, myName, details }) {
   const sorted = Object.entries(scores || {}).sort((a, b) => b[1] - a[1]);
   const anyPoints = sorted.some(([, s]) => s > 0);
 
@@ -1525,62 +1525,98 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
       if (player) entryByNickname[player.nickname] = e.sentence;
     });
   });
+  const winners = sorted.filter(([name, score]) => !!winningAcro && entryByNickname[name] === winningAcro && score > 0).map(([n, sc]) => ({ name: n, score: sc }));
+  const votedWinner = new Set(details?.votedWinner || []);
+  const iVoted = !!myVote;
 
-  // One table, one column (like AcroChallenge): Name | Points | Acro.
-  // The winning entry is shown by colour — no separate "winning entry" box.
-  const cell = { padding: "6px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "left" };   // a bit more compact (was 8px)
+  // The winner explained in words (AcroChallenge: "The high scorer was … who received 3 votes …")
+  let summary = null;
+  if (winners.length > 0 && details) {
+    const w = winners[0];
+    const n = details.winnerVotes || 0;
+    const speedForWinner = details.speedBonus && winners.some(x => x.name === details.speedBonus);
+    const parts = [`${n} vote${n === 1 ? "" : "s"}`];
+    if (details.letterBonus) parts.push(`${details.letterBonus} letter bonus`);
+    if (speedForWinner) parts.push("1 speed bonus");
+    const who = winners.map(x => x.name).join(" and ");
+    summary = <>
+      <b style={{ color: C.textPrimary }}>{who}</b> won{winners.length > 1 ? " (same acro)" : ""} with {n} vote{n === 1 ? "" : "s"}: {parts.join(" + ")} = <b style={{ color: C.textPrimary }}>{w.score} points</b>.
+      {details.speedBonus && !speedForWinner && <> Speed bonus +1: <b style={{ color: C.textPrimary }}>{details.speedBonus}</b>.</>}
+    </>;
+  }
+
+  const cell = { padding: "3px 10px", lineHeight: 1.25, borderBottom: `1px solid ${C.border}`, textAlign: "left" };   // compact rows (AcroChallenge): 14 fit
+  const youVotedLine = `2px solid ${C.teal}`;
   return (
-    <Panel style={{ padding: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <h2 style={{ margin: 0, color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 20 }}>
+    <Panel style={{ padding: "10px 14px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 4 }}>
+        <h2 style={{ margin: 0, color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 18 }}>
           Station <span style={{ fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{round}</span>{topic ? ` – ${topic}` : ""}
         </h2>
-        <button onClick={onClose} title="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>×</button>
+        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* The symbols, in words (AcroChallenge's legend) — next to the title to save a line */}
+          {anyPoints && (
+            <span style={{ color: C.textMuted, fontSize: 12, textAlign: "right" }}>
+              🏆 station winner · <span style={{ color: C.success, fontWeight: 800 }}>✓</span> voted for the winner (+1){iVoted && <> · <span style={{ border: youVotedLine, borderRadius: 4, padding: "0 4px" }}>outlined</span> = your vote</>}
+            </span>
+          )}
+          <button onClick={onClose} title="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>×</button>
+        </span>
       </div>
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 16 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
-            <tr style={{ color: C.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            <tr style={{ color: C.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em" }}>
               <th style={cell}>Name</th>
-              {/* Votes the acro got (sent by the server since 2026-10-12; hidden if missing) */}
-              {votes && <th style={{ ...cell, textAlign: "center", width: 70 }}>Votes</th>}
-              <th style={{ ...cell, textAlign: "center", width: 80 }}>Points</th>
+              {votes && <th style={{ ...cell, textAlign: "center", width: 64 }}>Votes</th>}
+              <th style={{ ...cell, textAlign: "center", width: 70 }}>Points</th>
               <th style={cell}>Acro</th>
             </tr>
           </thead>
           <tbody>
             {sorted.map(([name, score]) => {
-              // Winner = wrote the winning acro (several authors if identical acros were merged)
-              const isWinner = !!winningAcro && entryByNickname[name] === winningAcro && score > 0;
-              // The acro this player voted for (Sandy: "when I look at the box, I can never remember")
-              const isMyVote = !!myVote && entryByNickname[name] === myVote;
-              const colour = isWinner ? C.brand : C.textSecond;
-              // My vote: a teal ribbon across the whole row — name, points and acro — so I remember
-              // who wrote it too (only I see my own vote). Dark text on the ribbon.
-              const onRibbon = isMyVote ? C.bgApp : null;
+              const isWinner = winners.some(w => w.name === name);
+              // The acro I voted for: a teal OUTLINE around the row + a "your vote" tag (Acrophobia's box)
+              const isMyVote = iVoted && entryByNickname[name] === myVote;
+              const edge = isMyVote ? youVotedLine : undefined;
+              const td = (extra, first, last) => ({
+                ...cell, ...extra,
+                borderTop: edge || "none", borderBottom: edge || cell.borderBottom,
+                borderLeft: first && edge ? edge : undefined, borderRight: last && edge ? edge : undefined,
+              });
               return (
-                <tr key={name} title={isMyVote ? "Your vote" : undefined} style={{
-                  background: isMyVote ? C.teal : (isWinner ? `color-mix(in srgb, ${C.brand} 10%, transparent)` : "transparent"),
-                  // The winner keeps a coral bar on the left, also when the row is my vote
-                  boxShadow: isWinner ? `inset 4px 0 0 ${C.brand}` : "none"
+                <tr key={name} style={{
+                  // The winner: a warm row with a bar on the left (AcroChallenge's trophy row) — never teal
+                  background: isWinner ? `color-mix(in srgb, ${C.brand} 22%, transparent)` : "transparent",
+                  boxShadow: isWinner ? `inset 4px 0 0 ${C.brand}` : "none",
                 }}>
-                  <td style={{ ...cell, color: onRibbon || colour, fontWeight: isWinner || isMyVote ? 700 : 400 }}>
-                    {/* ⭐ = round winner, (you) = my own row */}
-                    {isWinner && <span title="Station winner" style={{ marginRight: 6 }}>⭐</span>}
+                  <td style={td({ color: isWinner ? C.textPrimary : C.textSecond, fontWeight: isWinner ? 700 : 400, whiteSpace: "nowrap" }, true, false)}>
+                    {/* One fixed slot before the name: 🏆 winner, ✓ voted for the winner (+1) */}
+                    <span style={{ display: "inline-block", width: 22, textAlign: "center", fontSize: 13, lineHeight: 1 }}
+                      title={isWinner ? "Station winner" : votedWinner.has(name) ? "Voted for the winner (+1)" : undefined}>
+                      {isWinner ? "🏆" : votedWinner.has(name) ? <span style={{ color: C.success, fontWeight: 800 }}>✓</span> : ""}
+                    </span>
                     {name}
-                    {name === myName && <span style={{ marginLeft: 6, fontWeight: 400, color: onRibbon || C.teal }}>(you)</span>}
+                    {name === myName && <span style={{ marginLeft: 6, fontWeight: 400, color: C.teal }}>(you)</span>}
                   </td>
-                  {votes && <td style={{ ...cell, textAlign: "center", color: onRibbon || C.textSecond, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{votes[name] ?? 0}</td>}
-                  <td style={{ ...cell, textAlign: "center", color: onRibbon || (isWinner ? C.brand : C.teal), fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{score}</td>
-                  <td style={{ ...cell, color: onRibbon || (isWinner ? C.ivory : C.textSecond), fontStyle: "italic", fontWeight: isMyVote ? 700 : 400 }}>{entryByNickname[name] || "—"}</td>
+                  {votes && <td style={td({ textAlign: "center", color: isWinner ? C.textPrimary : C.textSecond, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" })}>{votes[name] ?? 0}</td>}
+                  <td style={td({ textAlign: "center", color: isWinner ? C.brand : C.teal, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" })}>{score}</td>
+                  <td style={td({ color: isWinner ? C.ivory : C.textSecond, fontStyle: "italic", fontWeight: isWinner ? 700 : 400 }, false, true)}>
+                    {entryByNickname[name] || "—"}
+                    {isMyVote && <span style={{ marginLeft: 8, fontStyle: "normal", fontWeight: 700, fontSize: 11, color: C.teal, border: `1px solid ${C.teal}`, borderRadius: 999, padding: "0 6px", whiteSpace: "nowrap" }}>your vote</span>}
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-      {!anyPoints && (
-        <p style={{ margin: "10px 0 0", color: C.textMuted, fontSize: 14 }}>No points were awarded at this station.</p>
+      {!anyPoints ? (
+        <p style={{ margin: "8px 0 0", color: C.textMuted, fontSize: 14 }}>No points were awarded at this station.</p>
+      ) : (
+        <>
+          {summary && <p style={{ margin: "4px 0 0", color: C.textSecond, fontSize: 14 }}>{summary}</p>}
+        </>
       )}
     </Panel>
   );
@@ -1604,6 +1640,7 @@ function Room() {
   const [winningAcro, setWinningAcro] = useState(null);
   // Votes each player's acro got in the last round (nickname -> votes); null = server didn't send them
   const [roundVotes, setRoundVotes] = useState(null);
+  const [resultDetails, setResultDetails] = useState(null);   // ✓ voters, bonuses (results screen)
   const [timer, setTimer] = useState(null);
   const [submittedAcro, setSubmittedAcro] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -1918,7 +1955,8 @@ function Room() {
     }, [auth]),
 
     // roundVotesMap (4th) = votes per player's acro — sent by newer servers only
-    onRoundEnded: useCallback((roundScores, winning, winnerPlayerId, roundVotesMap) => {
+    // details (5th, new): who voted for the winner, letter bonus, winner's votes, speed bonus
+    onRoundEnded: useCallback((roundScores, winning, winnerPlayerId, roundVotesMap, details) => {
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
 
@@ -1935,6 +1973,7 @@ function Room() {
       setTimeout(() => {
         setScores(roundScores || {});
         setRoundVotes(roundVotesMap || null);
+        setResultDetails(details || null);
         setWinningAcro(winning);
         setPhase("Results");
         setTimer(null);
@@ -2438,6 +2477,9 @@ function Room() {
   const ACRO_BOX = 92;                                                                   // the slim "Your Acro" box incl. margin
   const timerSize = isShort ? "clamp(28px, 5vh, 46px)" : "clamp(28px, 6vh, 46px)";     // countdown number
   const letterSize = isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters
+  const stageHeight = `calc(2 * ${stagePad} + ${timerSize} + ${timerGap} + ${letterSize} + ${ACRO_BOX}px)`;
+  // Results showing: the stage may grow to fit all passengers (option C, Damon 2026-10-16)
+  const resultsGrow = phase === "Results" && !resultsClosed && !topicRequested;
   // Topic: label and topic on one line (compact header)
   const topicBlock = (align) => (
     <div style={{ textAlign: align, maxWidth: 460, margin: align === "center" ? "0 auto" : undefined }}>
@@ -2526,19 +2568,19 @@ function Room() {
           flex "0 0": the stage never shrinks, so the acro box is never pushed out of sight (Deb lost it). */}
       {/* Scroll mode: the stage is as tall as its contents (the topic under the letters included),
           because the page scrolls anyway — nothing inside it can be cut off or covered. */}
-      <div style={{ flex: view.scroll ? "0 0 auto" : `0 0 calc(2 * ${stagePad} + ${timerSize} + ${timerGap} + ${letterSize} + ${ACRO_BOX}px)`, minHeight: 0, overflowY: view.scroll ? "visible" : "auto", scrollbarWidth: (phase === "Results" && !resultsClosed) || topicRequested ? "thin" : "none", display: "flow-root" }}>
+      <div style={{ flex: view.scroll ? "0 0 auto" : (resultsGrow ? "0 1 auto" : `0 0 ${stageHeight}`), minHeight: resultsGrow && !view.scroll ? stageHeight : 0, overflowY: view.scroll ? "visible" : "auto", scrollbarWidth: (phase === "Results" && !resultsClosed) || topicRequested ? "thin" : "none", display: "flow-root" }}>
       {/* (scrollbar: hidden normally, slim while results are shown, in case a long list doesn't fit) */}
 
       {/* Round results and the winner's topic prompt — inside the stage, where the letters are
           (like Acrophobia). Before, they floated over the page and covered "Round N" in the header.
           Never both at once: results first; for the round winner the topic prompt replaces them. */}
       {((phase === "Results" && !resultsClosed) || topicRequested) && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 4 }}>
           {phase === "Results" && !resultsClosed && !topicRequested && (
             <div>
             <ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players}
               round={currentRound} topic={currentTopic} onClose={() => setResultsClosed(true)} myVote={myVote}
-              votes={roundVotes} myName={auth?.username} />
+              votes={roundVotes} myName={auth?.username} details={resultDetails} />
             </div>
           )}
           {topicRequested && (
@@ -2753,8 +2795,8 @@ function Room() {
           Scroll mode: a fixed comfortable height (380px) instead; when narrow, the boxes are stacked
           (Passengers, Room Chat, private chat) and each chat gets 360px. */}
       <div style={{
-        flex: view.scroll ? "0 0 auto" : "1 0 260px",
-        minHeight: 260,   // Train Chat always has room for about 8 lines (Sandy, Fran)
+        flex: view.scroll ? "0 0 auto" : (resultsGrow ? "1 0 215px" : "1 0 260px"),
+        minHeight: resultsGrow ? 215 : 260,   // Train Chat: about 8 lines (Sandy, Fran); ~6 while the results show
         height: view.scroll && !isNarrow ? 380 : undefined,
         display: "grid",
         gridTemplateRows: isNarrow ? undefined : "minmax(0, 1fr)",
