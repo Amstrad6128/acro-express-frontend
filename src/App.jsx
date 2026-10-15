@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Routes, Route, useParams, useNavigate } from "react-router-dom";
-import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, getAuth, doneVoting, API_URL, topicGo } from "./services/api";
+import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, getAuth, doneVoting, API_URL, topicGo, kickVote, fetchPassenger, searchPassengers } from "./services/api";
 import { useSignalR } from "./hooks/useSignalR";
 import { useLobbyHub } from "./hooks/useLobbyHub";
 import { usePm, openPm, closePm, sendPm, setPmDraft, dismissPmToast, setPmChime } from "./pm";
@@ -465,13 +465,16 @@ function RestartBanner() {
 
 // A player's name you can click to message them privately (your own name isn't clickable).
 // Used in Lobby Chat, Train Chat and Departures (Damon: every name you see is one click from a chat).
-function NameLink({ name, style }) {
+// profile: at the Grand Sky Station the name opens the Sky Pass card instead (not during a journey).
+function NameLink({ name, style, profile = false }) {
   const me = getAuth()?.username;
-  if (!name || String(name).toLowerCase() === String(me).toLowerCase()) return <span style={style}>{name}</span>;
+  const isMe = !name || String(name).toLowerCase() === String(me).toLowerCase();
+  if (isMe && !profile) return <span style={style}>{name}</span>;
+  const go = () => (profile ? openProfile(name) : openPm(name));
   return (
-    <span role="button" tabIndex={0} title={`Message ${name}`}
-      onClick={e => { e.stopPropagation(); openPm(name); }}
-      onKeyDown={e => { if (e.key === "Enter") openPm(name); }}
+    <span role="button" tabIndex={0} title={profile ? `${name}'s Sky Pass` : `Message ${name}`}
+      onClick={e => { e.stopPropagation(); go(); }}
+      onKeyDown={e => { if (e.key === "Enter") go(); }}
       style={{ cursor: "pointer", ...style }}>{name}</span>
   );
 }
@@ -833,6 +836,202 @@ function StationLogButton() {
   );
 }
 
+// ── Sky Pass (player profiles) ─────────────────────────────────
+// Built from the stats recorded since 2026-10-12. Quick card at the Grand Sky Station (click a name),
+// full page at /passenger/<name>. No avatar for now (Damon, 2026-10-16). Not on trains: during a
+// journey a name opens a private chat / the passenger menu instead.
+const openProfile = name => window.dispatchEvent(new CustomEvent("acro-open-profile", { detail: name }));
+const monthYear = d => new Date(d).toLocaleDateString([], { month: "long", year: "numeric" });
+const passWhere = p => p.where === "train" ? <>On <b>{p.trainName}</b></> : p.where === "station" ? "At the Grand Sky Station" : "Offline";
+
+function PassStat({ n, label }) {
+  return (
+    <div style={{ background: C.bgApp, borderRadius: 8, padding: "8px 6px", textAlign: "center" }}>
+      <div style={{ fontSize: 22, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: C.textPrimary }}>{n}</div>
+      <div style={{ fontSize: 12, color: C.textMuted }}>{label}</div>
+    </div>
+  );
+}
+function AcroQuote({ a, big }) {
+  return (
+    <div style={{ borderLeft: `3px solid ${C.teal}`, padding: "2px 0 2px 12px" }}>
+      <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: big ? 20 : 17, color: C.ivory }}>"{a.sentence}"</div>
+      <div style={{ fontSize: 13, color: C.textMuted }}>
+        {a.letters.split("").join(" ")} · {a.topic} · <span style={{ color: C.teal }}>{a.votes} vote{a.votes === 1 ? "" : "s"}</span>{a.won ? " · won the station" : ""}
+      </div>
+    </div>
+  );
+}
+function PassHeader({ p, big }) {
+  return (
+    <div>
+      <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: big ? 34 : 26, fontWeight: 700, color: C.brand, lineHeight: 1.1, overflowWrap: "anywhere" }}>{p.name}</div>
+      <div style={{ color: C.textSecond, fontSize: 15, marginTop: 2 }}>
+        <b style={{ color: C.teal }}>{p.level}</b> · on board since {monthYear(p.memberSince)}
+      </div>
+      <div style={{ fontSize: 14, color: p.where === "offline" ? C.textMuted : C.success, marginTop: 2 }}>● <span style={{ color: C.textSecond }}>{passWhere(p)}</span></div>
+    </div>
+  );
+}
+
+// Quick card — opens over the lobby when a name is clicked
+function PassengerCard() {
+  const navigate = useNavigate();
+  const [name, setName] = useState(null);
+  const [p, setP] = useState(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    const open = e => { setName(e.detail); setP(null); setErr(""); };
+    window.addEventListener("acro-open-profile", open);
+    return () => window.removeEventListener("acro-open-profile", open);
+  }, []);
+  useEffect(() => {
+    if (!name) return;
+    fetchPassenger(name).then(setP).catch(e => setErr(String(e.message || "").replace(/^\d{3}:\s*/, "") || "Couldn't load the Sky Pass."));
+    const onKey = e => { if (e.key === "Escape") setName(null); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [name]);
+  if (!name) return null;
+  const me = String(getAuth()?.username || "").toLowerCase() === String(name).toLowerCase();
+  return (
+    <div onPointerDown={e => { if (e.target === e.currentTarget) setName(null); }}
+      style={{ position: "fixed", inset: 0, zIndex: 88, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "10vh 16px", boxSizing: "border-box" }}>
+      <div role="dialog" aria-label={`Sky Pass of ${name}`} style={{ background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: "min(400px, 100%)", padding: 18, boxShadow: "0 16px 48px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+          {p ? <PassHeader p={p} /> : <div style={{ color: C.textMuted }}>{err || "Loading…"}</div>}
+          <button onClick={() => setName(null)} aria-label="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 20 }}>✕</button>
+        </div>
+        {p && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              <PassStat n={p.journeys} label="Journeys" />
+              <PassStat n={p.journeysWon} label="Won" />
+              <PassStat n={p.stationsWon} label="Stations won" />
+            </div>
+            {p.bestAcro
+              ? <div><div style={{ fontSize: 13, color: C.textMuted, marginBottom: 4 }}>Best acro</div><AcroQuote a={p.bestAcro} /></div>
+              : <div style={{ fontSize: 14, color: C.textMuted }}>No votes yet — the best acro shows here.</div>}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {!me && <Btn onClick={() => { openPm(p.name); setName(null); }}>✉ Message</Btn>}
+              <BtnSecondary onClick={() => { setName(null); navigate(`/passenger/${encodeURIComponent(p.name)}`); }}>Full Sky Pass →</BtnSecondary>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Full page — /passenger/<name>
+function PassengerPage() {
+  const { name } = useParams();
+  const navigate = useNavigate();
+  const [p, setP] = useState(null);
+  const [err, setErr] = useState("");
+  const [q, setQ] = useState("");
+  const [found, setFound] = useState([]);
+  useEffect(() => {
+    setP(null); setErr("");
+    if (!getAuth()?.token) { setErr("Log in at the Grand Sky Station to see Sky Passes."); return; }
+    fetchPassenger(name).then(setP).catch(e => setErr(String(e.message || "").replace(/^\d{3}:\s*/, "") || "Couldn't load the Sky Pass."));
+  }, [name]);
+  useEffect(() => {
+    if (!q.trim()) { setFound([]); return; }
+    const t = setTimeout(() => searchPassengers(q.trim()).then(setFound).catch(() => setFound([])), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+  const me = String(getAuth()?.username || "").toLowerCase() === String(name).toLowerCase();
+  const maxPts = p ? Math.max(1, ...p.last10.map(s => s.points)) : 1;
+  return (
+    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "24px 16px 48px", boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Sky Pass</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", position: "relative" }}>
+            <input id="passengerSearch" value={q} onChange={e => setQ(e.target.value)} placeholder="Find a passenger"
+              style={{ width: 200, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
+            {found.length > 0 && (
+              <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 20, marginTop: 4, width: 200, background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, padding: 4 }}>
+                {found.map(n => (
+                  <button key={n} onClick={() => { setQ(""); navigate(`/passenger/${encodeURIComponent(n)}`); }}
+                    style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: 15, padding: "5px 8px", borderRadius: 6 }}>{n}</button>
+                ))}
+              </div>
+            )}
+            <BtnSecondary onClick={() => navigate("/")}>← Grand Sky Station</BtnSecondary>
+          </div>
+        </div>
+        {err && <Panel style={{ padding: 20 }}><p style={{ margin: 0, color: C.textSecond }}>{err}</p></Panel>}
+        {!p && !err && <p style={{ color: C.textMuted }}>Loading…</p>}
+        {p && (
+          <>
+            <Panel style={{ padding: 20, borderColor: C.teal, display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+                <PassHeader p={p} big />
+                {/* The private chat panel lives at the Grand Sky Station (and on trains) */}
+                {!me && <Btn onClick={() => { openPm(p.name); navigate("/"); }}>✉ Message {p.name}</Btn>}
+              </div>
+              {/* Level progress: every station played counts */}
+              <div>
+                <div style={{ height: 8, borderRadius: 4, background: C.bgApp }}>
+                  <div style={{ width: `${Math.round(p.levelProgress * 100)}%`, height: 8, borderRadius: 4, background: C.teal }} />
+                </div>
+                <div style={{ fontSize: 13, color: C.textMuted, marginTop: 4 }}>
+                  {p.nextLevel ? `${p.stationsToNext} station${p.stationsToNext === 1 ? "" : "s"} to ${p.nextLevel}` : "Top level reached"}
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(88px, 1fr))", gap: 8 }}>
+                <PassStat n={p.journeys} label="Journeys" />
+                <PassStat n={p.journeysWon} label="Journeys won" />
+                <PassStat n={p.stations} label="Stations" />
+                <PassStat n={p.stationsWon} label="Stations won" />
+                <PassStat n={p.pointsPerStation} label="Points / station" />
+                <PassStat n={p.votes} label="Votes received" />
+                <PassStat n={p.speedBonuses} label="Speed bonuses" />
+              </div>
+            </Panel>
+
+            <Panel style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
+              <h2 style={{ margin: 0, fontSize: 16, color: C.textMuted }}>Top acros</h2>
+              {p.topAcros.length === 0 ? <p style={{ margin: 0, color: C.textMuted }}>No votes yet — the best acros show here.</p>
+                : p.topAcros.map((a, i) => <AcroQuote key={i} a={a} big={i === 0} />)}
+            </Panel>
+
+            <Panel style={{ padding: 20 }}>
+              <h2 style={{ margin: "0 0 10px", fontSize: 16, color: C.textMuted }}>Last 10 stations</h2>
+              {p.last10.length === 0 ? <p style={{ margin: 0, color: C.textMuted }}>No stations yet.</p> : (
+                <>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 70 }}>
+                    {p.last10.map((s, i) => (
+                      <div key={i} title={`${s.letters} · ${s.points} point${s.points === 1 ? "" : "s"}${s.won ? " · won" : ""}`}
+                        style={{ flex: 1, height: `${Math.max(6, Math.round(s.points / maxPts * 100))}%`, background: s.won ? C.teal : C.border, borderRadius: 3 }} />
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 12, color: C.textMuted, marginTop: 6 }}>Points per station · teal = station won</div>
+                </>
+              )}
+            </Panel>
+
+            <Panel style={{ padding: 20 }}>
+              <h2 style={{ margin: "0 0 10px", fontSize: 16, color: C.textMuted }}>Stamps</h2>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {p.stamps.map(s => (
+                  <div key={s.id} title={s.earned ? "Earned" : s.progress}
+                    style={{ border: `1px solid ${s.earned ? C.teal : C.border}`, background: s.earned ? C.navy3 : C.bgApp, color: s.earned ? C.textPrimary : C.textMuted, borderRadius: 999, padding: "5px 12px", fontSize: 14 }}>
+                    {s.earned ? "★ " : "☆ "}{s.name}{!s.earned && <span style={{ fontSize: 12 }}> · {s.progress}</span>}
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          </>
+        )}
+      </div>
+      <PmToast />
+    </div>
+  );
+}
+
 // ── Lobby ──────────────────────────────────────────────────────
 function Lobby() {
   const [status, setStatus] = useState("loading...");
@@ -971,7 +1170,10 @@ function Lobby() {
             {auth ? `Welcome, ${auth.username}!` : "Sign in to play"}
           </h2>
           {auth ? (
-            <Btn onClick={doLogout} color={C.danger} hoverColor={C.dangerHover} style={{ color: "#FFF8F6" }}>Log out</Btn>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)}>My Sky Pass</BtnSecondary>
+              <Btn onClick={doLogout} color={C.danger} hoverColor={C.dangerHover} style={{ color: "#FFF8F6" }}>Log out</Btn>
+            </div>
           ) : (
             <>
               <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -1038,8 +1240,8 @@ function Lobby() {
                     {/* Everyone in the room — friends can see where their friends are */}
                     <p style={{ margin: "2px 0 0", fontSize: 14, color: C.textMuted, overflowWrap: "anywhere" }}>
                       {/* Every name can be clicked to message that person */}
-                      {(room.playingNames || []).map((n, i) => <span key={n}>{i > 0 && ", "}<NameLink name={n} style={{ color: C.textSecond }} /></span>)}
-                      {(room.awayNames || []).length > 0 && <>{(room.playingNames || []).length > 0 && ", "}<span style={{ fontStyle: "italic" }}>{room.awayNames.map((n, i) => <span key={n}>{i > 0 && ", "}<NameLink name={n} /> (away)</span>)}</span></>}
+                      {(room.playingNames || []).map((n, i) => <span key={n}>{i > 0 && ", "}<NameLink profile name={n} style={{ color: C.textSecond }} /></span>)}
+                      {(room.awayNames || []).length > 0 && <>{(room.playingNames || []).length > 0 && ", "}<span style={{ fontStyle: "italic" }}>{room.awayNames.map((n, i) => <span key={n}>{i > 0 && ", "}<NameLink profile name={n} /> (away)</span>)}</span></>}
                       {(room.playingNames || []).length + (room.awayNames || []).length > 0 && " · "}
                       {(room.playingNames || []).length} {room.gameOn ? "playing" : "here"}
                     </p>
@@ -1065,12 +1267,14 @@ function Lobby() {
                     // Click a name to message them privately (not yourself)
                     const isMe = String(p).toLowerCase() === String(auth?.username).toLowerCase();
                     return (
-                      <li key={i} onClick={() => { if (!isMe) openPm(p); }} title={isMe ? undefined : `Message ${p}`}
+                      <li key={i} onClick={() => openProfile(p)} title={`${p}'s Sky Pass`}
                         style={{ fontSize: 15, color: C.textSecond, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: isMe ? "default" : "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                         <span style={{ color: C.success }}>●</span> {p}
                         {isMe && <span style={{ color: C.teal }}>(you)</span>}
                         {(pm.unread[p] || 0) > 0 && <span style={{ marginLeft: "auto", background: C.brand, color: C.onBrand, fontSize: 11, borderRadius: 999, padding: "1px 6px" }}>{pm.unread[p]}</span>}
-                        {!isMe && <span style={{ marginLeft: (pm.unread[p] || 0) > 0 ? 4 : "auto", color: C.lavender, fontSize: 13 }} aria-hidden>✉</span>}
+                        {/* ✉ = straight to a private message; the name opens the Sky Pass */}
+                        {!isMe && <span role="button" tabIndex={0} title={`Message ${p}`} onClick={e => { e.stopPropagation(); openPm(p); }}
+                          style={{ marginLeft: (pm.unread[p] || 0) > 0 ? 4 : "auto", color: C.lavender, fontSize: 14, padding: "0 4px", cursor: "pointer" }}>✉</span>}
                       </li>
                     );
                   })}
@@ -1090,7 +1294,7 @@ function Lobby() {
                     <div key={i} style={{ fontSize: 15 }}>
                       {/* When it was written — lobby messages are kept, so they can be from yesterday */}
                       <span style={{ color: C.textMuted, fontSize: 12, marginRight: 6, fontVariantNumeric: "tabular-nums" }}>{lobbyTime(m.time)}</span>
-                      <NameLink name={m.username} style={{ color: C.teal, fontWeight: 600 }} /><span style={{ color: C.teal, fontWeight: 600 }}>: </span>
+                      <NameLink profile name={m.username} style={{ color: C.teal, fontWeight: 600 }} /><span style={{ color: C.teal, fontWeight: 600 }}>: </span>
                       <span style={{ color: C.textSecond }}>{m.message}</span>
                     </div>
                   ))
@@ -1117,6 +1321,7 @@ function Lobby() {
         )}
         <PmToast />
         <RestartBanner />
+        <PassengerCard />
       </div>
     </div>
   );
@@ -1528,6 +1733,11 @@ function Room() {
   const roomLoadedRef = useRef(false);
   // The room no longer exists on the server (everyone left, or closed after 5 minutes)
   const [roomClosed, setRoomClosed] = useState(false);
+  // Vote to kick: removed from this train by a passenger vote (back when the journey ends)
+  const [kicked, setKicked] = useState(false);
+  const [kickVotes, setKickVotes] = useState({});      // targetId → { votes, needed } (shown in Passengers)
+  const [myKicks, setMyKicks] = useState([]);           // targetIds I voted to kick
+  const [passMenu, setPassMenu] = useState(null);       // { p, x, y, confirm } — the menu on a Passengers name
   // Last known room name, so the title never falls back to "Room #<id>"
   const roomNameRef = useRef("");
   // Set while leaving with Back to Lobby, so the poll below doesn't join the room again
@@ -1813,6 +2023,31 @@ function Room() {
       setRoomMessages(prev => [...prev, { nickname, message, time: new Date() }]);
     }, []),
 
+    // A vote to kick: "You voted to kick …" on your own screen, "A vote to kick … was cast" for everyone
+    // else — the passenger it's about sees it too (Damon)
+    onKickVote: useCallback((m) => {
+      setKickVotes(prev => {
+        const next = { ...prev };
+        if (m.votes > 0) next[String(m.targetId).toLowerCase()] = { votes: m.votes, needed: m.needed }; else delete next[String(m.targetId).toLowerCase()];
+        return next;
+      });
+      if (sameId(m.voterId, auth?.userId)) {
+        setMyKicks(prev => m.added ? [...prev, String(m.targetId).toLowerCase()] : prev.filter(t => t !== String(m.targetId).toLowerCase()));
+        postSystemMessage(m.added ? `You voted to kick "${m.target}".` : `You took back your vote to kick "${m.target}".`);
+      } else {
+        postSystemMessage(m.added ? `A vote to kick "${m.target}" was cast (${m.votes} of ${m.needed} needed).`
+          : `A vote to kick "${m.target}" was taken back (${m.votes} of ${m.needed}).`);
+      }
+    }, [auth]),
+
+    onPlayerKicked: useCallback((m) => {
+      setKickVotes(prev => { const next = { ...prev }; delete next[String(m.targetId).toLowerCase()]; return next; });
+      setMyKicks(prev => prev.filter(t => t !== String(m.targetId).toLowerCase()));
+      if (sameId(m.targetId, auth?.userId)) { leavingRef.current = true; setKicked(true); return; }
+      postSystemMessage(`"${m.target}" was removed from the train by a passenger vote.`);
+      refreshRoomState();
+    }, [auth]),
+
     onPlayerJoined: useCallback((playerId) => {
       refreshRoomState();
     }, []),
@@ -1854,9 +2089,22 @@ function Room() {
     return () => clearInterval(iv);
   }, [topicTimer]);
 
+  // Vote to kick (or take the vote back) — from the Passengers menu or "/kick name" in chat
+  async function voteKick(name) {
+    try {
+      const r = await kickVote(id, name);
+      if (r?.kicked) refreshRoomState();
+    } catch (e) {
+      postSystemMessage(String(e.message || "").replace(/^\d{3}:\s*/, "") || "Couldn't vote.");
+    }
+  }
+
   async function sendRoomMessage() {
     const text = roomChatInput.trim();
     if (!text || !auth) return;
+    // "/kick name" (or AcroChallenge's "/kp name") votes to kick instead of chatting
+    const cmd = text.match(/^\/(kick|kp)\s+(.+)$/i);
+    if (cmd) { setRoomChatInput(""); voteKick(cmd[2].trim()); return; }
     try {
       const conn = connectionRef.current;
       if (conn) {
@@ -1901,7 +2149,10 @@ function Room() {
 
   useEffect(() => {
     if (!auth) { navigate("/"); return; }
-    joinRoom(id, { id: auth.userId, nickname: auth.username, score: 0 }).catch(e => console.warn(e));
+    joinRoom(id, { id: auth.userId, nickname: auth.username, score: 0 }).catch(e => {
+      console.warn(e);
+      if (String(e?.message || "").includes("passenger vote")) { leavingRef.current = true; setKicked(true); }
+    });
   }, [id]);
 
   async function refreshRoomState() {
@@ -1927,6 +2178,7 @@ function Room() {
         lastRejoinRef.current = Date.now();
         joinRoom(id, { id: me, nickname: auth.username, score: 0 }).catch(e => {
           console.warn("Re-join failed:", e);
+          if (String(e?.message || "").includes("passenger vote")) { leavingRef.current = true; setKicked(true); return; }
           // 401 = the server no longer knows our login (it restarted) — go to the login screen
           // instead of staying in a room we can't play in
           if (String(e?.message || "").startsWith("401")) { localStorage.removeItem("acro.auth"); navigate("/"); }
@@ -2124,6 +2376,20 @@ function Room() {
     </div>
   );
   // The room was deleted on the server while this page was open
+  // Removed by a passenger vote
+  if (kicked) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, color: C.textPrimary }}>
+      <Panel style={{ padding: 32, textAlign: "center", maxWidth: 480, borderColor: C.brand }}>
+        <h2 style={{ margin: "0 0 12px", fontFamily: "Fredoka, sans-serif", fontSize: 26, color: C.ivory }}>
+          You were removed from this train by a passenger vote
+        </h2>
+        <p style={{ margin: "0 0 24px", color: C.textSecond, fontSize: 16 }}>
+          You can board it again when this journey ends — or board another train now.
+        </p>
+        <Btn onClick={() => navigate("/")}>← Grand Sky Station</Btn>
+      </Panel>
+    </div>
+  );
   if (roomClosed) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, color: C.textPrimary }}>
       <Panel style={{ padding: 32, textAlign: "center", maxWidth: 480, borderColor: C.teal }}>
@@ -2515,10 +2781,15 @@ function Room() {
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
               {[...players].sort((a, b) => shownScore(b) - shownScore(a)).map(p => (
                 <li key={p.id}
-                  title={p.id !== auth?.userId ? `Message ${p.nickname}` : undefined}
+                  title={p.id !== auth?.userId ? `Message or vote to kick ${p.nickname}` : undefined}
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
-                  // One click (was a double click, awkward on phones) opens or switches to their tab
-                  onClick={() => { if (p.id !== auth?.userId) openPm(p.nickname); }}>
+                  // One click opens a small menu: Message / Vote to kick (positioned under the name;
+                  // the page may be zoomed to fit the window, so the screen position is divided by it)
+                  onClick={e => {
+                    if (p.id === auth?.userId) return;
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setPassMenu({ p, x: r.left / view.scale, y: r.bottom / view.scale, confirm: false });
+                  }}>
                   {/* Left side: a fixed tick column, then the name — the ✓ sits outside the name in its own
                       16px column, so names never move when someone submits (Damon's request) */}
                   <span style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
@@ -2535,6 +2806,12 @@ function Room() {
                     {(pm.unread[p.nickname] || 0) > 0 && (
                       <span style={{ marginLeft: 6, background: C.brand, color: C.onBrand, fontSize: 10, borderRadius: 999, padding: "1px 6px" }}>
                         {pm.unread[p.nickname]}
+                      </span>
+                    )}
+                    {/* Votes to kick this passenger, for everyone to see (the passenger too) */}
+                    {kickVotes[String(p.id).toLowerCase()] && (
+                      <span title="Votes to kick" style={{ marginLeft: 6, color: C.brand, fontSize: 12, fontWeight: 700 }}>
+                        kick {kickVotes[String(p.id).toLowerCase()].votes}/{kickVotes[String(p.id).toLowerCase()].needed}
                       </span>
                     )}
                   </span>
@@ -2587,6 +2864,34 @@ function Room() {
       </div>
       <PmToast />
         <RestartBanner />
+      {passMenu && (
+        // Click outside closes it
+        <div onPointerDown={e => { if (e.target === e.currentTarget) setPassMenu(null); }} style={{ position: "fixed", inset: 0, zIndex: 84 }}>
+          <div style={{ position: "fixed", left: Math.min(passMenu.x, view.w - 250), top: passMenu.y + 4, width: 230, background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 10, padding: 8, boxShadow: "0 12px 32px rgba(0,0,0,0.4)", display: "flex", flexDirection: "column", gap: 4 }}>
+            {!passMenu.confirm ? (
+              <>
+                <button onClick={() => { openPm(passMenu.p.nickname); setPassMenu(null); }}
+                  style={{ textAlign: "left", background: "none", border: "none", color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: 15, padding: "7px 8px", borderRadius: 6 }}>✉ Message {passMenu.p.nickname}</button>
+                <button onClick={() => {
+                  if (myKicks.includes(String(passMenu.p.id).toLowerCase())) { voteKick(passMenu.p.nickname); setPassMenu(null); }
+                  else setPassMenu(m => ({ ...m, confirm: true }));
+                }}
+                  style={{ textAlign: "left", background: "none", border: "none", color: C.brand, cursor: "pointer", fontFamily: "inherit", fontSize: 15, padding: "7px 8px", borderRadius: 6 }}>
+                  {myKicks.includes(String(passMenu.p.id).toLowerCase()) ? "Take back my kick vote" : "Vote to kick"}
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 15, padding: "4px 6px 8px", color: C.textPrimary }}>Vote to kick <b>{passMenu.p.nickname}</b> off this train?</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn onClick={() => { voteKick(passMenu.p.nickname); setPassMenu(null); }}>Yes</Btn>
+                  <BtnSecondary onClick={() => setPassMenu(null)}>Cancel</BtnSecondary>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2596,6 +2901,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Lobby />} />
       <Route path="/log" element={<StationLog />} />
+      <Route path="/passenger/:name" element={<PassengerPage />} />
       <Route path="/room/:id" element={<Room />} />
     </Routes>
   );

@@ -152,6 +152,24 @@ export async function startRound(roomId, topic) {
 }
 
 // "GO!" — start the next station now with the topic that was set (it can be changed until then)
+// Vote to kick a passenger (or take the vote back) — the server counts the votes
+export async function kickVote(roomId, target) {
+  const res = await authFetch(`${API_URL}/api/room/${encodeURIComponent(roomId)}/kick`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target }),
+  });
+  return j(res);
+}
+
+// The Sky Pass of one passenger, and passenger search
+export async function fetchPassenger(name) {
+  const res = await authFetch(`${API_URL}/api/passenger/${encodeURIComponent(name)}`);
+  return j(res);
+}
+export async function searchPassengers(q) {
+  const res = await authFetch(`${API_URL}/api/passenger?q=${encodeURIComponent(q)}`);
+  return j(res);
+}
+
 export async function topicGo(roomId) {
   const res = await authFetch(`${API_URL}/api/room/${encodeURIComponent(roomId)}/topic/go`, { method: "POST" });
   return j(res);
