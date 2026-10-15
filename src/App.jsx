@@ -634,6 +634,205 @@ function HowToPlay({ winScore = 30 }) {
   );
 }
 
+// ── Station Log ────────────────────────────────────────────────
+// What's new and what was fixed, like a diary (Damon, 2026-10-16). The admin writes entries; players
+// comment and react. Page at /log; each entry has its own link (/log#<id>).
+const LOG_SEEN_KEY = "acro.logSeen";   // newest entry this browser has seen (for the NEW mark)
+function logSeen() { try { return Number(localStorage.getItem(LOG_SEEN_KEY) || 0); } catch { return 0; } }
+function authHeaders(json) {
+  const t = getAuth()?.token;
+  return { ...(json ? { "Content-Type": "application/json" } : {}), ...(t ? { Authorization: `Bearer ${t}` } : {}) };
+}
+const logDate = d => new Date(d).toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" });
+
+// Plain text: lines starting with "- " become bullet points, other lines paragraphs
+function LogBody({ text }) {
+  const out = []; let list = [];
+  const flush = () => {
+    if (list.length) out.push(<ul key={out.length} style={{ margin: "6px 0", paddingLeft: 22, listStyle: "disc" }}>{list.map((l, i) => <li key={i} style={{ margin: "3px 0" }}>{l}</li>)}</ul>);
+    list = [];
+  };
+  for (const line of String(text).split(/\r?\n/)) {
+    if (/^\s*-\s+/.test(line)) list.push(line.replace(/^\s*-\s+/, ""));
+    else { flush(); if (line.trim()) out.push(<p key={out.length} style={{ margin: "6px 0" }}>{line}</p>); }
+  }
+  flush();
+  return <div style={{ color: C.textSecond, fontSize: 15, lineHeight: 1.55 }}>{out}</div>;
+}
+
+function LogEntryCard({ e, isAdmin, loggedIn, onRemoved }) {
+  const [open, setOpen] = useState(false);
+  const [comments, setComments] = useState(null);
+  const [draft, setDraft] = useState("");
+  const [err, setErr] = useState("");
+  const [reactions, setReactions] = useState(e.reactions || {});
+  const [mine, setMine] = useState(e.mine || []);
+  const [count, setCount] = useState(e.comments || 0);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!open || comments !== null) return;
+    fetch(`${API_URL}/api/log/${e.id}/comments`, { headers: authHeaders() }).then(r => r.ok ? r.json() : []).then(setComments).catch(() => setComments([]));
+  }, [open]);
+  // Opened from a shared link (/log#<id>): open this entry and scroll to it
+  useEffect(() => {
+    if (window.location.hash === `#${e.id}`) { setOpen(true); setTimeout(() => document.getElementById(e.id)?.scrollIntoView({ block: "start" }), 100); }
+  }, []);
+  const react = async (emoji) => {
+    if (!loggedIn) return;
+    const r = await fetch(`${API_URL}/api/log/${e.id}/react`, { method: "POST", headers: authHeaders(true), body: JSON.stringify({ emoji }) });
+    if (!r.ok) return;
+    const d = await r.json();
+    setReactions(x => ({ ...x, [emoji]: d.count }));
+    setMine(m => d.on ? [...m, emoji] : m.filter(x => x !== emoji));
+  };
+  const send = async () => {
+    const body = draft.trim();
+    if (!body) return;
+    const r = await fetch(`${API_URL}/api/log/${e.id}/comments`, { method: "POST", headers: authHeaders(true), body: JSON.stringify({ body }) });
+    const t = await r.text();
+    if (!r.ok) { setErr(t || "Couldn't post your comment."); return; }
+    setComments(c => [...(c || []), JSON.parse(t)]);
+    setCount(n => n + 1);
+    setDraft(""); setErr("");
+  };
+  const hide = async (cid) => {
+    const r = await fetch(`${API_URL}/api/log/comments/${cid}/hide`, { method: "POST", headers: authHeaders() });
+    if (r.ok) { const d = await r.json(); setComments(cs => cs.map(c => c.id === cid ? { ...c, hidden: d.hidden } : c)); setCount(n => n + (d.hidden ? -1 : 1)); }
+  };
+  const remove = async () => {
+    if (!window.confirm(`Remove "${e.title}" from the Station Log?`)) return;
+    const r = await fetch(`${API_URL}/api/log/${e.id}`, { method: "DELETE", headers: authHeaders() });
+    if (r.ok) onRemoved();
+  };
+  const copyLink = () => {
+    navigator.clipboard?.writeText(`${window.location.origin}/log#${e.id}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => { });
+  };
+  const small = { background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontFamily: "inherit", fontSize: 13, padding: 4 };
+  return (
+    <Panel style={{ padding: "16px 20px", scrollMarginTop: 16 }}>
+      <div id={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+        <h2 style={{ margin: 0, fontFamily: "Fredoka, sans-serif", fontSize: 21, color: C.ivory }}>{e.title}</h2>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: C.textMuted, fontSize: 13 }}>{logDate(e.createdAtUtc)}</span>
+          <button onClick={copyLink} style={small} title="Copy a link to this entry">{copied ? "Copied" : "Link"}</button>
+          {isAdmin && <button onClick={remove} style={{ ...small, color: C.brand }}>Remove</button>}
+        </span>
+      </div>
+      <LogBody text={e.body} />
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+        {Object.keys(reactions).map(emoji => {
+          const on = mine.includes(emoji);
+          return (
+            <button key={emoji} onClick={() => react(emoji)} title={loggedIn ? "React" : "Log in to react"} aria-pressed={on}
+              style={{ background: on ? C.navy3 : C.bgApp, border: `1px solid ${on ? C.teal : C.border}`, borderRadius: 999, color: C.textPrimary, cursor: loggedIn ? "pointer" : "default", fontFamily: "inherit", fontSize: 14, padding: "3px 10px" }}>
+              {emoji} <span style={{ fontVariantNumeric: "tabular-nums", color: C.textSecond }}>{reactions[emoji] || 0}</span>
+            </button>
+          );
+        })}
+        <button onClick={() => setOpen(o => !o)} style={{ marginLeft: "auto", background: "none", border: "none", color: C.teal, cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 600 }}>
+          {open ? "Hide comments" : count === 0 ? "Comment" : `${count} comment${count === 1 ? "" : "s"}`}
+        </button>
+      </div>
+      {open && (
+        <div style={{ marginTop: 10, borderTop: `1px solid ${C.border}`, paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+          {comments === null && <p style={{ margin: 0, color: C.textMuted, fontSize: 14 }}>Loading…</p>}
+          {comments && comments.length === 0 && <p style={{ margin: 0, color: C.textMuted, fontSize: 14 }}>No comments yet. Be the first.</p>}
+          {comments && comments.map(c => (
+            <div key={c.id} style={{ fontSize: 15, opacity: c.hidden ? 0.5 : 1, overflowWrap: "anywhere" }}>
+              <span style={{ color: C.teal, fontWeight: 600 }}>{c.name}</span>
+              <span style={{ color: C.textMuted, fontSize: 12, marginLeft: 6 }}>{logDate(c.createdAtUtc)}</span>
+              {isAdmin && <button onClick={() => hide(c.id)} style={{ ...small, marginLeft: 6 }}>{c.hidden ? "Show" : "Hide"}</button>}
+              <div style={{ color: C.textSecond }}>{c.hidden ? <i>(hidden)</i> : null} {c.body}</div>
+            </div>
+          ))}
+          {loggedIn ? (
+            <div style={{ display: "flex", gap: 8 }}>
+              <input id={`comment-${e.id}`} maxLength={1000} value={draft} onChange={ev => { setDraft(ev.target.value); setErr(""); }}
+                onKeyDown={ev => { if (ev.key === "Enter") send(); }} placeholder="Write a comment..."
+                style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
+              <Btn onClick={send}>Post</Btn>
+            </div>
+          ) : <p style={{ margin: 0, color: C.textMuted, fontSize: 14 }}>Log in at the Grand Sky Station to comment.</p>}
+          {err && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{err}</p>}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function StationLog() {
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState("");
+  const loggedIn = !!getAuth()?.token;
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [formErr, setFormErr] = useState("");
+  const load = async () => {
+    try {
+      const r = await fetch(`${API_URL}/api/log`, { headers: authHeaders() });
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      setData(d);
+      const newest = d.entries?.[0];
+      if (newest) { try { localStorage.setItem(LOG_SEEN_KEY, String(new Date(newest.createdAtUtc).getTime())); } catch { } }
+    } catch { setErr("Couldn't load the Station Log. Try again in a moment."); }
+  };
+  useEffect(() => { load(); }, []);
+  const post = async () => {
+    const r = await fetch(`${API_URL}/api/log`, { method: "POST", headers: authHeaders(true), body: JSON.stringify({ title, body }) });
+    if (!r.ok) { setFormErr((await r.text()) || "Couldn't post."); return; }
+    setTitle(""); setBody(""); setFormErr("");
+    load();
+  };
+  const field = { width: "100%", boxSizing: "border-box", background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" };
+  return (
+    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "24px 16px 48px", boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h1 style={{ margin: 0, fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand }}>Station Log</h1>
+            <p style={{ margin: "4px 0 0", color: C.textMuted, fontSize: 15 }}>What's new on the Acro Express, and what we fixed. Comment and react — we read everything.</p>
+          </div>
+          <BtnSecondary onClick={() => navigate("/")}>← Grand Sky Station</BtnSecondary>
+        </div>
+        {data?.isAdmin && (
+          <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8, borderColor: C.teal }}>
+            <h2 style={{ margin: 0, fontSize: 16, color: C.teal }}>New entry</h2>
+            <input id="logTitle" value={title} onChange={ev => setTitle(ev.target.value)} maxLength={120} placeholder="Title, e.g. Tonight's fixes" style={field} />
+            <textarea id="logBody" value={body} onChange={ev => setBody(ev.target.value)} rows={6} placeholder={"What's new?\n- Lines starting with a dash become bullet points"} style={{ ...field, resize: "vertical" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Btn onClick={post}>Post to the Station Log</Btn>
+              {formErr && <span style={{ color: C.brand, fontSize: 14 }}>{formErr}</span>}
+            </div>
+          </Panel>
+        )}
+        {err && <p style={{ color: C.brand }}>{err}</p>}
+        {!data && !err && <p style={{ color: C.textMuted }}>Loading…</p>}
+        {data?.entries?.map(e => <LogEntryCard key={e.id} e={e} isAdmin={data.isAdmin} loggedIn={loggedIn} onRemoved={load} />)}
+      </div>
+    </div>
+  );
+}
+
+// "Station Log" button in the lobby header, with NEW when there's an entry this browser hasn't seen
+function StationLogButton() {
+  const navigate = useNavigate();
+  const [hasNew, setHasNew] = useState(false);
+  useEffect(() => {
+    fetch(`${API_URL}/api/log`).then(r => r.json()).then(d => {
+      const n = d.entries?.[0];
+      if (n && new Date(n.createdAtUtc).getTime() > logSeen()) setHasNew(true);
+    }).catch(() => { });
+  }, []);
+  return (
+    <button onClick={() => navigate("/log")}
+      style={{ background: C.bgPanel2, border: `1px solid ${hasNew ? C.teal : C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>
+      Station Log{hasNew && <span style={{ marginLeft: 6, background: C.teal, color: C.bgApp, fontSize: 11, fontWeight: 800, borderRadius: 999, padding: "1px 6px" }}>NEW</span>}
+    </button>
+  );
+}
+
 // ── Lobby ──────────────────────────────────────────────────────
 function Lobby() {
   const [status, setStatus] = useState("loading...");
@@ -749,6 +948,7 @@ function Lobby() {
           <div style={{ color: C.textMuted, fontSize: 13, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 2 }}>Grand Sky Station</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <StationLogButton />
           <HowToPlay winScore={roomList[0]?.winScore || 30} />
           <ThemePicker />
           <span style={{ color: C.textMuted, fontSize: 15 }}>{status}</span>
@@ -2395,6 +2595,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Lobby />} />
+      <Route path="/log" element={<StationLog />} />
       <Route path="/room/:id" element={<Room />} />
     </Routes>
   );
