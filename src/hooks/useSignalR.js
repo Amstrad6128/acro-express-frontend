@@ -49,6 +49,8 @@ export function useSignalR(roomId, handlers = {}) {
     // Private messages (stored on the server; tabs and unread counts live in src/pm.js).
     // The old "ReceivePrivateMessage" is only for pages opened before 2026-10-12, so it's not listened to.
     connection.on("PrivateMessage", (m) => receivePm(m));
+    // The server is about to restart (daily, or a deploy) — App.jsx shows a short banner
+    connection.on("ServerRestarting", () => window.dispatchEvent(new Event("acro-server-restarting")));
 
     // ── Player events ────────────────────────────────────
     connection.on("PlayerJoined", (...args) => handlersRef.current.onPlayerJoined?.(...args));

@@ -88,3 +88,7 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--c-border, #2B3758); border-radius: 3px; }   /* palette colours */
 ::-webkit-scrollbar-thumb:hover { background: var(--c-teal, #6FB7C8); }
+/* Topic box: highlighted instead of taking the cursor (Sandy's "ty" became the topic) */
+@keyframes acroPulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 4px var(--c-teal, #6FB7C8); } }
+.acro-pulse { animation: acroPulse 1.6s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) { .acro-pulse { animation: none; } }

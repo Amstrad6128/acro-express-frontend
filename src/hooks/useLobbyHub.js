@@ -29,6 +29,8 @@ export function useLobbyHub(username) {
     connection.off("PrivateMessage");
     // Private messages reach you in the lobby too (shared with the room — src/pm.js)
     connection.on("PrivateMessage", (m) => receivePm(m));
+    connection.off("ServerRestarting");
+    connection.on("ServerRestarting", () => window.dispatchEvent(new Event("acro-server-restarting")));
 
     connection.on("LobbyPlayers", (playerList) => {
       setPlayers(playerList);

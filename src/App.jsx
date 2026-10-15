@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Routes, Route, useParams, useNavigate } from "react-router-dom";
-import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, getAuth, doneVoting, API_URL } from "./services/api";
+import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, getAuth, doneVoting, API_URL, topicGo } from "./services/api";
 import { useSignalR } from "./hooks/useSignalR";
 import { useLobbyHub } from "./hooks/useLobbyHub";
 import { usePm, openPm, closePm, sendPm, setPmDraft, dismissPmToast, setPmChime } from "./pm";
@@ -416,6 +416,53 @@ function PmToast() {
   );
 }
 
+// ── Server restarts ───────────────────────────────────────────
+// Heroku restarts the server about once a day (24 h after the last start, plus up to 216 minutes).
+// Announced restarts are fine (Lichess does it); surprise ones annoy (Damon). The window comes from
+// api/status (startedAtUtc); soon = from 15 minutes before the window until its end.
+function useRestartWindow() {
+  const [win, setWin] = useState(null);
+  useEffect(() => {
+    let stop = false;
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/status`);
+        const d = await res.json();
+        if (!stop && d?.startedAtUtc) {
+          const start = new Date(d.startedAtUtc).getTime();
+          setWin({ from: new Date(start + 24 * 3600e3), to: new Date(start + 24 * 3600e3 + 216 * 60e3) });
+        }
+      } catch { /* try again later */ }
+    };
+    load();
+    const iv = setInterval(load, 10 * 60e3);
+    return () => { stop = true; clearInterval(iv); };
+  }, []);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 60e3); return () => clearInterval(iv); }, []);
+  if (!win) return null;
+  const soon = now >= win.from.getTime() - 15 * 60e3 && now <= win.to.getTime();
+  const fmt = d => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return { ...win, soon, text: `Daily server restart expected between ${fmt(win.from)} and ${fmt(win.to)}. Your game will continue.` };
+}
+
+// "Server restarting — back in a few seconds" when the server says it is going down
+function RestartBanner() {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    let t;
+    const show = () => { setOn(true); clearTimeout(t); t = setTimeout(() => setOn(false), 45000); };
+    window.addEventListener("acro-server-restarting", show);
+    return () => { window.removeEventListener("acro-server-restarting", show); clearTimeout(t); };
+  }, []);
+  if (!on) return null;
+  return (
+    <div role="status" style={{ position: "fixed", top: 10, left: "50%", transform: "translateX(-50%)", zIndex: 95, background: C.bgPanel2, color: C.textPrimary, border: `1px solid ${C.teal}`, padding: "8px 18px", borderRadius: 999, fontSize: 15, fontWeight: 600, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", maxWidth: "calc(100% - 32px)", textAlign: "center" }}>
+      Server restarting — back in a few seconds. Your game is safe.
+    </div>
+  );
+}
+
 // A player's name you can click to message them privately (your own name isn't clickable).
 // Used in Lobby Chat, Train Chat and Departures (Damon: every name you see is one click from a chat).
 function NameLink({ name, style }) {
@@ -462,7 +509,13 @@ function OnlineButton() {
     </div>
   );
   return (
-    <HeaderMenu width={260} label={<>👥 Online{total !== null && <span style={{ color: C.teal, fontWeight: 600 }}> {total}</span>}</>}>
+    <HeaderMenu width={260} label={<>
+      <svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true" style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 6 }}>
+        <circle cx="5.5" cy="4" r="2.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M1 13c0-2.6 2-4.4 4.5-4.4S10 10.4 10 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <circle cx="11.5" cy="4.6" r="2.1" fill="none" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M11.2 8.7c2.2 0 3.8 1.6 3.8 3.9" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>Online{total !== null && <span style={{ color: C.teal, fontWeight: 600 }}> {total}</span>}</>}>
       {(close, big) => (
         <div style={{ maxHeight: "55vh", overflowY: "auto" }}>
           <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 4 }}>Click a name to send a private message.</div>
@@ -594,6 +647,20 @@ function Lobby() {
   const navigate = useNavigate();
   const { players, messages, sendMessage } = useLobbyHub(auth?.username);
   const pm = usePm();   // private messages (shared with the room)
+  const restart = useRestartWindow();
+  // Lobby chat shows only the current session: after 15 minutes without a message it starts fresh
+  // (Fran, 2026-10-15). The server sends the same session as history.
+  const [chatNow, setChatNow] = useState(Date.now());
+  useEffect(() => { const iv = setInterval(() => setChatNow(Date.now()), 30000); return () => clearInterval(iv); }, []);
+  const QUIET_MS = 15 * 60 * 1000;
+  const lobbySession = (() => {
+    if (messages.length === 0) return [];
+    if (Math.max(chatNow, Date.now()) - new Date(messages[messages.length - 1].time).getTime() >= QUIET_MS) return [];
+    let start = 0;
+    for (let i = 1; i < messages.length; i++)
+      if (new Date(messages[i].time) - new Date(messages[i - 1].time) >= QUIET_MS) start = i;
+    return messages.slice(start);
+  })();
   const [chatInput, setChatInput] = useState("");
   const lobbyBottomRef = useRef(null);
   // Create Room: an inline name field instead of the browser's pop-up
@@ -719,6 +786,11 @@ function Lobby() {
           )}
         </Panel>
 
+        {/* Heroku's daily restart, announced (shown from 15 minutes before the expected window) */}
+        {auth && restart?.soon && (
+          <p style={{ margin: "0 0 12px", color: C.textMuted, fontSize: 14, textAlign: "center" }}>ℹ {restart.text}</p>
+        )}
+
         {auth && <Panel style={{ padding: 16, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h2 style={{ margin: 0, fontSize: 16, color: C.textPrimary }}>Departures</h2>
@@ -811,10 +883,10 @@ function Lobby() {
                 Lobby Chat
               </h2>
               <div style={{ flex: 1, overflowY: "auto", maxHeight: 180, display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
-                {messages.length === 0 ? (
-                  <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No messages yet</p>
+                {lobbySession.length === 0 ? (
+                  <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No messages yet. The chat starts fresh after 15 quiet minutes.</p>
                 ) : (
-                  messages.map((m, i) => (
+                  lobbySession.map((m, i) => (
                     <div key={i} style={{ fontSize: 15 }}>
                       {/* When it was written — lobby messages are kept, so they can be from yesterday */}
                       <span style={{ color: C.textMuted, fontSize: 12, marginRight: 6, fontVariantNumeric: "tabular-nums" }}>{lobbyTime(m.time)}</span>
@@ -844,6 +916,7 @@ function Lobby() {
           </div>
         )}
         <PmToast />
+        <RestartBanner />
       </div>
     </div>
   );
@@ -1161,6 +1234,17 @@ function Room() {
   // Error from the server when the topic is refused (e.g. too short)
   const [topicError, setTopicError] = useState("");
   const [topicTimer, setTopicTimer] = useState(null);
+  // The topic the winner set — it can still be changed until GO! or the clock runs out (Sandy)
+  const [topicSetValue, setTopicSetValue] = useState(null);
+  const [topicGoing, setTopicGoing] = useState(false);
+  // The first topic starts the journey (no Start button — Damon): a 5-second "Departing in…"
+  // countdown with Change, then the server starts Station 1 with it
+  const [firstTopicDraft, setFirstTopicDraft] = useState("");
+  const [firstTopicError, setFirstTopicError] = useState("");
+  const [departIn, setDepartIn] = useState(null);
+  const [departTopic, setDepartTopic] = useState("");
+  const restart = useRestartWindow();
+  const restartAnnouncedRef = useRef(null);
 
   // Private messages: tabs, unread counts and history are shared with the lobby (src/pm.js)
   const pm = usePm();
@@ -1327,9 +1411,11 @@ function Room() {
 
       if (!topicRequestedRef.current) {
         setTimeout(() => {
+          // Into "Your Acro" — unless the player is in the middle of a chat message (then it moves
+          // there as soon as they send it, see sendRoomMessage)
           const activeEl = document.activeElement;
-          const isChatFocused = activeEl?.id === "chatInput" || activeEl?.id === "privateChatInput";
-          if (!isChatFocused) {
+          const typingChat = (activeEl?.id === "chatInput" || activeEl?.id === "privateChatInput") && activeEl.value.trim() !== "";
+          if (!typingChat) {
             document.getElementById("acroInput")?.focus();
           }
         }, 100);
@@ -1506,10 +1592,15 @@ function Room() {
       setTimer(null);
       setLetters([]);
       setFrozenScores(null);
-      postSystemMessage("Game paused: no acros for 3 rounds in a row. Press Start Game to continue.");
+      postSystemMessage("Game paused: no acros for 3 rounds in a row. Choose a topic to continue.");
     }, []),
 
     onTopicSet: useCallback((topic) => {
+      setTopicSetValue(null);
+      setTopicGoing(false);
+      setDepartIn(null);
+      setFirstTopicDraft("");
+      setFirstTopicError("");
       setTopicRequested(false);
       topicRequestedRef.current = false;
       setTopicDraft("");
@@ -1568,7 +1659,13 @@ function Room() {
     if (!text || !auth) return;
     try {
       const conn = connectionRef.current;
-      if (conn) { await conn.invoke("SendRoomMessage", id, auth.username, text); setRoomChatInput(""); }
+      if (conn) {
+        await conn.invoke("SendRoomMessage", id, auth.username, text);
+        setRoomChatInput("");
+        // Writing time and no acro yet: the message is sent, so on to "Your Acro"
+        if (phaseRef.current === "Submitting" && !submittedAcroRef.current && !topicRequestedRef.current)
+          setTimeout(() => document.getElementById("acroInput")?.focus(), 50);
+      }
     } catch (e) { console.error(e); }
   }
 
@@ -1758,21 +1855,55 @@ function Room() {
     try {
       const { setTopic } = await import("./services/api");
       await setTopic(id, topic);
-      setTopicRequested(false);
+      // Not started yet: it can be changed until GO! or the clock runs out (Sandy)
+      setTopicSetValue(topic);
       setTopicDraft("");
       setTopicError("");
-      setTopicTimer(null);
     } catch (e) {
       // Show the server's reason (the error text arrives as "400: <reason>")
       setTopicError((e.message || "").replace(/^\d{3}:\s*/, "") || "The topic wasn't accepted.");
     }
   }
 
-  async function handleStartRound() {
-    try {
-      await startRound(id);
-    } catch (e) { alert(`Start failed: ${e.message}`); }
+  // GO! — start the next station now with the topic that was set
+  async function goTopic() {
+    setTopicGoing(true);
+    try { await topicGo(id); }
+    catch (e) { setTopicGoing(false); setTopicError((e.message || "").replace(/^\d{3}:\s*/, "") || "Couldn't start the station."); }
   }
+
+  // The first topic: checked, then "Departing in 5…" (Change stops it), then the journey starts
+  function startDeparture() {
+    const t = firstTopicDraft.trim();
+    if ((t.match(/[\p{L}\p{N}]/gu) || []).length < 2) { setFirstTopicError("The topic needs at least 2 letters."); return; }
+    setFirstTopicError("");
+    setDepartTopic(t);
+    setDepartIn(5);
+  }
+  useEffect(() => {
+    if (departIn === null) return;
+    if (departIn <= 0) {
+      (async () => {
+        try { await startRound(id, departTopic); }
+        catch (e) {
+          setDepartIn(null);
+          setFirstTopicDraft(departTopic);
+          setFirstTopicError((e.message || "").replace(/^\d{3}:\s*/, "") || "Couldn't depart.");
+        }
+      })();
+      return;
+    }
+    const t = setTimeout(() => setDepartIn(d => (d === null ? null : d - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [departIn]);
+
+  // Heroku's daily restart, announced once in the train chat when its window is near
+  useEffect(() => {
+    if (restart?.soon && restartAnnouncedRef.current !== restart.from.getTime()) {
+      restartAnnouncedRef.current = restart.from.getTime();
+      postSystemMessage(restart.text);
+    }
+  }, [restart?.soon]);
 
   // The room closed: stop the music and close the live connection
   useEffect(() => {
@@ -1834,17 +1965,27 @@ function Room() {
   const showTopic = !!currentTopic && phase === "Submitting" && !topicRequested;
   // Stage sizes — compact versions on short windows. Used both by the elements and by the
   // stage height formula below, so the formula always matches what is drawn.
-  const stagePad = isShort ? "clamp(4px, 1vh, 24px)" : "clamp(4px, 2vh, 24px)";       // space above and below the letters
+  // Compact (Sandy, 2026-10-15: use the space above the letters and in the acro box for more chat lines).
+  // The letters keep their size.
+  const stagePad = isShort ? "clamp(2px, 0.5vh, 10px)" : "clamp(4px, 1vh, 16px)";      // space above and below the letters
+  const timerGap = "clamp(2px, 0.8vh, 8px)";                                            // between the timer and the letters
+  const ACRO_BOX = 92;                                                                   // the slim "Your Acro" box incl. margin
   const timerSize = isShort ? "clamp(28px, 5vh, 46px)" : "clamp(28px, 6vh, 46px)";     // countdown number
   const letterSize = isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters
+  // Topic: label and topic on one line (compact header)
   const topicBlock = (align) => (
-    <div style={{ textAlign: align }}>
-      <div style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Topic</div>
-      {/* Smaller topic on short windows so it fits in the shorter header */}
-      {/* margin auto centres the 420px-wide topic box under the letters (it slipped to the left) */}
-      <div style={{ fontSize: isShort ? 20 : 28, color: C.teal, fontWeight: 700, fontFamily: "Fredoka, sans-serif", lineHeight: 1.15, maxWidth: 420, overflowWrap: "anywhere", margin: align === "center" ? "0 auto" : undefined }}>{currentTopic}</div>
+    <div style={{ textAlign: align, maxWidth: 460, margin: align === "center" ? "0 auto" : undefined }}>
+      <span style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginRight: 8 }}>Topic</span>
+      <span style={{ fontSize: isShort ? 19 : 24, color: C.teal, fontWeight: 700, fontFamily: "Fredoka, sans-serif", lineHeight: 1.15, overflowWrap: "anywhere" }}>{currentTopic}</span>
     </div>
   );
+  // Who chooses the first topic: whoever started the Sky Train, or the first passenger on board if
+  // they're gone. The first topic starts the journey (there's no Start button any more).
+  const onBoard = players.filter(p => p.isConnected !== false);
+  const conductor = onBoard.find(p => sameId(p.id, data.ownerId)) || onBoard[0] || null;
+  const iAmConductor = !!conductor && sameId(conductor.id, auth?.userId);
+  const showFirstTopic = !topicRequested && ((phase === "Waiting" && !(data.currentRoundNumber > 0)) || phase === "Paused"
+    || (phase === "GameOver" && nextGameIn !== null && nextGameIn <= -10));
 
   return (
     // Wide side margins on desktop (like AcroChallenge), tighter on phones
@@ -1852,7 +1993,7 @@ function Room() {
     // and Passengers + chats are pinned to the bottom, so they never move between phases
     // Fit mode: laid out at view.w × view.h and shrunk with `zoom`, so it fills the window exactly.
     // Scroll mode (window too small even at 70%): normal height, the page scrolls with a scrollbar.
-    <div style={{ height: view.scroll ? "auto" : view.h, minHeight: view.scroll ? "100vh" : undefined, zoom: view.scale, boxSizing: "border-box", overflow: view.scroll ? "visible" : "hidden", display: "flex", flexDirection: "column", color: C.textPrimary, padding: isNarrow ? 16 : "clamp(12px, 3vh, 24px) 64px" }}>
+    <div style={{ height: view.scroll ? "auto" : view.h, minHeight: view.scroll ? "100vh" : undefined, zoom: view.scale, boxSizing: "border-box", overflow: view.scroll ? "visible" : "hidden", display: "flex", flexDirection: "column", color: C.textPrimary, padding: isNarrow ? 16 : "clamp(8px, 1.5vh, 16px) 64px" }}>
 
       {/* Private notice (e.g. acro not entered) — bold and short, above everything for 10 s */}
       {notice && (
@@ -1875,7 +2016,7 @@ function Room() {
       {/* Header */}
       {/* minHeight keeps room for the topic (top right), so the header is the same height with or without it.
           Short windows: 86px (smaller topic and gap) instead of 104px */}
-      <div style={{ flexShrink: 0, minHeight: isNarrow ? 0 : (isShort ? 86 : 104), display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "clamp(8px, 2vh, 24px)" }}>
+      <div style={{ flexShrink: 0, minHeight: isNarrow ? 0 : (isShort ? 64 : 76), display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: "clamp(2px, 0.8vh, 10px)" }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || roomNameRef.current || "Sky Train"}</h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
@@ -1894,7 +2035,7 @@ function Room() {
           </div>
         </div>
         {/* Gap between the buttons and the topic: 6px on short windows, 16px otherwise */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 6 : 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 4 : 8 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
             {/* "Express Colors" and "Sound" menus — change them any time, even mid-game */}
             <OnlineButton />
@@ -1905,7 +2046,7 @@ function Room() {
             {/* Hidden during the 30-second break after a game — the next game starts by itself */}
             {/* Not while the first topic is being chosen: round 1 already exists then (currentRoundNumber > 0)
                 — clicking it gave "round already in progress" */}
-            {((phase === "Waiting" && !topicRequested && !(data.currentRoundNumber > 0)) || (phase === "GameOver" && (nextGameIn === null || nextGameIn <= -10)) || phase === "Paused") && <Btn onClick={handleStartRound}>{phase === "GameOver" ? "New Game" : "Start Game"}</Btn>}
+            {/* No Start / New Game button: the first topic starts the journey (Damon, 2026-10-16) */}
             <BtnSecondary onClick={handleLeaveRoom} style={{ border: `1px solid ${C.focusLine}` }}>← Grand Sky Station</BtnSecondary>
           </div>
           {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
@@ -1919,7 +2060,7 @@ function Room() {
           flex "0 0": the stage never shrinks, so the acro box is never pushed out of sight (Deb lost it). */}
       {/* Scroll mode: the stage is as tall as its contents (the topic under the letters included),
           because the page scrolls anyway — nothing inside it can be cut off or covered. */}
-      <div style={{ flex: view.scroll ? "0 0 auto" : `0 0 calc(2 * ${stagePad} + ${timerSize} + clamp(4px, 1.5vh, 12px) + ${letterSize} + 173px)`, minHeight: 0, overflowY: view.scroll ? "visible" : "auto", scrollbarWidth: (phase === "Results" && !resultsClosed) || topicRequested ? "thin" : "none", display: "flow-root" }}>
+      <div style={{ flex: view.scroll ? "0 0 auto" : `0 0 calc(2 * ${stagePad} + ${timerSize} + ${timerGap} + ${letterSize} + ${ACRO_BOX}px)`, minHeight: 0, overflowY: view.scroll ? "visible" : "auto", scrollbarWidth: (phase === "Results" && !resultsClosed) || topicRequested ? "thin" : "none", display: "flow-root" }}>
       {/* (scrollbar: hidden normally, slim while results are shown, in case a long list doesn't fit) */}
 
       {/* Round results and the winner's topic prompt — inside the stage, where the letters are
@@ -1942,20 +2083,31 @@ function Room() {
             Next up: Station <span style={{ fontFamily: NUM_FONT }}>{nextStation}</span>
           </h2>
           <p style={{ margin: "0 0 16px", color: C.textMuted, fontSize: 15 }}>
-            Set the topic — you have <span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span>, or it defaults to General Acro.
+            {topicSetValue
+              ? <>The station starts when the clock runs out{topicTimer > 0 && <> (<span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span>)</>} — or press GO!</>
+              : <>Set the topic — you have <span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span>, or it defaults to General Acro.</>}
           </p>
           {/* Letters go 3,4,5,6,7 and repeat — same rule as the server (3 + (round - 1) % 5).
               Round 1 always has 3; otherwise currentRound is the round that just ended, so the next one has 3 + (currentRound % 5) */}
           <p style={{ margin: "0 0 16px", color: C.textSecond, fontSize: 16 }}>
             <span style={{ color: C.brand, fontWeight: 700, fontFamily: NUM_FONT }}>{topicForFirstRound ? 3 : 3 + (currentRound % 5)}</span> letters
           </p>
+          {topicSetValue ? (
+            // Set, not started: change it, or GO! now
+            <div style={{ display: "flex", gap: 8, maxWidth: 500, margin: "0 auto", alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+              <span style={{ fontSize: 18, color: C.textSecond }}>Topic: <b style={{ color: C.teal, fontFamily: "Fredoka, sans-serif" }}>{topicSetValue}</b></span>
+              <BtnSecondary onClick={() => { setTopicDraft(topicSetValue); setTopicSetValue(null); setTimeout(() => document.getElementById("topicInput")?.focus(), 50); }}>Change</BtnSecondary>
+              <Btn onClick={goTopic} disabled={topicGoing} style={{ whiteSpace: "nowrap", fontWeight: 800 }}>{topicGoing ? "Departing…" : "GO!"}</Btn>
+            </div>
+          ) : (
           <div style={{ display: "flex", gap: 8, maxWidth: 500, margin: "0 auto" }}>
+            {/* No autoFocus: the cursor stays where it is (Sandy typed "ty" in chat, Enter set it as the
+                topic). The box is highlighted instead; the player clicks into it. */}
             <input
               id="topicInput"
-              autoFocus
-              // Slimmer than before (was 10px padding, 18px text) — the button takes the same height
-              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.focusLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit", textAlign: "center" }}
-              placeholder="Type a topic..."
+              className="acro-pulse"
+              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.teal}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+              placeholder="Click here and type a topic..."
               value={topicDraft}
               onChange={e => { setTopicDraft(e.target.value); setTopicError(""); }}
               onKeyDown={e => { if (e.key === "Enter") submitTopic(); }}
@@ -1963,6 +2115,7 @@ function Room() {
             {/* nowrap: "Set Topic" stays on one line */}
             <Btn onClick={submitTopic} style={{ whiteSpace: "nowrap" }}>Set Topic</Btn>
           </div>
+          )}
           {/* Why the topic wasn't accepted (e.g. "l" — at least 2 letters) */}
           {topicError && <p style={{ margin: "10px 0 0", color: C.brand, fontSize: 14, fontWeight: 600 }}>{topicError}</p>}
         </Panel>
@@ -1988,8 +2141,46 @@ function Room() {
             {/* Countdown during the break; "Departing…" while the server starts it; the old hint if it didn't */}
             {nextGameIn > 0 ? `The next journey starts in ${nextGameIn}s`
               : nextGameIn !== null && nextGameIn > -10 ? "Departing…"
-              : "Press New Game to start the next departure."}
+              : "Choose a topic below to start the next journey."}
           </p>
+        </Panel>
+      )}
+
+      {/* The first topic starts the journey — no Start button (Damon, 2026-10-16) */}
+      {showFirstTopic && (
+        <Panel style={{ padding: 16, marginBottom: 8, borderColor: C.teal, textAlign: "center" }}>
+          {!iAmConductor ? (
+            <p style={{ color: C.textMuted, margin: 0, fontSize: 16 }}>
+              {conductor ? <>Waiting for <b style={{ color: C.textPrimary }}>{conductor.nickname}</b> to choose the first topic…</> : "Waiting for passengers…"}
+            </p>
+          ) : departIn !== null ? (
+            <>
+              <h2 style={{ margin: "0 0 6px", fontFamily: "Fredoka, sans-serif", fontSize: 24, color: C.teal }}>
+                Departing in <span style={{ fontFamily: NUM_FONT }}>{Math.max(departIn, 0)}</span>…
+              </h2>
+              <p style={{ margin: "0 0 10px", color: C.textSecond, fontSize: 16 }}>First topic: <b style={{ color: C.teal }}>{departTopic}</b></p>
+              <BtnSecondary onClick={() => { setDepartIn(null); setFirstTopicDraft(departTopic); }}>Change</BtnSecondary>
+            </>
+          ) : (
+            <>
+              <h2 style={{ margin: "0 0 6px", fontFamily: "Fredoka, sans-serif", fontSize: 22, color: C.teal }}>
+                {phase === "Paused" ? "Choose a topic to continue" : "Everyone on board? Choose the first topic to depart"}
+              </h2>
+              <p style={{ margin: "0 0 12px", color: C.textMuted, fontSize: 15 }}>Type a topic and press Enter — the journey starts.</p>
+              <div style={{ display: "flex", gap: 8, maxWidth: 500, margin: "0 auto" }}>
+                <input
+                  id="firstTopicInput"
+                  style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.teal}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+                  placeholder="First topic, e.g. Trains"
+                  value={firstTopicDraft}
+                  onChange={e => { setFirstTopicDraft(e.target.value); setFirstTopicError(""); }}
+                  onKeyDown={e => { if (e.key === "Enter") startDeparture(); }}
+                />
+                <Btn onClick={startDeparture} style={{ whiteSpace: "nowrap" }}>Depart</Btn>
+              </div>
+              {firstTopicError && <p style={{ margin: "10px 0 0", color: C.brand, fontSize: 14, fontWeight: 600 }}>{firstTopicError}</p>}
+            </>
+          )}
         </Panel>
       )}
 
@@ -1999,7 +2190,7 @@ function Room() {
           {/* Countdown — number only, centred above the letters, red in the last 10 seconds.
               The line is always there; when the timer has ended it is only made invisible, so the
               letters below keep their place (before, they jumped up when the timer ended). */}
-          <div style={{ fontSize: timerSize, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: "clamp(4px, 1.5vh, 12px)", visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
+          <div style={{ fontSize: timerSize, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
             {/* "0" keeps the line one number tall while it is hidden */}
             {timer !== null && timer > 0 ? timer : 0}
           </div>
@@ -2026,20 +2217,19 @@ function Room() {
       {phase === "Submitting" && !topicRequested && (
         // Clicking anywhere in this box puts the cursor in the acro field — players
         // were clicking the light box itself, thinking that was where to type
-        <Panel style={{ padding: 16, marginBottom: 16, cursor: "text" }}
+        <Panel style={{ padding: "8px 12px", marginBottom: 8, cursor: "text" }}
           onClick={e => {
             if (e.target.closest("button")) return; // let Submit/Edit/Cancel work normally
             document.getElementById("acroInput")?.focus();
           }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-            <h2 style={{ margin: 0, fontSize: 20, color: C.textPrimary }}>Your Acro</h2>
-            {/* The topic is now shown at the top right (or under the letters on phones) */}
-          </div>
+          {/* Compact (Sandy): the title, the box and the button on one row, and one short line under it
+              that always has the same height (hint at Station 1, the reason an acro wasn't accepted, or
+              "on its way"), so the box never changes size */}
           {submittedAcro && !isEditing ? (
             <>
-              <p style={{ margin: "0 0 10px", fontSize: 15, color: C.textMuted }}>Your entry is on its way.</p>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <div style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "10px 14px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 20 }}>
+                {!isNarrow && <span style={{ fontSize: 17, fontWeight: 700, color: C.textPrimary, whiteSpace: "nowrap" }}>Your Acro</span>}
+                <div style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "8px 12px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 19, overflowWrap: "anywhere" }}>
                   {submittedAcro}
                 </div>
                 <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
@@ -2050,21 +2240,18 @@ function Room() {
                   if (audioRef.current) audioRef.current.muted = false;
                 }}>Edit</Btn>
               </div>
+              <p style={{ margin: "4px 0 0", minHeight: 18, lineHeight: "18px", fontSize: 13, color: C.textMuted }}>Your entry is on its way.</p>
             </>
           ) : (
             <>
-              {/* Why the acro wasn't accepted — shown in place of the hint, so the box never grows */}
-              {/* Instructions are short and bold ("Use 3 words, one for each letter: B T V") — the player is in a hurry */}
-              <p style={{ margin: "0 0 10px", fontSize: acroError ? 16 : 15, color: acroError ? C.brand : C.textMuted, fontWeight: acroError ? 700 : 400 }}>
-                {acroError || "Type a sentence where each word starts with the letters above."}
-              </p>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {!isNarrow && <span style={{ fontSize: 17, fontWeight: 700, color: C.textPrimary, whiteSpace: "nowrap" }}>Your Acro</span>}
                 <input
                   id="acroInput"
                   // Scroll mode: bring the acro box into the middle of the screen when it is clicked
                   onFocus={e => { if (view.scroll) e.target.scrollIntoView({ block: "center", behavior: "smooth" }); }}
                   // Clear teal border so the typing field stands out inside the lighter box
-                  style={{ flex: 1, minWidth: 0 /* may get narrower than its default, so Submit fits on phones */, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "10px 14px", color: C.textPrimary, fontSize: 20, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+                  style={{ flex: 1, minWidth: 0 /* may get narrower than its default, so Submit fits on phones */, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 19, outline: "none", fontFamily: "inherit", textAlign: "center" }}
                   placeholder="Type your acro..."
                   value={myDraft}
                   onChange={e => {
@@ -2078,6 +2265,11 @@ function Room() {
                 <Btn onClick={handleSubmitAcro}>{isEditing ? "Update" : "Submit"}</Btn>
                 {isEditing && <BtnSecondary onClick={() => { setIsEditing(false); setAcroError(""); saveDraft("", true); }}>Cancel</BtnSecondary>}
               </div>
+              {/* The reason an acro wasn't accepted, short and bold ("Use 3 words, one for each letter: B T V") —
+                  or the hint at the first station of a journey */}
+              <p style={{ margin: "4px 0 0", minHeight: 18, lineHeight: "18px", fontSize: acroError ? 15 : 13, color: acroError ? C.brand : C.textMuted, fontWeight: acroError ? 700 : 400 }}>
+                {acroError || (currentRound <= 1 ? "One word for each letter, in order." : "")}
+              </p>
             </>
           )}
         </Panel>
@@ -2085,19 +2277,7 @@ function Room() {
 
       {/* Results and the topic prompt are floating panels now (see the top of this return) */}
 
-      {/* Paused — no acros for several rounds */}
-      {phase === "Paused" && (
-        <Panel style={{ padding: 16, marginBottom: 16, textAlign: "center" }}>
-          <p style={{ color: C.textMuted, margin: 0 }}>Game paused: no acros for 3 rounds in a row. Press Start Game to continue.</p>
-        </Panel>
-      )}
-
-      {/* Waiting (not while the topic prompt for round 1 is open — it sits in the stage too) */}
-      {phase === "Waiting" && !topicRequested && (
-        <Panel style={{ padding: 16, marginBottom: 16, textAlign: "center" }}>
-          <p style={{ color: C.textMuted, margin: 0 }}>Waiting for the game to start...</p>
-        </Panel>
-      )}
+      {/* Waiting / Paused: the first-topic panel above (it starts the journey) */}
 
       </div>
 
@@ -2107,8 +2287,8 @@ function Room() {
           Scroll mode: a fixed comfortable height (380px) instead; when narrow, the boxes are stacked
           (Passengers, Room Chat, private chat) and each chat gets 360px. */}
       <div style={{
-        flex: view.scroll ? "0 0 auto" : "1 0 170px",
-        minHeight: 170,
+        flex: view.scroll ? "0 0 auto" : "1 0 260px",
+        minHeight: 260,   // Train Chat always has room for about 8 lines (Sandy, Fran)
         height: view.scroll && !isNarrow ? 380 : undefined,
         display: "grid",
         gridTemplateRows: isNarrow ? undefined : "minmax(0, 1fr)",
@@ -2178,9 +2358,9 @@ function Room() {
             ) : (
               roomMessages.map((m, i) => (
                 m.system ? (
-                  <div key={i} style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic", textAlign: "center", padding: "2px 0" }}>{m.message}</div>
+                  <div key={i} style={{ fontSize: isShort ? 13 : 14, lineHeight: 1.35, color: C.textMuted, fontStyle: "italic", textAlign: "center", padding: "1px 0" }}>{m.message}</div>
                 ) : (
-                  <div key={i} style={{ fontSize: 15 }}>
+                  <div key={i} style={{ fontSize: isShort ? 14 : 15, lineHeight: 1.35 }}>
                     <NameLink name={m.nickname} style={{ color: C.teal, fontWeight: 600 }} /><span style={{ color: C.teal, fontWeight: 600 }}>: </span>
                     <span style={{ color: C.textSecond }}>{m.message}</span>
                   </div>
@@ -2206,6 +2386,7 @@ function Room() {
         <PrivateChatPanel style={{ height: isNarrow ? 360 : undefined }} />
       </div>
       <PmToast />
+        <RestartBanner />
     </div>
   );
 }

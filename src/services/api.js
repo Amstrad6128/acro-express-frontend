@@ -137,16 +137,23 @@ export async function fetchRoomState(roomId) {
   return j(res); // RoomStateDto
 }
 
-export async function startRound(roomId) {
+// topic: the first topic — the journey departs with it straight away (no Start button)
+export async function startRound(roomId, topic) {
   const { userId } = getAuth();
   const res = await authFetch(
     `${API_URL}/api/room/${encodeURIComponent(roomId)}/round/start`,
     { 
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ creatorId: userId })
+      body: JSON.stringify({ creatorId: userId, topic })
     }
   );
+  return j(res);
+}
+
+// "GO!" — start the next station now with the topic that was set (it can be changed until then)
+export async function topicGo(roomId) {
+  const res = await authFetch(`${API_URL}/api/room/${encodeURIComponent(roomId)}/topic/go`, { method: "POST" });
   return j(res);
 }
 
