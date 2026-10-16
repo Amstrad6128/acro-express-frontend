@@ -1349,7 +1349,7 @@ function Lobby() {
             </div>
           )}
           {roomList.length === 0 ? (
-            <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>The platforms are quiet. Be the first conductor.</p>
+            <p style={{ color: C.teal, fontSize: 16, fontWeight: 700, margin: 0 }}>Are you ready to play? Start a Sky Train!</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {roomList.map(room => (
@@ -1427,7 +1427,7 @@ function Lobby() {
               </h2>
               <div style={{ flex: 1, overflowY: "auto", maxHeight: 180, display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
                 {lobbySession.length === 0 ? (
-                  <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>Quiet on the concourse. The chat clears after 15 quiet minutes.</p>
+                  null   /* empty chat: no text, it just looks fresh (Damon) */
                 ) : (
                   lobbySession.map((m, i) => (
                     <div key={i} style={{ fontSize: 15 }}>
@@ -1445,7 +1445,7 @@ function Lobby() {
                   id="lobbyChatInput"
                   name="lobbyChatInput"
                   style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
-                  placeholder="Say hello to the station..."
+                  placeholder="Shout across the platform..."
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } }}
