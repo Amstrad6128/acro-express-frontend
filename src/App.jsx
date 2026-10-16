@@ -22,16 +22,47 @@ const THEMES = {
     danger: "#8B2020", dangerHover: "#A52828",
     fieldLine: "#2B3758", focusLine: "#6FB7C8",
   },
-  twilight: {  // Twilight — the same sky just after sunset, less dark (Fran)
-    name: "Twilight",
-    // Brighter text, accents and borders for more contrast; the background stays as it was (Damon)
-    bgApp: "#232B3F", bgPanel: "#2E3852", bgPanel2: "#36415E", border: "#6274A6",
-    textPrimary: "#F7F8FC", textSecond: "#E4E8F2", textMuted: "#C2CADF",
-    brand: "#F27D6E", brandHover: "#FF8E7F", onBrand: "#FFFFFF",
-    teal: "#94DCE8", tealLight: "#B2E6EF", lavender: "#D4D0F7", ivory: "#FFF4E8",
-    success: "#5CC09D", navy2: "#36415E", navy3: "#414D70", bgGradient: "none",
-    danger: "#A63A3A", dangerHover: "#BC4A4A",
-    fieldLine: "#6274A6", focusLine: "#94DCE8",
+  // 2026-10-16: Twilight replaced by Moonrise, and three more added (Damon: "I would like to see them all").
+  // Built on well-tested editor themes; body text ≥ 4.5:1 on panels, calm backgrounds, brighter accents.
+  moonrise: {  // Moonrise — dusky violet with rose and gold (from Rosé Pine Moon)
+    name: "Moonrise",
+    bgApp: "#232136", bgPanel: "#2A273F", bgPanel2: "#393552", border: "#44415A",
+    textPrimary: "#E0DEF4", textSecond: "#CFCBE6", textMuted: "#A29DBF",
+    brand: "#EA9A97", brandHover: "#F2B0AD", onBrand: "#232136",
+    teal: "#9CCFD8", tealLight: "#B8DFE6", lavender: "#C4A7E7", ivory: "#F3DFC1",
+    success: "#95C9A0", navy2: "#393552", navy3: "#44415A", bgGradient: "none",
+    danger: "#9E4F66", dangerHover: "#B4637A",
+    fieldLine: "#56526E", focusLine: "#C4A7E7",
+  },
+  afterglow: {  // Afterglow — soft pastels just after sunset, the least dark (from Catppuccin Frappé)
+    name: "Afterglow",
+    bgApp: "#303446", bgPanel: "#414559", bgPanel2: "#51576D", border: "#626880",
+    textPrimary: "#E6EBFD", textSecond: "#C6D0F5", textMuted: "#B5BFE2",
+    brand: "#EF9F76", brandHover: "#F4B48F", onBrand: "#303446",
+    teal: "#81C8BE", tealLight: "#99D1DB", lavender: "#CA9EE6", ivory: "#F2D5CF",
+    success: "#A6D189", navy2: "#51576D", navy3: "#626880", bgGradient: "none",
+    danger: "#AE474C", dangerHover: "#C95F63",
+    fieldLine: "#737994", focusLine: "#BABBF1",
+  },
+  bluehour: {  // Blue Hour — deep blue with bright orange, lively (from Tokyo Night Storm)
+    name: "Blue Hour",
+    bgApp: "#24283B", bgPanel: "#2B3048", bgPanel2: "#343A55", border: "#414868",
+    textPrimary: "#D5DCFA", textSecond: "#C0CAF5", textMuted: "#A9B1D6",
+    brand: "#FF9E64", brandHover: "#FFB385", onBrand: "#1F2335",
+    teal: "#7DCFFF", tealLight: "#B4F9F8", lavender: "#BB9AF7", ivory: "#E0AF68",
+    success: "#9ECE6A", navy2: "#343A55", navy3: "#414868", bgGradient: "none",
+    danger: "#C53B53", dangerHover: "#DB4B4B",
+    fieldLine: "#565F89", focusLine: "#7AA2F7",
+  },
+  aurora: {  // Aurora — cool arctic grey-blue under the northern lights, very clean (from Nord)
+    name: "Aurora",
+    bgApp: "#2E3440", bgPanel: "#3B4252", bgPanel2: "#434C5E", border: "#4C566A",
+    textPrimary: "#ECEFF4", textSecond: "#D8DEE9", textMuted: "#B4BCCB",
+    brand: "#D08770", brandHover: "#DC9A85", onBrand: "#2E3440",
+    teal: "#88C0D0", tealLight: "#8FBCBB", lavender: "#B48EAD", ivory: "#EBCB8B",
+    success: "#A3BE8C", navy2: "#434C5E", navy3: "#4C566A", bgGradient: "none",
+    danger: "#A44A53", dangerHover: "#BF616A",
+    fieldLine: "#616E88", focusLine: "#88C0D0",
   },
   nightfall: { // Nightfall — mossy olive greens with a lime glow, from Damon's "Mossy hollow" palette
                 // (#636B2F moss, #BAC095 sage, #D4DE95 lime, #3D4127 olive) plus a deeper olive background
@@ -57,7 +88,7 @@ const THEMES = {
     fieldLine: "#7184B8", focusLine: "#86D0D2",
   },
 };
-const THEME_KEYS = ["midnight", "twilight", "nightfall", "daybreak"];
+const THEME_KEYS = ["midnight", "afterglow", "bluehour", "moonrise", "nightfall", "aurora", "daybreak"];
 const COLOR_NAMES = ["bgApp", "bgPanel", "bgPanel2", "border", "textPrimary", "textSecond", "textMuted",
   "brand", "brandHover", "onBrand", "teal", "tealLight", "lavender", "ivory", "success", "navy2", "navy3",
   "danger", "dangerHover",    // danger = red for actions like Log out
@@ -70,6 +101,7 @@ function loadThemeKey() {
   try {
     let k = localStorage.getItem("acro.theme");
     if (k === "lamplight") k = "nightfall";   // the green palette's old name — keep the player's choice
+    if (k === "twilight") k = "moonrise";     // Twilight was replaced by Moonrise (2026-10-16)
     return THEMES[k] ? k : "midnight";
   } catch { return "midnight"; }
 }
