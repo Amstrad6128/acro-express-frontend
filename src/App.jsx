@@ -949,6 +949,12 @@ function StationLogButton() {
 // journey a name opens a private chat / the passenger menu instead.
 const openProfile = name => window.dispatchEvent(new CustomEvent("acro-open-profile", { detail: name }));
 const monthYear = d => new Date(d).toLocaleDateString([], { month: "long", year: "numeric" });
+// "Good morning" … by the time on the player's own device (passengers play from all over the world)
+function greeting(name) {
+  const h = new Date().getHours();
+  const part = h < 5 ? "Late night" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  return `${part}, ${name}`;
+}
 const passWhere = p => p.where === "train" ? <>On <b>{p.trainName}</b></> : p.where === "station" ? "At the Grand Sky Station" : "Offline";
 
 function PassStat({ n, label }) {
@@ -1142,6 +1148,7 @@ function PassengerPage() {
 // ── Lobby ──────────────────────────────────────────────────────
 function Lobby() {
   const [status, setStatus] = useState("");   // "ok" / "down" once checked
+  const [myPass, setMyPass] = useState(null);   // my Sky Pass, for the line under the greeting
   const [roomList, setRoomList] = useState([]);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -1195,6 +1202,12 @@ function Lobby() {
     localStorage.removeItem("acro.auth");
     setAuth(null);
   }
+
+  // My Sky Pass for the greeting ("Level · stations won"); quietly left out if it can't be loaded
+  useEffect(() => {
+    if (!auth?.username) { setMyPass(null); return; }
+    fetchPassenger(auth.username).then(setMyPass).catch(() => setMyPass(null));
+  }, [auth?.username]);
 
   useEffect(() => {
     const check = () => fetchHealth()
@@ -1277,8 +1290,16 @@ function Lobby() {
         )}
 
         <Panel style={{ padding: 16, marginBottom: 20 }}>
-          <h2 style={{ margin: "0 0 12px", fontSize: 16, color: C.textPrimary }}>
-            {auth ? `Welcome, ${auth.username}!` : "Sign in to play"}
+          <h2 style={{ margin: "0 0 12px", fontSize: 16, color: C.textPrimary, fontWeight: 600 }}>
+            {auth ? <>{greeting("")}<span style={{ color: C.teal }}>{auth.username}</span></> : "Sign in to play"}
+            {auth && myPass && (
+              <span style={{ color: C.textMuted, fontWeight: 400, fontSize: 15 }}>
+                {" · "}{myPass.level}{" · "}
+                {myPass.journeys > 0 || myPass.stationsWon > 0
+                  ? <><span style={{ fontFamily: NUM_FONT }}>{myPass.stationsWon}</span> {myPass.stationsWon === 1 ? "station" : "stations"} won</>
+                  : "your first journey awaits"}
+              </span>
+            )}
           </h2>
           {auth ? (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1333,6 +1354,13 @@ function Lobby() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {roomList.map(room => (
                 <div key={room.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px" }}>
+                  {/* Departures board (Damon): the platform the train leaves from — the same number for everyone */}
+                  {room.platform > 0 && (
+                    <div style={{ flexShrink: 0, width: 66, marginRight: phone ? 10 : 14, textAlign: "center", borderRight: `1px solid ${C.border}`, paddingRight: 8 }}>
+                      <div style={{ fontSize: 10, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.04em" }}>Platform</div>
+                      <div style={{ fontSize: 26, fontWeight: 700, fontFamily: NUM_FONT, color: C.ivory, lineHeight: 1.1 }}>{room.platform}</div>
+                    </div>
+                  )}
                   {/* minWidth 0: long name lists wrap instead of pushing the Join button off the row */}
                   <div style={{ minWidth: 0, flex: 1, marginRight: 12 }}>
                     <p style={{ margin: 0, fontWeight: 600, color: C.textPrimary }}>{room.name}</p>
@@ -1340,12 +1368,12 @@ function Lobby() {
                     <p style={{ margin: "2px 0 0", fontSize: 14, color: C.textSecond }}>
                       {room.gameOn ? (
                         <>
-                          <span style={{ color: C.success }}>●</span> <span style={{ fontWeight: 600 }}>Game on</span>
+                          <span style={{ color: C.success }}>●</span> <span style={{ fontWeight: 600, color: C.success }}>On the move</span>
                           {room.station > 0 && <> · Station <span style={{ fontFamily: NUM_FONT }}>{room.station}</span></>}
                           {room.leaderName && <> · leader <span style={{ color: C.teal, fontWeight: 600 }}>{room.leaderName}</span> <span style={{ fontFamily: NUM_FONT }}>{room.leaderScore}</span> of <span style={{ fontFamily: NUM_FONT }}>{room.winScore || 30}</span></>}
                         </>
                       ) : (
-                        <><span style={{ color: C.textMuted }}>○</span> Waiting for players</>
+                        <><span style={{ color: C.brand }}>●</span> <span style={{ fontWeight: 600, color: C.brand }}>Boarding now</span></>
                       )}
                     </p>
                     {/* Everyone in the room — friends can see where their friends are */}
@@ -1354,7 +1382,7 @@ function Lobby() {
                       {(room.playingNames || []).map((n, i) => <span key={n}>{i > 0 && ", "}<NameLink profile name={n} style={{ color: C.textSecond }} /></span>)}
                       {(room.awayNames || []).length > 0 && <>{(room.playingNames || []).length > 0 && ", "}<span style={{ fontStyle: "italic" }}>{room.awayNames.map((n, i) => <span key={n}>{i > 0 && ", "}<NameLink profile name={n} /> (away)</span>)}</span></>}
                       {(room.playingNames || []).length + (room.awayNames || []).length > 0 && " · "}
-                      {(room.playingNames || []).length} {room.gameOn ? "playing" : "here"}
+                      {(room.playingNames || []).length + (room.awayNames || []).length === 0 ? "No one aboard yet" : <>{(room.playingNames || []).length} {room.gameOn ? "playing" : "here"}</>}
                     </p>
                   </div>
                   <BtnSecondary onClick={() => navigate(`/room/${room.id}`)}>{room.gameOn ? "Board now" : "Board"}</BtnSecondary>
