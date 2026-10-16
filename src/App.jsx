@@ -571,7 +571,7 @@ function RestartBanner() {
 }
 
 // A player's name you can click to message them privately (your own name isn't clickable).
-// Used in Lobby Chat, Train Chat and Departures (Damon: every name you see is one click from a chat).
+// Used in Grand Sky Station Chat, Train Chat and Departures (Damon: every name you see is one click from a chat).
 // profile: at the Grand Sky Station the name opens the Sky Pass card instead (not during a journey).
 function NameLink({ name, style, profile = false }) {
   const me = getAuth()?.username;
@@ -641,7 +641,7 @@ function OnlineButton() {
   );
 }
 
-// ── How to play ────────────────────────────────────────────────
+// ── How to ride (was How to play) ────────────────────────────────────────────────
 // The rules, written from what the server really does (letters, times, scoring — Services/RoundTimerService.cs
 // and Utils/AcroRules.cs). Special topics as explained by Sandy (2026-10-12). Opens over the page.
 function RulesSection({ icon, title, children }) {
@@ -669,15 +669,15 @@ function HowToPlay({ winScore = 30 }) {
     <>
       <button onClick={() => setOpen(true)}
         style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>
-        How to play
+        How to ride
       </button>
       {open && (
         // Dimmed page; tapping outside the panel closes it
         <div onPointerDown={e => { if (e.target === e.currentTarget) setOpen(false); }}
           style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,0.55)", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "5vh 16px", boxSizing: "border-box", textAlign: "left" }}>
-          <div role="dialog" aria-label="How to play" style={{ background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: "min(640px, 100%)", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}>
+          <div role="dialog" aria-label="How to ride" style={{ background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: "min(640px, 100%)", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
-              <h2 style={{ margin: 0, fontFamily: "Fredoka, sans-serif", fontSize: 24, color: C.brand }}>How to play</h2>
+              <h2 style={{ margin: 0, fontFamily: "Fredoka, sans-serif", fontSize: 24, color: C.brand }}>How to ride</h2>
               <button onClick={() => setOpen(false)} aria-label="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>✕</button>
             </div>
             <div style={{ overflowY: "auto", padding: "16px 20px 4px" }}>
@@ -1141,7 +1141,7 @@ function PassengerPage() {
 
 // ── Lobby ──────────────────────────────────────────────────────
 function Lobby() {
-  const [status, setStatus] = useState("loading...");
+  const [status, setStatus] = useState("");   // "ok" / "down" once checked
   const [roomList, setRoomList] = useState([]);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -1197,9 +1197,12 @@ function Lobby() {
   }
 
   useEffect(() => {
-    fetchHealth()
-      .then(d => setStatus(`API: ${d.status}`))
-      .catch(e => setStatus(`Error: ${e.message}`));
+    const check = () => fetchHealth()
+      .then(() => setStatus("ok"))
+      .catch(() => setStatus("down"));
+    check();
+    const iv = setInterval(check, 30000);
+    return () => clearInterval(iv);
   }, []);
 
   useEffect(() => {
@@ -1250,14 +1253,15 @@ function Lobby() {
       <div style={{ borderBottom: `1px solid ${C.border}`, padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 10, columnGap: 16, ...(phone && { padding: "12px 16px" }) }}>
         <div>
           <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand, margin: 0, letterSpacing: "-0.5px" }}>Acro Express</h1>
-          {/* The lobby is the Grand Sky Station, where the Sky Trains (rooms) depart (Damon) */}
-          <div style={{ color: C.textMuted, fontSize: 13, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 2 }}>Grand Sky Station</div>
+          {/* The tagline (Damon, 2026-10-16). The lobby is still the Grand Sky Station: named in the welcome and the chat */}
+          <div style={{ color: C.textMuted, fontSize: 13, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 2 }}>We belong in the clouds ☁</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <StationLogButton />
           <HowToPlay winScore={roomList[0]?.winScore || 30} />
           <ThemePicker />
-          <span style={{ color: C.textMuted, fontSize: 15 }}>{status}</span>
+          {/* Server status in station words (was "API: ok") */}
+          {status && <span style={{ color: status === "ok" ? C.success : C.brand, fontSize: 14, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>}
         </div>
       </div>
 
@@ -1265,9 +1269,9 @@ function Lobby() {
 
         {auth && (
           <Panel style={{ padding: "16px 20px", marginBottom: 20, borderColor: C.teal }}>
-            <p style={{ color: C.teal, fontWeight: 600, margin: 0 }}>Welcome aboard Acro Express.</p>
+            <p style={{ color: C.teal, fontWeight: 600, margin: 0 }}>Welcome to the Grand Sky Station of Acro Express</p>
             <p style={{ color: C.textSecond, fontSize: 15, margin: "4px 0 0" }}>
-              This is the first public stop on the journey. A working version with more style, features, and surprises still to come.
+              Board a Sky Train, turn letters into lines, and ride to 30. New things arrive in the Station Log.
             </p>
           </Panel>
         )}
@@ -1279,16 +1283,16 @@ function Lobby() {
           {auth ? (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)}>My Sky Pass</BtnSecondary>
-              <Btn onClick={doLogout} color={C.danger} hoverColor={C.dangerHover} style={{ color: "#FFF8F6" }}>Log out</Btn>
+              <Btn onClick={doLogout} color={C.danger} hoverColor={C.dangerHover} style={{ color: "#FFF8F6" }}>Leave the station</Btn>
             </div>
           ) : (
             <>
               <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <Input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} style={{ textAlign: "left" }} />
+                <Input placeholder="Passenger name" value={username} onChange={e => setUsername(e.target.value)} style={{ textAlign: "left" }} />
                 <Input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} style={{ textAlign: "left" }} />
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <Btn onClick={doRegister}>Register</Btn>
+                <Btn onClick={doRegister}>Get your Sky Pass</Btn>
                 <BtnSecondary onClick={doLogin}>Log in</BtnSecondary>
               </div>
             </>
@@ -1324,7 +1328,7 @@ function Lobby() {
             </div>
           )}
           {roomList.length === 0 ? (
-            <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No Sky Trains at the platforms yet. Start one!</p>
+            <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>The platforms are quiet. Be the first conductor.</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {roomList.map(room => (
@@ -1364,10 +1368,10 @@ function Lobby() {
           <div style={{ display: "grid", gridTemplateColumns: phone ? "minmax(0, 1fr)" : (pm.active ? "minmax(0, 1fr) minmax(0, 2fr) minmax(0, 2fr)" : "minmax(0, 1fr) minmax(0, 3fr)"), gap: 16 }}>
             <Panel style={{ padding: 16 }}>
               <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                Online Players ({players.length})
+                On the platform ({players.length})
               </h2>
               {players.length === 0 ? (
-                <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No one else here yet</p>
+                <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No one else on the platform yet</p>
               ) : (
                 <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
                   {players.map((p, i) => {
@@ -1391,11 +1395,11 @@ function Lobby() {
 
             <Panel style={{ padding: 16, display: "flex", flexDirection: "column" }}>
               <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                Lobby Chat
+                Grand Sky Station Chat
               </h2>
               <div style={{ flex: 1, overflowY: "auto", maxHeight: 180, display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
                 {lobbySession.length === 0 ? (
-                  <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No messages yet. The chat starts fresh after 15 quiet minutes.</p>
+                  <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>Quiet on the concourse. The chat clears after 15 quiet minutes.</p>
                 ) : (
                   lobbySession.map((m, i) => (
                     <div key={i} style={{ fontSize: 15 }}>
@@ -1413,7 +1417,7 @@ function Lobby() {
                   id="lobbyChatInput"
                   name="lobbyChatInput"
                   style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
-                  placeholder="Say something..."
+                  placeholder="Say hello to the station..."
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } }}
