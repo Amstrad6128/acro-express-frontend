@@ -2474,7 +2474,7 @@ function Room() {
   // The letters keep their size.
   const stagePad = isShort ? "clamp(2px, 0.5vh, 10px)" : "clamp(4px, 1vh, 16px)";      // space above and below the letters
   const timerGap = "clamp(2px, 0.8vh, 8px)";                                            // between the timer and the letters
-  const ACRO_BOX = 92;                                                                   // the slim "Your Acro" box incl. margin
+  const ACRO_BOX = 76;                                                                   // the acro box + its line + margin (no panel)
   const timerSize = isShort ? "clamp(28px, 5vh, 46px)" : "clamp(28px, 6vh, 46px)";     // countdown number
   const letterSize = isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters
   const stageHeight = `calc(2 * ${stagePad} + ${timerSize} + ${timerGap} + ${letterSize} + ${ACRO_BOX}px)`;
@@ -2723,64 +2723,54 @@ function Room() {
       {/* Acro input */}
 
       {phase === "Submitting" && !topicRequested && (
-        // Clicking anywhere in this box puts the cursor in the acro field — players
-        // were clicking the light box itself, thinking that was where to type
-        <Panel style={{ padding: "8px 12px", marginBottom: 8, cursor: "text" }}
-          onClick={e => {
-            if (e.target.closest("button")) return; // let Submit/Edit/Cancel work normally
-            document.getElementById("acroInput")?.focus();
-          }}>
-          {/* Compact (Sandy): the title, the box and the button on one row, and one short line under it
-              that always has the same height (hint at Station 1, the reason an acro wasn't accepted, or
-              "on its way"), so the box never changes size */}
+        // Just the box and its button under the letters — no panel and no "Your Acro" title around it
+        // (Damon, 2026-10-16: no frame within a frame; like Acrophobia's single entry bar). The placeholder
+        // says what to do. One small line under it keeps its height: the reason an acro wasn't accepted,
+        // or "on its way" — so nothing moves.
+        <div style={{ marginBottom: 6 }}>
           {submittedAcro && !isEditing ? (
-            <>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {!isNarrow && <span style={{ fontSize: 17, fontWeight: 700, color: C.textPrimary, whiteSpace: "nowrap" }}>Your Acro</span>}
-                <div style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.teal}`, borderRadius: 8, padding: "8px 12px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 19, overflowWrap: "anywhere" }}>
-                  {submittedAcro}
-                </div>
-                <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
-                  setMyDraft(submittedAcro);
-                  setIsEditing(true);
-                  // Pause tune 2 and unmute tune 1 when editing
-                  if (audio2Ref.current) { audio2Ref.current.pause(); }
-                  if (audioRef.current) audioRef.current.muted = false;
-                }}>Edit</Btn>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ flex: 1, minWidth: 0, background: C.bgPanel, border: `2px solid ${C.teal}`, borderRadius: 10, padding: "8px 14px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 19, overflowWrap: "anywhere" }}>
+                {submittedAcro}
               </div>
-              <p style={{ margin: "4px 0 0", minHeight: 18, lineHeight: "18px", fontSize: 13, color: C.textMuted }}>Your entry is on its way.</p>
-            </>
+              <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
+                setMyDraft(submittedAcro);
+                setIsEditing(true);
+                // Pause tune 2 and unmute tune 1 when editing
+                if (audio2Ref.current) { audio2Ref.current.pause(); }
+                if (audioRef.current) audioRef.current.muted = false;
+              }}>Edit</Btn>
+            </div>
           ) : (
-            <>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {!isNarrow && <span style={{ fontSize: 17, fontWeight: 700, color: C.textPrimary, whiteSpace: "nowrap" }}>Your Acro</span>}
-                <input
-                  id="acroInput"
-                  // Scroll mode: bring the acro box into the middle of the screen when it is clicked
-                  onFocus={e => { if (view.scroll) e.target.scrollIntoView({ block: "center", behavior: "smooth" }); }}
-                  // Clear teal border so the typing field stands out inside the lighter box
-                  style={{ flex: 1, minWidth: 0 /* may get narrower than its default, so Submit fits on phones */, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 19, outline: "none", fontFamily: "inherit", textAlign: "center" }}
-                  placeholder="Type your acro..."
-                  value={myDraft}
-                  onChange={e => {
-                    setMyDraft(e.target.value);
-                    myDraftRef.current = e.target.value;
-                    setAcroError("");
-                    saveDraft(e.target.value);
-                  }}
-                  onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
-                />
-                <Btn onClick={handleSubmitAcro}>{isEditing ? "Update" : "Submit"}</Btn>
-                {isEditing && <BtnSecondary onClick={() => { setIsEditing(false); setAcroError(""); saveDraft("", true); }}>Cancel</BtnSecondary>}
-              </div>
-              {/* The reason an acro wasn't accepted, short and bold ("Use 3 words, one for each letter: B T V") —
-                  or the hint at the first station of a journey */}
-              <p style={{ margin: "4px 0 0", minHeight: 18, lineHeight: "18px", fontSize: acroError ? 15 : 13, color: acroError ? C.brand : C.textMuted, fontWeight: acroError ? 700 : 400 }}>
-                {acroError || (currentRound <= 1 ? "One word for each letter, in order." : "")}
-              </p>
-            </>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                id="acroInput"
+                // Scroll mode: bring the acro box into the middle of the screen when it is clicked
+                onFocus={e => { if (view.scroll) e.target.scrollIntoView({ block: "center", behavior: "smooth" }); }}
+                // On the page itself now (no panel), so it takes the panel colour to read as a field
+                style={{ flex: 1, minWidth: 0 /* may get narrower than its default, so Submit fits on phones */, background: C.bgPanel, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "8px 14px", color: C.textPrimary, fontSize: 19, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+                placeholder="Type your acro and press Enter"
+                value={myDraft}
+                onChange={e => {
+                  setMyDraft(e.target.value);
+                  myDraftRef.current = e.target.value;
+                  setAcroError("");
+                  saveDraft(e.target.value);
+                }}
+                onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
+              />
+              <Btn onClick={handleSubmitAcro}>{isEditing ? "Update" : "Submit"}</Btn>
+              {isEditing && <BtnSecondary onClick={() => { setIsEditing(false); setAcroError(""); saveDraft("", true); }}>Cancel</BtnSecondary>}
+            </div>
           )}
-        </Panel>
+          {/* The reason an acro wasn't accepted, short and bold ("Use 3 words, one for each letter: B T V"),
+              or "Your entry is on its way." */}
+          <p style={{ margin: "3px 0 0", minHeight: 18, lineHeight: "18px", textAlign: "center", fontSize: acroError ? 15 : 13, color: acroError ? C.brand : C.textMuted, fontWeight: acroError ? 700 : 400 }}>
+            {submittedAcro && !isEditing ? "Your entry is on its way."
+              // On a small panel-coloured label: readable on every palette now that there is no panel behind it
+              : acroError ? <span style={{ background: C.bgPanel, borderRadius: 6, padding: "1px 8px" }}>{acroError}</span> : ""}
+          </p>
+        </div>
       )}
 
       {/* Results and the topic prompt are floating panels now (see the top of this return) */}
