@@ -11,58 +11,128 @@ import { usePm, openPm, closePm, sendPm, setPmDraft, dismissPmToast, setPmChime 
 // Every colour name below becomes a CSS variable (--c-bgApp, --c-brand, …); C points at those
 // variables, so switching a scheme recolours the whole page at once without a reload.
 // onBrand = text colour on a "brand" (button) background; bgGradient = optional sky behind the page.
+// pattern / patternSize = optional tiny background pattern; letterShadow = shadow of the big letters.
+// Tiny background patterns (Damon: minimal, barely visible). An SVG drawn into a CSS url(); the
+// palettes without one (Nightfall, Daybreak) keep the faint rain from index.css.
+// Gradient patterns need a fixed tile size (e.g. "4000px 28px"): with "auto" they stopped partway across the page.
+function svgPattern(w, h, body) {
+  return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>${body}</svg>`)}")`;
+}
+// The rain from index.css, at a chosen strength (Midnight: stronger, so it can be seen)
+const RAIN_DROPS = [[22,24],[68,82],[104,46],[142,121],[186,61],[224,144],[262,96],[291,38],[41,176],[83,232],[127,189],[165,257],[207,214],[246,281],[286,205],[61,294]];
+function rainPattern(opacity) {
+  return svgPattern(320, 320, `<g stroke='#c8d2e6' stroke-opacity='${opacity}' stroke-width='1.2' stroke-linecap='round'>${RAIN_DROPS.map(([x, y]) => `<line x1='${x}' y1='${y}' x2='${x + 4}' y2='${y + 7}'/>`).join("")}</g>`);
+}
 const THEMES = {
-  midnight: {  // Midnight — the original night ride
+  midnight: {  // Midnight — the original night ride. 2026-10-16: stronger rain, brighter quiet text and
+               // dark text on the coral buttons (white on coral was only 2.9:1) — Damon kept it as the default
     name: "Midnight",
-    bgApp: "#070b14", bgPanel: "#131A2E", bgPanel2: "#1A233B", border: "#2B3758",
-    textPrimary: "#F3F4F8", textSecond: "#C7CEE0", textMuted: "#94A0BE",
-    brand: "#F26A5E", brandHover: "#FF7A6B", onBrand: "#FFF8F6",
-    teal: "#6FB7C8", tealLight: "#8FD0DE", lavender: "#B7B3E6", ivory: "#F2E6D8",
-    success: "#4FAF8F", navy2: "#24314D", navy3: "#2C3B5F", bgGradient: "none",
+    bgApp: "#070b14", bgPanel: "#151D33", bgPanel2: "#1C2540", border: "#2F3D63",
+    textPrimary: "#F5F6FA", textSecond: "#D3D9E8", textMuted: "#AEB8D2",
+    brand: "#FF7A6B", brandHover: "#FF8E80", onBrand: "#1A0E0C",
+    teal: "#8FD0DE", tealLight: "#A8DDE8", lavender: "#C4C0F0", ivory: "#F2E6D8",
+    success: "#5CC09D", navy2: "#24314D", navy3: "#2C3B5F", bgGradient: "none",
     danger: "#8B2020", dangerHover: "#A52828",
-    fieldLine: "#2B3758", focusLine: "#6FB7C8",
+    fieldLine: "#3A4A72", focusLine: "#8FD0DE",
+    pattern: rainPattern(0.2),
   },
-  // 2026-10-16: Twilight replaced by Moonrise, and three more added (Damon: "I would like to see them all").
-  // Built on well-tested editor themes; body text ≥ 4.5:1 on panels, calm backgrounds, brighter accents.
-  moonrise: {  // Moonrise — dusky violet with rose and gold (from Rosé Pine Moon)
-    name: "Moonrise",
-    bgApp: "#232136", bgPanel: "#2A273F", bgPanel2: "#393552", border: "#44415A",
-    textPrimary: "#E0DEF4", textSecond: "#CFCBE6", textMuted: "#A29DBF",
-    brand: "#EA9A97", brandHover: "#F2B0AD", onBrand: "#232136",
-    teal: "#9CCFD8", tealLight: "#B8DFE6", lavender: "#C4A7E7", ivory: "#F3DFC1",
-    success: "#95C9A0", navy2: "#393552", navy3: "#44415A", bgGradient: "none",
-    danger: "#9E4F66", dangerHover: "#B4637A",
-    fieldLine: "#56526E", focusLine: "#C4A7E7",
+  // 2026-10-16: genuinely different palettes (Damon: "not a remake of the existing ones"). Each has its own
+  // tiny background pattern, barely visible. Checked: body text ≥ 4.5:1 on panels, big letters ≥ 3:1.
+  notebook: {  // Notebook — a passenger's old school notebook: ruled lines, a red margin, ballpoint and red pen
+    name: "Notebook",
+    bgApp: "#F2ECD9", bgPanel: "#FBF8EE", bgPanel2: "#F4EEDC", border: "#D9CFB2",
+    textPrimary: "#2B2B30", textSecond: "#3F3E44", textMuted: "#5D5A52",
+    brand: "#2A4FA8", brandHover: "#3A60BC", onBrand: "#FBF8EE",
+    teal: "#B3261E", tealLight: "#C9392F", lavender: "#6B4E9B", ivory: "#2B2B30",
+    success: "#2E7D4F", navy2: "#E9E1C8", navy3: "#E0D6B8", bgGradient: "none",
+    danger: "#9E2A2B", dangerHover: "#B3261E",
+    fieldLine: "#C9BC98", focusLine: "#2A4FA8",
+    pattern: "repeating-linear-gradient(transparent 0 27px, rgba(70,110,180,0.13) 27px 28px), linear-gradient(90deg, transparent 56px, rgba(200,60,50,0.18) 56px 57px, transparent 57px)",
+    patternSize: "4000px 28px, 4000px 28px", patternAttach: "scroll, scroll", letterShadow: "2px 2px 0px rgba(42,79,168,0.15)",
   },
-  afterglow: {  // Afterglow — soft pastels just after sunset, the least dark (from Catppuccin Frappé)
-    name: "Afterglow",
-    bgApp: "#303446", bgPanel: "#414559", bgPanel2: "#51576D", border: "#626880",
-    textPrimary: "#E6EBFD", textSecond: "#C6D0F5", textMuted: "#B5BFE2",
-    brand: "#EF9F76", brandHover: "#F4B48F", onBrand: "#303446",
-    teal: "#81C8BE", tealLight: "#99D1DB", lavender: "#CA9EE6", ivory: "#F2D5CF",
-    success: "#A6D189", navy2: "#51576D", navy3: "#626880", bgGradient: "none",
-    danger: "#AE474C", dangerHover: "#C95F63",
-    fieldLine: "#737994", focusLine: "#BABBF1",
+  paperticket: {  // Paper Ticket — cream ticket stock, vermilion print, ink-blue names
+    name: "Paper Ticket",
+    bgApp: "#EFE6D2", bgPanel: "#FBF6EA", bgPanel2: "#F3EBD8", border: "#D8C9A8",
+    textPrimary: "#231F1A", textSecond: "#3A332B", textMuted: "#6B5F50",
+    brand: "#C8391A", brandHover: "#B5321A", onBrand: "#FFF8F0",
+    teal: "#1F5E8C", tealLight: "#2C72A6", lavender: "#6A4C8C", ivory: "#8A3A12",
+    success: "#2F7A4A", navy2: "#E8DEC6", navy3: "#E6DBC2", bgGradient: "none",
+    danger: "#9E2A1A", dangerHover: "#B3361F",
+    fieldLine: "#CDBB94", focusLine: "#1F5E8C",
+    pattern: svgPattern(12, 12, "<circle cx='6' cy='6' r='0.8' fill='#8a6a3a' fill-opacity='0.14'/>"),
+    patternSize: "12px 12px", letterShadow: "2px 2px 0px rgba(120,60,20,0.15)",
   },
-  bluehour: {  // Blue Hour — deep blue with bright orange, lively (from Tokyo Night Storm)
-    name: "Blue Hour",
-    bgApp: "#24283B", bgPanel: "#2B3048", bgPanel2: "#343A55", border: "#414868",
-    textPrimary: "#D5DCFA", textSecond: "#C0CAF5", textMuted: "#A9B1D6",
-    brand: "#FF9E64", brandHover: "#FFB385", onBrand: "#1F2335",
-    teal: "#7DCFFF", tealLight: "#B4F9F8", lavender: "#BB9AF7", ivory: "#E0AF68",
-    success: "#9ECE6A", navy2: "#343A55", navy3: "#414868", bgGradient: "none",
-    danger: "#C53B53", dangerHover: "#DB4B4B",
-    fieldLine: "#565F89", focusLine: "#7AA2F7",
+  blueprint: {  // Blueprint — drafting blue with a faint grid, white lines, yellow letters
+    name: "Blueprint",
+    bgApp: "#1D4F91", bgPanel: "#173F75", bgPanel2: "#1B4782", border: "#5F8CC8",
+    textPrimary: "#FFFFFF", textSecond: "#E3EDFA", textMuted: "#C9DBF2",
+    brand: "#FFD23F", brandHover: "#FFDD6B", onBrand: "#173F75",
+    teal: "#FFF1B8", tealLight: "#FFF7D6", lavender: "#A8E6FF", ivory: "#FFFFFF",
+    success: "#7FE0A8", navy2: "#24579C", navy3: "#275C9F", bgGradient: "none",
+    danger: "#B3261E", dangerHover: "#C9392F",
+    fieldLine: "#5F8CC8", focusLine: "#FFD23F",
+    pattern: "linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)",
+    patternSize: "24px 24px, 24px 24px", patternAttach: "scroll, scroll", letterShadow: "3px 3px 0px rgba(8,30,60,0.45)",
   },
-  aurora: {  // Aurora — cool arctic grey-blue under the northern lights, very clean (from Nord)
-    name: "Aurora",
-    bgApp: "#2E3440", bgPanel: "#3B4252", bgPanel2: "#434C5E", border: "#4C566A",
-    textPrimary: "#ECEFF4", textSecond: "#D8DEE9", textMuted: "#B4BCCB",
-    brand: "#D08770", brandHover: "#DC9A85", onBrand: "#2E3440",
-    teal: "#88C0D0", tealLight: "#8FBCBB", lavender: "#B48EAD", ivory: "#EBCB8B",
-    success: "#A3BE8C", navy2: "#434C5E", navy3: "#4C566A", bgGradient: "none",
-    danger: "#A44A53", dangerHover: "#BF616A",
-    fieldLine: "#616E88", focusLine: "#88C0D0",
+  ember: {  // Ember — a campfire at night: charcoal, orange flame, golden names, a few drifting sparks
+    name: "Ember",
+    bgApp: "#1C1410", bgPanel: "#2A1D16", bgPanel2: "#33241B", border: "#5A3A28",
+    textPrimary: "#FBEEE0", textSecond: "#E8D5C2", textMuted: "#C9AD94",
+    brand: "#FF8A3D", brandHover: "#FF9E5C", onBrand: "#1C1410",
+    teal: "#FFD166", tealLight: "#FFDD8A", lavender: "#E8A0BF", ivory: "#FFE7C7",
+    success: "#9CCB7A", navy2: "#3D2A1F", navy3: "#4A3326", bgGradient: "none",
+    danger: "#A8322A", dangerHover: "#BF4034",
+    fieldLine: "#6B4A35", focusLine: "#FFD166",
+    pattern: svgPattern(90, 90, "<g fill='#ff8a3d'><circle cx='14' cy='72' r='1' fill-opacity='0.2'/><circle cx='57' cy='30' r='0.8' fill-opacity='0.16'/><circle cx='78' cy='66' r='0.7' fill-opacity='0.13'/></g>"),
+    patternSize: "90px 90px",
+  },
+  neon: {  // Neon — synthwave: hot pink letters, electric cyan, neon yellow, faint sparkles
+    name: "Neon",
+    bgApp: "#1A1028", bgPanel: "#261838", bgPanel2: "#2E1D44", border: "#4A2F66",
+    textPrimary: "#F5EAFF", textSecond: "#DCCBF0", textMuted: "#B9A3D4",
+    brand: "#FF4FA3", brandHover: "#FF6FB5", onBrand: "#1A1028",
+    teal: "#3EF0FF", tealLight: "#7AF5FF", lavender: "#C9A0FF", ivory: "#FFE45E",
+    success: "#5CFFA8", navy2: "#3A2556", navy3: "#472E69", bgGradient: "none",
+    danger: "#A3204F", dangerHover: "#BA2A5E",
+    fieldLine: "#5A3A7C", focusLine: "#3EF0FF",
+    pattern: svgPattern(60, 60, "<path d='M30 26v8M26 30h8' stroke='#ff4fa3' stroke-opacity='0.14' stroke-width='1'/>"),
+    patternSize: "60px 60px",
+  },
+  phosphor: {  // Phosphor — an old green-screen terminal, with faint scanlines
+    name: "Phosphor",
+    bgApp: "#050D07", bgPanel: "#0B1A0F", bgPanel2: "#102214", border: "#1F5C2C",
+    textPrimary: "#9DFF9F", textSecond: "#86E68A", textMuted: "#5FCF6A",
+    brand: "#B6FF6B", brandHover: "#CCFF94", onBrand: "#050D07",
+    teal: "#D4FFD6", tealLight: "#E8FFE9", lavender: "#7DFFC8", ivory: "#B6FF6B",
+    success: "#5FCF6A", navy2: "#133A1C", navy3: "#1A4A25", bgGradient: "none",
+    danger: "#8A2D1E", dangerHover: "#A33826",
+    fieldLine: "#2E7A3E", focusLine: "#9DFF9F",
+    pattern: "repeating-linear-gradient(rgba(157,255,159,0.03) 0 1px, transparent 1px 3px)",
+    patternSize: "4000px 3px", letterShadow: "0 0 10px rgba(182,255,107,0.35)",
+  },
+  marigold: {  // Marigold — a bright yellow day: red letters, royal-blue names, soft halftone dots
+    name: "Marigold",
+    bgApp: "#F6C945", bgPanel: "#FFF6D6", bgPanel2: "#FFEFC0", border: "#E0A800",
+    textPrimary: "#2B1D0E", textSecond: "#3F2C16", textMuted: "#6B5228",
+    brand: "#B8300F", brandHover: "#CC3F1C", onBrand: "#FFF6D6",
+    teal: "#1F4FA3", tealLight: "#2E62BD", lavender: "#6A3C8F", ivory: "#2B1D0E",
+    success: "#2E7D32", navy2: "#FCE7A6", navy3: "#F8DC86", bgGradient: "none",
+    danger: "#9E2A12", dangerHover: "#B8300F",
+    fieldLine: "#D9A21A", focusLine: "#1F4FA3",
+    pattern: svgPattern(16, 16, "<circle cx='8' cy='8' r='1' fill='#b8300f' fill-opacity='0.07'/>"),
+    patternSize: "16px 16px", letterShadow: "2px 2px 0px rgba(120,60,0,0.18)",
+  },
+  sakura: {  // Sakura — cherry blossom: pale pink, deep rose letters, jade names, a few falling petals
+    name: "Sakura",
+    bgApp: "#F8DFE6", bgPanel: "#FFF7F9", bgPanel2: "#FCEBF0", border: "#E9B6C6",
+    textPrimary: "#3B1F2B", textSecond: "#52303F", textMuted: "#7A5566",
+    brand: "#C2185B", brandHover: "#D32F6E", onBrand: "#FFFFFF",
+    teal: "#1A6B5D", tealLight: "#1F7A6A", lavender: "#7B4A9E", ivory: "#3B1F2B",
+    success: "#2E7D4F", navy2: "#F6D5DF", navy3: "#F5D2DD", bgGradient: "none",
+    danger: "#9E1F45", dangerHover: "#B3264F",
+    fieldLine: "#DDA2B5", focusLine: "#C2185B",
+    pattern: svgPattern(110, 110, "<g fill='#c2185b' fill-opacity='0.09'><ellipse cx='22' cy='28' rx='3' ry='1.6' transform='rotate(30 22 28)'/><ellipse cx='80' cy='82' rx='2.6' ry='1.4' transform='rotate(-20 80 82)'/></g>"),
+    patternSize: "110px 110px", letterShadow: "2px 2px 0px rgba(120,20,60,0.15)",
   },
   nightfall: { // Nightfall — mossy olive greens with a lime glow, from Damon's "Mossy hollow" palette
                 // (#636B2F moss, #BAC095 sage, #D4DE95 lime, #3D4127 olive) plus a deeper olive background
@@ -88,7 +158,7 @@ const THEMES = {
     fieldLine: "#7184B8", focusLine: "#86D0D2",
   },
 };
-const THEME_KEYS = ["midnight", "afterglow", "bluehour", "moonrise", "nightfall", "aurora", "daybreak"];
+const THEME_KEYS = ["midnight", "notebook", "paperticket", "blueprint", "ember", "neon", "phosphor", "marigold", "sakura", "nightfall", "daybreak"];
 const COLOR_NAMES = ["bgApp", "bgPanel", "bgPanel2", "border", "textPrimary", "textSecond", "textMuted",
   "brand", "brandHover", "onBrand", "teal", "tealLight", "lavender", "ivory", "success", "navy2", "navy3",
   "danger", "dangerHover",    // danger = red for actions like Log out
@@ -101,7 +171,8 @@ function loadThemeKey() {
   try {
     let k = localStorage.getItem("acro.theme");
     if (k === "lamplight") k = "nightfall";   // the green palette's old name — keep the player's choice
-    if (k === "twilight") k = "moonrise";     // Twilight was replaced by Moonrise (2026-10-16)
+    // Palettes retired on 2026-10-16 → the nearest new one, so nobody's choice is lost
+    k = { twilight: "neon", moonrise: "neon", afterglow: "ember", bluehour: "blueprint", aurora: "midnight" }[k] || k;
     return THEMES[k] ? k : "midnight";
   } catch { return "midnight"; }
 }
@@ -111,6 +182,10 @@ function applyTheme(key) {
   const root = document.documentElement;
   for (const n of COLOR_NAMES) root.style.setProperty(`--c-${n}`, t[n]);
   root.style.setProperty("--c-bgGradient", t.bgGradient);
+  // No pattern of its own → the CSS fallback (the faint rain in index.css)
+  if (t.pattern) { root.style.setProperty("--c-pattern", t.pattern); root.style.setProperty("--c-patternSize", t.patternSize || "320px 320px"); root.style.setProperty("--c-patternAttach", t.patternAttach || "scroll"); }
+  else { root.style.removeProperty("--c-pattern"); root.style.removeProperty("--c-patternSize"); root.style.removeProperty("--c-patternAttach"); }
+  root.style.setProperty("--c-letterShadow", t.letterShadow || "3px 3px 0px rgba(0,0,0,0.5)");
   try { localStorage.setItem("acro.theme", key); } catch { /* private mode: just not remembered */ }
 }
 applyTheme(loadThemeKey());   // before the first render, so the page never flashes the wrong colours
@@ -173,8 +248,8 @@ function HeaderMenu({ label, children, width = 230 }) {
       {open && sheet && (
         // Phone: a dimmed screen with the menu centred near the top; tapping the dim area closes it
         <div onPointerDown={e => { if (e.target === e.currentTarget) setOpen(false); }}
-          style={{ position: "fixed", inset: 0, zIndex: 85, background: "rgba(0,0,0,0.45)", display: "flex", justifyContent: "center", alignItems: "flex-start", paddingTop: "15vh" }}>
-          <div style={{ ...panel, width: "min(320px, calc(100vw - 32px))", padding: "14px 14px", fontSize: 16 }}>
+          style={{ position: "fixed", inset: 0, zIndex: 85, background: "rgba(0,0,0,0.45)", display: "flex", justifyContent: "center", alignItems: "flex-start", paddingTop: "10vh" }}>
+          <div style={{ ...panel, width: "min(320px, calc(100vw - 32px))", padding: "14px 14px", fontSize: 16, maxHeight: "75vh", overflowY: "auto" }}>
             {children(() => setOpen(false), true)}
           </div>
         </div>
@@ -2741,7 +2816,7 @@ function Room() {
                 fontSize: letterSize, // smaller on short laptop screens (even smaller on short windows)
                 lineHeight: 1,
                 color: C.brand,
-                textShadow: `3px 3px 0px rgba(0,0,0,0.5)`,
+                textShadow: "var(--c-letterShadow)",   // per palette: softer on the light ones
                 fontWeight: 400
               }}>
                 {l}
