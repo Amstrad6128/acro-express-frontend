@@ -1157,7 +1157,7 @@ function Lobby() {
     return saved ? JSON.parse(saved) : null;
   });
   const navigate = useNavigate();
-  const { players, messages, sendMessage } = useLobbyHub(auth?.username);
+  const { players, messages, notices, sendMessage } = useLobbyHub(auth?.username);
   const pm = usePm();   // private messages (shared with the room)
   const restart = useRestartWindow();
   // Lobby chat shows only the current session: after 15 minutes without a message it starts fresh
@@ -1172,6 +1172,13 @@ function Lobby() {
     for (let i = 1; i < messages.length; i++)
       if (new Date(messages[i].time) - new Date(messages[i - 1].time) >= QUIET_MS) start = i;
     return messages.slice(start);
+  })();
+  // The chat as shown: this session's messages plus the arrival lines ("Carlos arrived at the station")
+  // from the same time — arrival lines don't keep the chat session going themselves
+  const lobbyChat = (() => {
+    const from = lobbySession.length ? new Date(lobbySession[0].time).getTime() : Math.max(chatNow, Date.now()) - QUIET_MS;
+    const lines = notices.filter(n => n.time.getTime() >= from).map(n => ({ ...n, notice: true }));
+    return [...lobbySession, ...lines].sort((a, b) => new Date(a.time) - new Date(b.time));
   })();
   const [chatInput, setChatInput] = useState("");
   const lobbyBottomRef = useRef(null);
@@ -1231,9 +1238,12 @@ function Lobby() {
     return () => clearInterval(iv);
   }, []);
 
+  // New line → scroll inside the chat box only (scrollIntoView moved the whole page, and arrival lines
+  // would make it jump while someone reads the departures)
   useEffect(() => {
-    lobbyBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const box = lobbyBottomRef.current?.parentElement;
+    if (box) box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
+  }, [messages, notices]);
 
   // Phones: one column, smaller side margins — the two-column lobby was wider than the screen
   // and the whole page slid sideways (Sandy, 2026-10-12)
@@ -1426,10 +1436,16 @@ function Lobby() {
                 Grand Sky Station Chat
               </h2>
               <div style={{ flex: 1, overflowY: "auto", maxHeight: 180, display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
-                {lobbySession.length === 0 ? (
+                {lobbyChat.length === 0 ? (
                   null   /* empty chat: no text, it just looks fresh (Damon) */
                 ) : (
-                  lobbySession.map((m, i) => (
+                  lobbyChat.map((m, i) => m.notice ? (
+                    // Arrival line: quiet grey, the name still clickable
+                    <div key={i} style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>
+                      <span style={{ fontSize: 12, marginRight: 6, fontStyle: "normal", fontVariantNumeric: "tabular-nums" }}>{lobbyTime(m.time)}</span>
+                      <NameLink profile name={m.username} style={{ color: C.textSecond }} /> {m.text}
+                    </div>
+                  ) : (
                     <div key={i} style={{ fontSize: 15 }}>
                       {/* When it was written — lobby messages are kept, so they can be from yesterday */}
                       <span style={{ color: C.textMuted, fontSize: 12, marginRight: 6, fontVariantNumeric: "tabular-nums" }}>{lobbyTime(m.time)}</span>
