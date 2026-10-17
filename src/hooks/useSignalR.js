@@ -69,6 +69,9 @@ export function useSignalR(roomId, handlers = {}) {
       const a = getAuth();
       await connection.invoke("JoinRoom", roomId, a?.userId?.toString());
       if (a?.userId) await joinRoom(roomId, { id: a.userId, nickname: a.username, score: 0 });
+      // Back after a lost connection or a server restart: the page sends again what the server may have
+      // forgotten (the unsent draft, Done Voting) — see "acro-rejoined" in App.jsx
+      window.dispatchEvent(new Event("acro-rejoined"));
     };
 
     // Connection lost — the automatic reconnect (RETRY_POLICY) is trying again

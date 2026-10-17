@@ -1898,6 +1898,8 @@ function Room() {
 
   // Refs
   const myDraftRef = useRef("");
+  const lastDraftSentRef = useRef("");   // the draft the server holds (sent again after a restart)
+  const doneVotedRef = useRef(false);    // clicked "Done Voting" at this station (sent again after a restart)
   const submittedAcroRef = useRef(null);
   const handleSubmitAcroRef = useRef(null);
   const audioRef = useRef(null);      // tune 1 — plays during submission
@@ -1994,6 +1996,8 @@ function Room() {
       setIsEditing(false);
       setMyDraft("");
       myDraftRef.current = "";
+      lastDraftSentRef.current = "";   // a new station: nothing to send again after a restart yet
+      doneVotedRef.current = false;
       setAcroError("");
       setMyVote(null); // new round — forget last round's vote
       clearTimeout(topicPromptTimerRef.current); // a round started — no topic prompt pending any more
@@ -2444,10 +2448,24 @@ function Room() {
   // so a valid acro is still entered if the time runs out before they press Submit
   function saveDraft(text, immediately = false) {
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    lastDraftSentRef.current = text;   // what the server holds — sent again after a restart (below)
     const send = () => connectionRef.current?.invoke("SaveDraft", text).catch(() => { });
     if (immediately) send();
     else draftTimerRef.current = setTimeout(send, 250);
   }
+
+  // Back after a lost connection or a server restart (useSignalR sends "acro-rejoined"): the server may
+  // have forgotten the unsent draft and "Done Voting", so send them again (2026-10-17)
+  useEffect(() => {
+    const onRejoined = () => {
+      if (phaseRef.current === "Submitting" && lastDraftSentRef.current.trim())
+        connectionRef.current?.invoke("SaveDraft", lastDraftSentRef.current).catch(() => { });
+      if (phaseRef.current === "Voting" && doneVotedRef.current)
+        doneVoting(id, auth?.username).catch(() => { });
+    };
+    window.addEventListener("acro-rejoined", onRejoined);
+    return () => window.removeEventListener("acro-rejoined", onRejoined);
+  }, [id, auth?.username, connectionRef]);
 
   async function handleSubmitAcro() {
     const text = myDraftRef.current.trim();
@@ -2674,7 +2692,7 @@ function Room() {
 
       {/* Voting overlay */}
       {phase === "Voting" && (
-        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { }} onVoteCast={setMyVote} timer={timer} maxTimer={maxTimer} topic={currentTopic} />)}
+        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { doneVotedRef.current = true; }} onVoteCast={setMyVote} timer={timer} maxTimer={maxTimer} topic={currentTopic} />)}
 
       {/* Header */}
       {/* minHeight keeps room for the topic (top right), so the header is the same height with or without it.
