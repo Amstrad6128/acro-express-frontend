@@ -78,7 +78,7 @@ const THEMES = {
     patternSize: "4000px 3px", letterShadow: "0 0 10px rgba(182,255,107,0.35)",
   },
   sakura: {  // First Light (was Sakura) — the pale pink of dawn: deep rose letters, jade names, a few falling petals
-    name: "First Light",
+    name: "First Light", gold: "#8C6400",   // gold: a darker gold for golden names on this light palette
     bgApp: "#F8DFE6", bgPanel: "#FFF7F9", bgPanel2: "#FCEBF0", border: "#E9B6C6",
     textPrimary: "#3B1F2B", textSecond: "#52303F", textMuted: "#7A5566",
     brand: "#C2185B", brandHover: "#D32F6E", onBrand: "#FFFFFF",
@@ -237,6 +237,8 @@ function applyTheme(key) {
   root.style.setProperty("--c-letterShadow", t.letterShadow || "3px 3px 0px rgba(0,0,0,0.5)");
   // Quiet text on the page background (the tagline): the palette's own bgText, otherwise textMuted as before
   root.style.setProperty("--c-bgText", t.bgText || t.textMuted);
+  // Gold for golden names (afool): bright on the dark palettes, darker on the light one so it stays readable
+  root.style.setProperty("--c-gold", t.gold || "#FFD24A");
   // The logo's colours. Honk is a colour font with 8 colours of its own: 0 = drop shadow, 1 = outline and
   // inner lines, 2–7 = the fill from top to bottom. We repaint them in the palette's colours (Damon,
   // 2026-10-18): fill = the accent (teal), outline + shadow = the box colour. The rule is rewritten on every
@@ -250,7 +252,7 @@ function applyTheme(key) {
   // as the outline colour, so Honk's inner lines look cut out of the letters (a palette can't use CSS variables,
   // so each button colour gets its own palette, rebuilt here with the palette's real colours)
   const honkOn = (name, fill, bg) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[bg, bg, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand),
+  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand), honkPalette("--acro-gold", t.gold || "#FFD24A"),
     honkOn("--acro-btn", t.onBrand, t.brand),            // main buttons (Submit, Send, + New Sky Train …)
     honkOn("--acro-btn2", t.teal, t.navy2),              // quiet buttons (← Grand Sky Station, My Sky Passport …)
     honkOn("--acro-btn-pm", t.lavender, t.navy2),        // Send in private chat
@@ -691,6 +693,12 @@ function RestartBanner() {
   );
 }
 
+// Golden names (Damon, 2026-10-18): afool joked his name should be gold, so it is — everywhere names are shown.
+// --c-gold is set per palette (a darker gold on the light First Light). goldName(name) = the extra style, or {}.
+const GOLDEN_NAMES = ["afool"];
+const isGolden = name => GOLDEN_NAMES.includes(String(name || "").toLowerCase());
+const goldName = name => (isGolden(name) ? { color: "var(--c-gold)", fontWeight: 700 } : {});
+
 // A player's name you can click. One rule everywhere (Damon asked for it clear, 2026-10-18; like Discord, Slack
 // and Twitch): a click opens the player's Sky Passport card, whose main button is Message. Kicking is never a
 // click: only "/kp name" in Sky Train Chat. ("profile" is kept for older calls; it no longer changes anything.)
@@ -701,7 +709,7 @@ function NameLink({ name, style }) {
     <span role="button" tabIndex={0} title={`${name}: Sky Passport and Message`}
       onClick={e => { e.stopPropagation(); go(); }}
       onKeyDown={e => { if (e.key === "Enter") go(); }}
-      style={{ cursor: "pointer", ...style }}>{name}</span>
+      style={{ cursor: "pointer", ...style, ...goldName(name) }}>{name}</span>
   );
 }
 
@@ -1308,7 +1316,7 @@ function SkyLeaderboard() {
   const medal = [C.ivory, C.textSecond, C.brand];     // 1st, 2nd, 3rd: the palette's warm, silver-ish and accent colours
   const nameBtn = (name, style) => (
     <button onClick={() => openProfile(name)} title={`${name}: Sky Passport and Message`}
-      style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", ...style }}>{name}</button>
+      style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", ...style, ...goldName(name) }}>{name}</button>
   );
   const th = { textAlign: "left", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: C.teal, fontWeight: 700, padding: "8px 10px", borderBottom: `1px solid ${C.border}` };
   const td = { padding: "8px 10px", borderBottom: `1px solid ${C.border}` };
@@ -1385,7 +1393,7 @@ function SkyLeaderboard() {
                           const isMe = p.name.toLowerCase() === me;
                           return (
                             <tr key={p.name} style={{ background: isMe ? C.navy2 : "transparent" }}>
-                              <td style={td}><span style={{ display: "inline-flex", width: 38, height: 28, borderRadius: 8, border: `1.5px solid ${isMe ? C.teal : C.border}`, alignItems: "center", justifyContent: "center", fontWeight: 800, color: i < 3 ? medal[i] : C.textPrimary }}>{ranks[i]}</span></td>
+                              <td style={{ ...td, width: 40, fontWeight: 800, fontSize: 16, color: i < 3 ? medal[i] : (isMe ? C.teal : C.textPrimary) }}>{ranks[i]}</td>
                               <td style={td}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><AvatarSquare name={p.name} size={26} />{nameBtn(p.name, { fontWeight: 600 })}{isMe && <span style={{ color: C.teal }}>(you)</span>}</span></td>
                               <td style={{ ...td, ...num, fontWeight: 800, color: C.teal }}>{board.show(p)}</td>
                               <td style={{ ...td, ...num }}>{p.journeysWon}/{p.journeys}</td>
@@ -1515,7 +1523,7 @@ function PassHeader({ p, big }) {
   return (
     <div>
       {/* The name in Honk, in the letters colour (Damon, 2026-10-18) */}
-      <div style={{ ...honkTitle, fontSize: big ? 46 : 36, color: C.brand, fontPalette: "--acro-letters", lineHeight: 1.05, overflowWrap: "anywhere" }}>{p.name}</div>
+      <div style={{ ...honkTitle, fontSize: big ? 46 : 36, color: isGolden(p.name) ? "var(--c-gold)" : C.brand, fontPalette: isGolden(p.name) ? "--acro-gold" : "--acro-letters", lineHeight: 1.05, overflowWrap: "anywhere" }}>{p.name}</div>
       <div style={{ color: C.textSecond, fontSize: 15, marginTop: 2 }}>
         <b style={{ color: C.teal }}>{p.level}</b> · on board since {monthYear(p.memberSince)}
       </div>
@@ -1830,7 +1838,7 @@ function Lobby() {
   ];
   const [listOpen, setListOpen] = useState(true);   // phones: the "On the platform" list folded open or closed
   const sendLobby = () => { if (chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } };   // Enter or Send
-  const boxTitle = { margin: 0, fontSize: 24, ...smallTitle, display: "flex", alignItems: "center", gap: 10 };   // Honk box titles
+  const boxTitle = { margin: 0, fontSize: phone ? 24 : 28, ...smallTitle, display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" };   // Honk box titles, all the same size
   const smallBtn = { fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, lineHeight: 1.2, padding: "8px 16px", letterSpacing: 0, display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" };
   // Departures: the trains, then free platforms so the board always shows 3 rows — and always at least one
   // free platform, the row where you start a new Sky Train
@@ -1890,11 +1898,11 @@ function Lobby() {
             Desktop: takes all the height that's left. Phones: the chat first, then the list */}
         {auth && (
           <div style={{ flex: fits ? 1 : "none", minHeight: 0, display: "grid", gap: 8, height: fits ? undefined : (phone ? undefined : 440),
-            gridTemplateColumns: phone ? "minmax(0, 1fr)" : (pm.active ? "240px minmax(0, 1.6fr) minmax(0, 1fr)" : "240px minmax(0, 1fr)") }}>
+            gridTemplateColumns: phone ? "minmax(0, 1fr)" : (pm.active ? "290px minmax(0, 1.6fr) minmax(0, 1fr)" : "290px minmax(0, 1fr)") }}>
             <Panel style={{ padding: 14, display: "flex", flexDirection: "column", minHeight: 0, order: phone ? 2 : 0 }}>
               {/* Phones: tap the title to fold the list away */}
-              <h2 onClick={phone ? () => setListOpen(o => !o) : undefined} style={{ ...boxTitle, fontSize: phone ? 24 : 20, whiteSpace: "nowrap", marginBottom: phone && !listOpen ? 0 : 8, cursor: phone ? "pointer" : "default" }}>
-                <Icon name="users" size={20} color={C.teal} /> On the platform ({online.length})
+              <h2 onClick={phone ? () => setListOpen(o => !o) : undefined} style={{ ...boxTitle, marginBottom: phone && !listOpen ? 0 : 8, cursor: phone ? "pointer" : "default" }}>
+                <Icon name="users" size={24} color={C.teal} /> On the platform ({online.length})
                 {phone && <span style={{ marginLeft: "auto", fontFamily: "'Nunito', sans-serif", fontSize: 18, color: C.textMuted }}>{listOpen ? "▴" : "▾"}</span>}
               </h2>
               {phone && !listOpen ? null : (
@@ -1909,7 +1917,7 @@ function Lobby() {
                         <AvatarSquare name={o.name} size={32} />
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {o.name}{isMe && <span style={{ color: C.teal, fontWeight: 400 }}> (you)</span>}
+                            <span style={goldName(o.name)}>{o.name}</span>{isMe && <span style={{ color: C.teal, fontWeight: 400 }}> (you)</span>}
                           </div>
                           <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Online · {o.where}</div>
                         </div>
@@ -1925,23 +1933,18 @@ function Lobby() {
             <Panel style={{ padding: 14, display: "flex", flexDirection: "column", minHeight: 0, order: phone ? 1 : 0 }}>
               <h2 style={{ ...boxTitle, marginBottom: 8 }}><Icon name="chat" size={24} color={C.teal} /> Grand Sky Station Chat</h2>
               {/* The messages scroll inside their own box; the input stays at the bottom */}
-              <div style={{ flex: 1, minHeight: phone ? 260 : 0, maxHeight: phone ? 300 : undefined, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, padding: "8px 4px 4px 2px", marginBottom: 10, borderTop: `1px solid ${C.border}` }}>
+              <div style={{ flex: 1, minHeight: phone ? 260 : 0, maxHeight: phone ? 300 : undefined, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4, padding: "8px 4px 4px 2px", marginBottom: 10, borderTop: `1px solid ${C.border}` }}>
                 {lobbyChat.map((m, i) => m.notice ? (
                   // Arrival line: quiet, the name still clickable
-                  <div key={i} style={{ fontSize: 13, color: C.textMuted, fontStyle: "italic", paddingLeft: 42 }}>
+                  <div key={i} style={{ fontSize: 13, color: C.textMuted, fontStyle: "italic" }}>
                     <NameLink profile name={m.username} style={{ color: C.textSecond }} /> {m.text} · {lobbyTime(m.time)}
                   </div>
                 ) : (
-                  // A message: placeholder square, name + time, the text under it
-                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <AvatarSquare name={m.username} size={32} />
-                    <div style={{ minWidth: 0, lineHeight: 1.35 }}>
-                      <div style={{ fontSize: 13 }}>
-                        <NameLink profile name={m.username} style={{ color: C.teal, fontWeight: 700 }} />
-                        <span style={{ color: C.textMuted, fontSize: 12, marginLeft: 8, fontVariantNumeric: "tabular-nums" }}>{lobbyTime(m.time)}</span>
-                      </div>
-                      <div style={{ fontSize: 15, fontWeight: 400, color: C.textPrimary, overflowWrap: "anywhere" }}>{m.message}</div>
-                    </div>
+                  // A message on one line (Damon: no avatar, not two lines): time · name: text — long text wraps
+                  <div key={i} style={{ fontSize: 15, lineHeight: 1.4, overflowWrap: "anywhere" }}>
+                    <span style={{ color: C.textMuted, fontSize: 12, marginRight: 8, fontVariantNumeric: "tabular-nums" }}>{lobbyTime(m.time)}</span>
+                    <NameLink profile name={m.username} style={{ color: C.teal, fontWeight: 700 }} /><span style={{ color: C.teal, fontWeight: 700 }}>: </span>
+                    <span style={{ color: C.textPrimary }}>{m.message}</span>
                   </div>
                 ))}
                 <div ref={lobbyBottomRef} />
@@ -1967,7 +1970,7 @@ function Lobby() {
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
               <Icon name="train" size={30} color={C.teal} />
               <div>
-                <h2 style={{ ...boxTitle, fontSize: 26 }}>Departures</h2>
+                <h2 style={boxTitle}>Departures</h2>
                 <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}</div>
               </div>
             </div>
@@ -3667,7 +3670,7 @@ function Room() {
                   </span>
                   {/* Submitted this round (while writing): name in teal */}
                   <span style={{ color: p.isConnected === false ? C.textMuted : (phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? C.teal : C.textSecond), fontWeight: phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? 700 : 400, opacity: p.isConnected === false ? 0.6 : 1 }}>
-                    {p.nickname}
+                    <span style={goldName(p.nickname)}>{p.nickname}</span>
                     {p.id === auth?.userId && <span style={{ color: C.teal, marginLeft: 4 }}>(you)</span>}
                     {/* Window closed / connection lost — removed after about 10 seconds */}
                     {p.isConnected === false && <span style={{ marginLeft: 4, fontStyle: "italic" }}>(away)</span>}
