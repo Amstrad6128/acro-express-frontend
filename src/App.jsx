@@ -402,10 +402,11 @@ const Panel = ({ children, style = {}, className = "" }) => (
   </div>
 );
 
-// Button text in Honk (Damon, 2026-10-18; Lilita One was tried for a moment), no shadow. palette = the Honk
+// Button text in Honk (Damon, 2026-10-18), no shadow. palette = the Honk
 // colours for this button's colours (made in applyTheme): main buttons "--acro-btn"; others pass their own.
-// fontSize 27: Honk's capitals are short, so it needs a much bigger size than the old 16 to read as large.
-const honkButton = { fontFamily: "'Honk', 'Nunito', sans-serif", fontWeight: 400, fontSize: 27, fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: 1 };
+// fontSize 32: Honk's capitals are short, so it needs a much bigger size than the old 16 to fill the button
+// (Damon: 27 was still too small for the frame). Less padding above and below keeps the buttons about as tall.
+const honkButton = { fontFamily: "'Honk', 'Nunito', sans-serif", fontWeight: 400, fontSize: 32, fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: 0.95 };
 const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, style = {}, disabled = false, palette = "--acro-btn" }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -419,8 +420,7 @@ const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, st
         color: C.onBrand,   // readable on the scheme's brand colour
         border: "none",
         borderRadius: 8,
-        padding: "6px 14px",
-        fontSize: 16,
+        padding: "3px 14px",
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
         ...honkButton, fontPalette: palette,
@@ -444,8 +444,7 @@ const BtnSecondary = ({ children, onClick, style = {} }) => {
         color: C.teal,
         border: `1px solid ${C.teal}`,
         borderRadius: 8,
-        padding: "6px 14px",
-        fontSize: 16,
+        padding: "3px 14px",
         cursor: "pointer",
         ...honkButton, fontPalette: "--acro-btn2",   // teal on the quiet button colour
         transition: "background 0.15s",
@@ -737,15 +736,14 @@ function OnlineButton() {
 // (bgPanel), where the outline colour matches the background. Fredoka is the stand-in while Honk loads.
 const honkTitle = { fontFamily: "'Honk', Fredoka, sans-serif", fontWeight: 400, color: C.teal, fontPalette: "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15", lineHeight: 1.15 };
 
-// Smaller titles in Lilita One (2026-10-18): Honk is blurry below ~30 px, so it stays for the logo and the big
-// page titles; Lilita One is bold and playful too, and sharp when small. Its letters are taller than Honk's,
-// so sizes are a little smaller than they were in Honk.
-const smallTitle = { fontFamily: "'Lilita One', Fredoka, sans-serif", fontWeight: 400, color: C.teal, lineHeight: 1.15 };
+// Smaller titles: Honk too (Damon, 2026-10-18 — Lilita One was tried and removed: it looked like Bungee).
+// Kept at 24 px and more, since Honk gets blurry when small. Same look as honkTitle.
+const smallTitle = honkTitle;
 
 function RulesSection({ icon, title, children }) {
   return (
     <section style={{ marginBottom: 18 }}>
-      <h3 style={{ margin: "0 0 8px", fontSize: 22, ...smallTitle }}>
+      <h3 style={{ margin: "0 0 8px", fontSize: 28, ...smallTitle }}>
         {/* the emoji keeps the normal font (Honk has no emoji) */}
         <span aria-hidden style={{ marginRight: 8, fontFamily: "Fredoka, sans-serif" }}>{icon}</span>{title}
       </h3>
@@ -920,7 +918,7 @@ function LogEntryCard({ e, isAdmin, loggedIn, onRemoved }) {
   return (
     <Panel style={{ padding: "16px 20px", scrollMarginTop: 16 }}>
       <div id={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 22, ...smallTitle }}>{e.title}</h2>   {/* Lilita One, like the How to ride sections */}
+        <h2 style={{ margin: 0, fontSize: 28, ...smallTitle }}>{e.title}</h2>   {/* Honk, like the How to ride sections */}
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ color: C.textMuted, fontSize: 13 }}>{logDate(e.createdAtUtc)}</span>
           <button onClick={copyLink} style={small} title="Copy a link to this entry">{copied ? "Copied" : "Link"}</button>
@@ -1602,7 +1600,7 @@ function Lobby() {
 
         {auth && (
           <Panel style={{ padding: "16px 20px", marginBottom: 20, borderColor: C.teal }}>
-            <p style={{ margin: 0, fontSize: 20, ...smallTitle }}>Welcome to the Grand Sky Station of Acro Express</p>   {/* Lilita One (2026-10-18) */}
+            <p style={{ margin: 0, fontSize: 26, ...smallTitle }}>Welcome to the Grand Sky Station of Acro Express</p>   {/* Honk (2026-10-18) */}
             <p style={{ color: C.textSecond, fontSize: 15, margin: "4px 0 0" }}>
               Board a Sky Train, turn letters into lines, and ride to 30. New things arrive in the Station Log.
             </p>
@@ -1648,7 +1646,7 @@ function Lobby() {
 
         {auth && <Panel style={{ padding: 16, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h2 style={{ margin: 0, fontSize: 22, ...smallTitle }}>Departures</h2>   {/* Lilita One (2026-10-18) */}
+            <h2 style={{ margin: 0, fontSize: 30, ...smallTitle }}>Departures</h2>   {/* Honk (2026-10-18) */}
             {!creating && <Btn onClick={() => setCreating(true)}>+ New Sky Train</Btn>}
           </div>
           {creating && (
@@ -2971,8 +2969,8 @@ function Room() {
     // marginTop: a little space under the Grand Sky Station button (Damon, 2026-10-18: too close)
     <div style={{ textAlign: align, maxWidth: 460, margin: align === "center" ? "0 auto" : "6px 0 0" }}>
       <span style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginRight: 8 }}>Topic</span>
-      {/* The topic in Lilita One (was Fredoka, then Honk; Damon: a different font) */}
-      <span style={{ fontSize: isShort ? 19 : 23, ...smallTitle, overflowWrap: "anywhere" }}>{currentTopic}</span>
+      {/* The topic in Honk (was Fredoka; Damon: a different font) */}
+      <span style={{ fontSize: isShort ? 24 : 28, ...smallTitle, overflowWrap: "anywhere" }}>{currentTopic}</span>
     </div>
   );
   // Who chooses the first topic: whoever started the Sky Train, or the first passenger on board if
@@ -3020,12 +3018,12 @@ function Room() {
           <h1 style={{ margin: 0, display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 10 }}>
             {/* Bigger on 2026-10-18 (Damon: too small) */}
             <span style={{ fontSize: isShort ? 30 : 34, ...honkTitle }}>Acro Express</span>
-            <span style={{ fontSize: isShort ? 19 : 22, ...smallTitle, color: C.brand }}>› {data.name || roomNameRef.current || "Sky Train"}</span>
+            <span style={{ fontSize: isShort ? 24 : 28, ...smallTitle, color: C.brand, fontPalette: "--acro-letters" }}>› {data.name || roomNameRef.current || "Sky Train"}</span>
           </h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
-          {/* "Station 2 · Results", in Lilita One (Damon, 2026-10-18). "First to 30 wins" was removed here
+          {/* "Station 2 · Results", in Honk (Damon, 2026-10-18). "First to 30 wins" was removed here
               (Damon: not necessary; How to ride still says it) */}
-          <div style={{ margin: "4px 0 0", fontSize: isShort ? 19 : 22, ...smallTitle }}>
+          <div style={{ margin: "4px 0 0", fontSize: isShort ? 24 : 28, ...smallTitle }}>
             {/* Rounds are stations: a game travels Station 0 → 1 → 2 … → Final Stop (round N = Station N) */}
             Station {headerStation}
             {/* What's happening now, in words (first step towards the "Departure Board" announcer) */}
@@ -3257,7 +3255,7 @@ function Room() {
                 }}
                 onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
               />
-              <Btn onClick={handleSubmitAcro} style={{ borderRadius: 10, fontSize: 30, padding: "0 18px" }}>{isEditing ? "Update" : "Submit"}</Btn>
+              <Btn onClick={handleSubmitAcro} style={{ borderRadius: 10, fontSize: 36, padding: "0 18px" }}>{isEditing ? "Update" : "Submit"}</Btn>
               {isEditing && <BtnSecondary onClick={() => { setIsEditing(false); setAcroError(""); saveDraft("", true); }}>Cancel</BtnSecondary>}
             </div>
           )}
