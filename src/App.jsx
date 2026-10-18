@@ -193,6 +193,38 @@ function loadThemeKey() {
     return THEMES[k] ? k : "midnight";
   } catch { return "midnight"; }
 }
+// The big letters in Honk: their outline (and the square Honk draws behind each letter) is painted in the
+// exact colour of the sky behind them, so it disappears into the page (Damon, 2026-10-18). The sky is a
+// gradient fixed to the window (index.css), so its colour depends on how far down the letters are: the train
+// page measures that (0 = top of the window, 1 = bottom) and calls setBigLetterSky.
+let currentTheme = null;     // the palette in use (set by applyTheme)
+let bigLetterSpot = 0.2;     // where the big letters are, as a share of the window height
+// The colour of a palette's sky at "f" (0–1): reads the stops of its bgGradient ("#hex 62%", or no % = evenly
+// spread) and mixes the two around f. No gradient → its bgApp.
+function skyColorAt(t, f) {
+  const stops = [...(t.bgGradient || "").matchAll(/#([0-9A-Fa-f]{6})s*(d+(?:.d+)?%)?/g)];
+  if (stops.length === 0) return t.bgApp;
+  const pts = stops.map((m, i) => ({ rgb: [0, 2, 4].map(j => parseInt(m[1].slice(j, j + 2), 16)), at: m[2] ? parseFloat(m[2]) / 100 : i / Math.max(1, stops.length - 1) }));
+  if (f <= pts[0].at) return "#" + stops[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    if (f <= pts[i].at) {
+      const k = (f - pts[i - 1].at) / ((pts[i].at - pts[i - 1].at) || 1);   // how far between the two stops
+      return "#" + pts[i - 1].rgb.map((v, j) => Math.round(v + (pts[i].rgb[j] - v) * k).toString(16).padStart(2, "0")).join("");
+    }
+  }
+  return "#" + stops[stops.length - 1][1];
+}
+// Writes the "--acro-big" palette: fill = the letters colour, outline = the sky at "spot"
+function setBigLetterSky(spot) {
+  bigLetterSpot = Math.min(1, Math.max(0, spot));
+  const t = currentTheme; if (!t) return;
+  const sky = skyColorAt(t, bigLetterSpot);
+  let tag = document.getElementById("acro-big-palette");
+  if (!tag) { tag = document.createElement("style"); tag.id = "acro-big-palette"; document.head.appendChild(tag); }
+  const rule = `@font-palette-values --acro-big { font-family: 'Honk'; override-colors: ${[sky, sky, t.brand, t.brand, t.brand, t.brand, t.brand, t.brand].map((c, i) => `${i} ${c}`).join(", ")}; }`;
+  if (tag.textContent !== rule) tag.textContent = rule;   // only when the colour changed (this runs on every render)
+}
+
 // Puts a scheme's colours into the CSS variables on <html> and remembers the choice
 function applyTheme(key) {
   const t = THEMES[key] || THEMES.midnight;
@@ -218,17 +250,14 @@ function applyTheme(key) {
   // as the outline colour, so Honk's inner lines look cut out of the letters (a palette can't use CSS variables,
   // so each button colour gets its own palette, rebuilt here with the palette's real colours)
   const honkOn = (name, fill, bg) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[bg, bg, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  // The big letters in Honk: outline in the page's background colour (Damon), so Honk's outline and the square
-  // behind each letter disappear into the page. The sky colour = the first colour of the palette's gradient
-  // (the top of the page, where the letters are), otherwise bgApp.
-  const sky = (t.bgGradient && t.bgGradient.match(/#[0-9A-Fa-f]{6}/)?.[0]) || t.bgApp;
-  const bigLetters = `@font-palette-values --acro-big { font-family: 'Honk'; override-colors: ${[sky, sky, t.brand, t.brand, t.brand, t.brand, t.brand, t.brand].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand), bigLetters,
+  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand),
     honkOn("--acro-btn", t.onBrand, t.brand),            // main buttons (Submit, Send, + New Sky Train …)
     honkOn("--acro-btn2", t.teal, t.navy2),              // quiet buttons (← Grand Sky Station, My Sky Pass …)
     honkOn("--acro-btn-pm", t.lavender, t.navy2),        // Send in private chat
     honkOn("--acro-btn-danger", "#FFF8F6", t.danger),    // Leave the station
   ].join("\n");
+  currentTheme = t;                // for setBigLetterSky
+  setBigLetterSky(bigLetterSpot);  // the big letters' outline in this palette's sky colour
   try { localStorage.setItem("acro.theme", key); } catch { /* private mode: just not remembered */ }
   // Tells an open train page the palette changed, so it reports it to the server (palette stats, useSignalR.js)
   window.dispatchEvent(new CustomEvent("acro-theme", { detail: key }));
@@ -663,7 +692,7 @@ function RestartBanner() {
 }
 
 // A player's name you can click to message them privately (your own name isn't clickable).
-// Used in Grand Sky Station Chat, Train Chat and Departures (Damon: every name you see is one click from a chat).
+// Used in Grand Sky Station Chat, Sky Train Chat and Departures (Damon: every name you see is one click from a chat).
 // profile: at the Grand Sky Station the name opens the Sky Pass card instead (not during a journey).
 function NameLink({ name, style, profile = false }) {
   const me = getAuth()?.username;
@@ -733,7 +762,7 @@ function OnlineButton() {
   );
 }
 
-// ── How to ride (was How to play) ────────────────────────────────────────────────
+// ── How to play (was How to play, then How to ride; back to How to play on 2026-10-18, Damon) ────────────────────────────────────────────────
 // The rules, written from what the server really does (letters, times, scoring — Services/RoundTimerService.cs
 // and Utils/AcroRules.cs). Special topics as explained by Sandy (2026-10-12). Opens over the page.
 // Titles in the logo's font, Honk (Damon, 2026-10-18): same colours and settings as the logo (accent fill,
@@ -770,16 +799,17 @@ function HowToPlay({ winScore = 30 }) {
   return (
     <>
       <button onClick={() => setOpen(true)}
-        style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>
-        How to ride
+        // In the accent colour, so new passengers spot it (Damon, 2026-10-18)
+        style={{ background: C.navy2, border: `1px solid ${C.teal}`, borderRadius: 8, color: C.teal, fontWeight: 700, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>
+        How to play
       </button>
       {open && (
         // Dimmed page; tapping outside the panel closes it
         <div onPointerDown={e => { if (e.target === e.currentTarget) setOpen(false); }}
           style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,0.55)", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "5vh 16px", boxSizing: "border-box", textAlign: "left" }}>
-          <div role="dialog" aria-label="How to ride" style={{ background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: "min(640px, 100%)", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}>
+          <div role="dialog" aria-label="How to play" style={{ background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: "min(640px, 100%)", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
-              <h2 style={{ margin: 0, fontSize: 38, ...honkTitle }}>How to ride</h2>
+              <h2 style={{ margin: 0, fontSize: 38, ...honkTitle }}>How to play</h2>
               <button onClick={() => setOpen(false)} aria-label="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>✕</button>
             </div>
             <div style={{ overflowY: "auto", padding: "16px 20px 4px" }}>
@@ -923,7 +953,7 @@ function LogEntryCard({ e, isAdmin, loggedIn, onRemoved }) {
   return (
     <Panel style={{ padding: "16px 20px", scrollMarginTop: 16 }}>
       <div id={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 28, ...smallTitle }}>{e.title}</h2>   {/* Honk, like the How to ride sections */}
+        <h2 style={{ margin: 0, fontSize: 28, ...smallTitle }}>{e.title}</h2>   {/* Honk, like the How to play sections */}
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ color: C.textMuted, fontSize: 13 }}>{logDate(e.createdAtUtc)}</span>
           <button onClick={copyLink} style={small} title="Copy a link to this entry">{copied ? "Copied" : "Link"}</button>
@@ -1211,7 +1241,7 @@ function Privacy() {
       <RulesSection icon="💬" title="Chats">
         <ul style={rulesList}>
           <li><b style={{ color: C.textPrimary }}>Grand Sky Station Chat</b> is public: everyone at the station sees it. It is deleted after one day.</li>
-          <li><b style={{ color: C.textPrimary }}>Train Chat</b> is seen by everyone on that train. It isn't stored: it's gone when it scrolls away.</li>
+          <li><b style={{ color: C.textPrimary }}>Sky Train Chat</b> is seen by everyone on that train. It isn't stored: it's gone when it scrolls away.</li>
           <li><b style={{ color: C.textPrimary }}>Private messages</b> are between the two of you. We keep the last 50 messages of each conversation so you can read them again.</li>
           <li>The admin doesn't read private messages. If a passenger reports a problem, the admin may look at the messages involved, only to deal with it.</li>
           <li>Anything you write in public can be seen, and copied, by other passengers. Think before you share.</li>
@@ -2215,8 +2245,22 @@ function Room() {
 
   // Refs
   const myDraftRef = useRef("");
+  const lettersRef = useRef(null);       // the big letters' row: measured for the Honk outline colour (setBigLetterSky)
   const lastDraftSentRef = useRef("");   // the draft the server holds (sent again after a restart)
   const doneVotedRef = useRef(false);    // clicked "Done Voting" at this station (sent again after a restart)
+  // Where the big letters are on screen → their Honk outline in the sky colour right there (setBigLetterSky).
+  // Measured after every render and on window resize; only rewrites the palette when the colour changes.
+  useEffect(() => {
+    const measure = () => {
+      const el = lettersRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (r.height > 0) setBigLetterSky((r.top + r.height / 2) / window.innerHeight);   // middle of the letters
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  });
   const submittedAcroRef = useRef(null);
   const handleSubmitAcroRef = useRef(null);
   const audioRef = useRef(null);      // tune 1 — plays during submission
@@ -3028,7 +3072,7 @@ function Room() {
           </h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
           {/* "Station 2 · Results", in Honk (Damon, 2026-10-18). "First to 30 wins" was removed here
-              (Damon: not necessary; How to ride still says it) */}
+              (Damon: not necessary; How to play still says it) */}
           <div style={{ margin: "4px 0 0", fontSize: isShort ? 30 : 34, ...smallTitle, whiteSpace: "nowrap" }}>   {/* one line, never "Write your / acro" */}
             {/* Rounds are stations: a game travels Station 0 → 1 → 2 … → Final Stop (round N = Station N) */}
             Station {headerStation}
@@ -3199,7 +3243,7 @@ function Room() {
             {/* "0" keeps the line one number tall while it is hidden */}
             {timer !== null && timer > 0 ? timer : 0}
           </div>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+          <div ref={lettersRef} style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             {letters.map((l, i) => (
               <span key={i} style={{
                 fontFamily: "var(--lf-family, 'Bowlby One SC', serif)",   // the player's choice: Bowlby (default) or Honk
@@ -3301,7 +3345,7 @@ function Room() {
         {/* Stacked (narrow): at most 200px tall, scrolls inside when there are many passengers */}
         <Panel style={{ padding: 16, minHeight: 0, maxHeight: isNarrow ? 200 : undefined, overflowY: "auto", boxSizing: "border-box" }}>
           <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
-            Passengers
+            List of Passengers   {/* was "Passengers" (Damon, 2026-10-18) */}
             {/* While writing: how many of the connected players have submitted (like Acrophobia) */}
             {phase === "Submitting" && (
               <span style={{ marginLeft: 8, color: C.teal, textTransform: "none", letterSpacing: 0, fontWeight: 600 }}>
@@ -3361,7 +3405,7 @@ function Room() {
         {/* Stacked (narrow): a fixed 360px so the messages and the input are always visible */}
         <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 0, height: isNarrow ? 360 : undefined }}>
           <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}` }}>
-            <h2 style={{ margin: 0, fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Train Chat</h2>
+            <h2 style={{ margin: 0, fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Sky Train Chat</h2>   {/* was "Train Chat" (Damon, 2026-10-18) */}
           </div>
           <div ref={chatListRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
             {roomMessages.length === 0 ? (
