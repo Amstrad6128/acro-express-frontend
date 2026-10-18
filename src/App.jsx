@@ -1612,7 +1612,7 @@ function Lobby() {
   // ── Station layout, chat first (UI test, branch ui/station-redesign, 2026-10-18) ──
   // From Damon's mockup B: the chat is the heart of the station. Header with "Grand Sky Station"; a slim welcome
   // strip with the Sky Pass level bar; "On the platform" (everyone online) on the left; the big chat in the
-  // middle; Departures as a station board below. Avatars: placeholder squares with the first letter.
+  // middle; Departures as a station board above the chat (moved up 2026-10-18). Avatars: placeholder squares with the first letter.
   // Everyone online, with where they are: the station's list (players) plus the passengers aboard each train
   // (roomList). Someone aboard a train is shown aboard it, not twice.
   const aboard = roomList.flatMap(r => (r.playingNames || []).map(n => ({ name: n, where: `Aboard ${r.name}`, onTrain: true })));
@@ -1693,7 +1693,78 @@ function Lobby() {
           <p style={{ margin: 0, color: "var(--c-bgText)", fontSize: 14, textAlign: "center" }}>ℹ {restart.text}</p>
         )}
 
-        {/* The heart of the station: who's here (left) and the chat (middle); private chats on the right when open.
+        {/* Departures as a station board (mockup B): platform, Sky Train, who's aboard, status, Board.
+            Above the chat (Damon, 2026-10-18): starting a game is the first thing a passenger looks for */}
+        {auth && (
+          <Panel style={{ padding: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+              <div>
+                <h2 style={sectionTitle}>Departures</h2>
+                <div style={{ color: C.textSecond, fontSize: 15 }}>{roomList.length === 0 ? "Ready for your next game? Start a Sky Train and your friends can hop on." : "Pick a train and hop on, or start your own."}</div>
+              </div>
+              {/* The main action of the page: a bigger button */}
+              {!creating && <Btn onClick={() => setCreating(true)} style={{ fontSize: 36, padding: "8px 22px", borderRadius: 12 }}>+ New Sky Train →</Btn>}
+            </div>
+            {creating && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input autoFocus maxLength={80} placeholder="Name your Sky Train..." value={newRoomName}
+                    onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
+                    onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
+                    style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit" }} />
+                  <Btn onClick={handleCreate}>Create</Btn>
+                  <BtnSecondary onClick={cancelCreate}>Cancel</BtnSecondary>
+                </div>
+                {createError && <p style={{ margin: "6px 0 0", fontSize: 14, color: C.brand }}>{createError}</p>}
+              </div>
+            )}
+            {roomList.length > 0 && (
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+                {/* Column titles (not on phones: each row stacks there) */}
+                {!phone && (
+                  <div style={{ display: "grid", gridTemplateColumns: "84px minmax(0, 2.4fr) minmax(0, 1fr) minmax(0, 1.2fr) 150px", gap: 12, padding: "8px 14px", fontSize: 12, color: C.teal, letterSpacing: "0.08em", textTransform: "uppercase", borderBottom: `1px solid ${C.border}` }}>
+                    <span>Platform</span><span>Sky Train</span><span>Aboard</span><span>Status</span><span />
+                  </div>
+                )}
+                {roomList.map((room, idx) => {
+                  const names = room.playingNames || [];
+                  const away = room.awayNames || [];
+                  const pill = room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand };
+                  return (
+                    <div key={room.id} style={{ display: "grid", alignItems: "center", gap: 12, padding: "10px 14px", background: idx % 2 ? "transparent" : C.navy2,
+                      gridTemplateColumns: phone ? "64px minmax(0, 1fr)" : "84px minmax(0, 2.4fr) minmax(0, 1fr) minmax(0, 1.2fr) 150px" }}>
+                      {/* Platform number in a box, like a station sign */}
+                      <div style={{ width: phone ? 56 : 64, height: phone ? 48 : 54, borderRadius: 10, border: `2px solid ${C.teal}`, background: C.bgApp, display: "flex", alignItems: "center", justifyContent: "center", ...smallTitle, fontSize: phone ? 26 : 30 }}>
+                        {room.platform > 0 ? String(room.platform).padStart(2, "0") : "–"}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 17, color: C.textPrimary, overflowWrap: "anywhere" }}>{room.name}</div>
+                        <div style={{ fontSize: 13, color: C.textMuted, overflowWrap: "anywhere" }}>
+                          {room.gameOn && room.station > 0 && <>Station {room.station}{room.leaderName && <> · leader <span style={{ color: C.teal }}>{room.leaderName}</span> {room.leaderScore} of {room.winScore || 30}</>}</>}
+                          {!room.gameOn && (names.length ? names.map((n, i) => <span key={n}>{i > 0 && ", "}<NameLink profile name={n} style={{ color: C.textSecond }} /></span>) : "No one aboard yet")}
+                        </div>
+                        {/* Phones: aboard, status and the button go under the name */}
+                        {phone && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 14, color: C.textSecond }}>👤 {names.length}</span>
+                            <StatusPill {...pill} />
+                            <BtnSecondary onClick={() => navigate(`/room/${room.id}`)}>{room.gameOn ? "Board now" : "Board"}</BtnSecondary>
+                          </div>
+                        )}
+                      </div>
+                      {!phone && <span style={{ fontSize: 15, color: C.textSecond }} title={[...names, ...away.map(a => `${a} (away)`)].join(", ")}>👤 {names.length}{away.length > 0 && <span style={{ color: C.textMuted }}> +{away.length} away</span>}</span>}
+                      {!phone && <span><StatusPill {...pill} /></span>}
+                      {!phone && <Btn onClick={() => navigate(`/room/${room.id}`)} style={{ width: "100%" }}>{room.gameOn ? "Board now →" : "Board →"}</Btn>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Panel>
+        )}
+
+
+        {/* The social area, under Departures: who's here (left) and the big chat; private chats on the right when open.
             Phones: the chat first, then the list */}
         {auth && (
           <div style={{ "--chatH": "clamp(360px, calc(100vh - 420px), 680px)", display: "grid", gap: 16, alignItems: "stretch",
@@ -1770,75 +1841,6 @@ function Lobby() {
             {/* Private messages — one tab per person (shown when a conversation is open) */}
             {!phone ? <PrivateChatPanel listMaxHeight={360} /> : <div style={{ order: 3 }}><PrivateChatPanel listMaxHeight={240} /></div>}
           </div>
-        )}
-
-        {/* Departures as a station board (mockup B): platform, Sky Train, who's aboard, status, Board */}
-        {auth && (
-          <Panel style={{ padding: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-              <div>
-                <h2 style={sectionTitle}>Departures</h2>
-                <div style={{ color: C.textSecond, fontSize: 15 }}>{roomList.length === 0 ? "Ready for your next game? Start a Sky Train and your friends can hop on." : "Pick a train and hop on, or start your own."}</div>
-              </div>
-              {/* The main action of the page: a bigger button */}
-              {!creating && <Btn onClick={() => setCreating(true)} style={{ fontSize: 36, padding: "8px 22px", borderRadius: 12 }}>+ New Sky Train →</Btn>}
-            </div>
-            {creating && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input autoFocus maxLength={80} placeholder="Name your Sky Train..." value={newRoomName}
-                    onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
-                    onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
-                    style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit" }} />
-                  <Btn onClick={handleCreate}>Create</Btn>
-                  <BtnSecondary onClick={cancelCreate}>Cancel</BtnSecondary>
-                </div>
-                {createError && <p style={{ margin: "6px 0 0", fontSize: 14, color: C.brand }}>{createError}</p>}
-              </div>
-            )}
-            {roomList.length > 0 && (
-              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
-                {/* Column titles (not on phones: each row stacks there) */}
-                {!phone && (
-                  <div style={{ display: "grid", gridTemplateColumns: "84px minmax(0, 2.4fr) minmax(0, 1fr) minmax(0, 1.2fr) 150px", gap: 12, padding: "8px 14px", fontSize: 12, color: C.teal, letterSpacing: "0.08em", textTransform: "uppercase", borderBottom: `1px solid ${C.border}` }}>
-                    <span>Platform</span><span>Sky Train</span><span>Aboard</span><span>Status</span><span />
-                  </div>
-                )}
-                {roomList.map((room, idx) => {
-                  const names = room.playingNames || [];
-                  const away = room.awayNames || [];
-                  const pill = room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand };
-                  return (
-                    <div key={room.id} style={{ display: "grid", alignItems: "center", gap: 12, padding: "10px 14px", background: idx % 2 ? "transparent" : C.navy2,
-                      gridTemplateColumns: phone ? "64px minmax(0, 1fr)" : "84px minmax(0, 2.4fr) minmax(0, 1fr) minmax(0, 1.2fr) 150px" }}>
-                      {/* Platform number in a box, like a station sign */}
-                      <div style={{ width: phone ? 56 : 64, height: phone ? 48 : 54, borderRadius: 10, border: `2px solid ${C.teal}`, background: C.bgApp, display: "flex", alignItems: "center", justifyContent: "center", ...smallTitle, fontSize: phone ? 26 : 30 }}>
-                        {room.platform > 0 ? String(room.platform).padStart(2, "0") : "–"}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 17, color: C.textPrimary, overflowWrap: "anywhere" }}>{room.name}</div>
-                        <div style={{ fontSize: 13, color: C.textMuted, overflowWrap: "anywhere" }}>
-                          {room.gameOn && room.station > 0 && <>Station {room.station}{room.leaderName && <> · leader <span style={{ color: C.teal }}>{room.leaderName}</span> {room.leaderScore} of {room.winScore || 30}</>}</>}
-                          {!room.gameOn && (names.length ? names.map((n, i) => <span key={n}>{i > 0 && ", "}<NameLink profile name={n} style={{ color: C.textSecond }} /></span>) : "No one aboard yet")}
-                        </div>
-                        {/* Phones: aboard, status and the button go under the name */}
-                        {phone && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 14, color: C.textSecond }}>👤 {names.length}</span>
-                            <StatusPill {...pill} />
-                            <BtnSecondary onClick={() => navigate(`/room/${room.id}`)}>{room.gameOn ? "Board now" : "Board"}</BtnSecondary>
-                          </div>
-                        )}
-                      </div>
-                      {!phone && <span style={{ fontSize: 15, color: C.textSecond }} title={[...names, ...away.map(a => `${a} (away)`)].join(", ")}>👤 {names.length}{away.length > 0 && <span style={{ color: C.textMuted }}> +{away.length} away</span>}</span>}
-                      {!phone && <span><StatusPill {...pill} /></span>}
-                      {!phone && <Btn onClick={() => navigate(`/room/${room.id}`)} style={{ width: "100%" }}>{room.gameOn ? "Board now →" : "Board →"}</Btn>}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Panel>
         )}
 
         <PmToast />
