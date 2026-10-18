@@ -59,6 +59,17 @@ export function useSignalR(roomId, handlers = {}) {
     connection.on("PlayerJoined", (...args) => handlersRef.current.onPlayerJoined?.(...args));
     connection.on("PlayerLeft", (...args) => handlersRef.current.onPlayerLeft?.(...args));
 
+    // Reports which Express Colors palette this page shows — only for the admin's palette stats.
+    // Sent after every (re)join, and again when the player picks another palette ("acro-theme" from applyTheme).
+    const sendTheme = () => {
+      let theme = "midnight";                                               // the default palette
+      try { theme = localStorage.getItem("acro.theme") || "midnight"; } catch { /* private mode */ }
+      connection.invoke("SetTheme", theme).catch(() => { });               // never stops the game if it fails
+    };
+    const onThemeChange = () => { if (connection.state === signalR.HubConnectionState.Connected) sendTheme(); };
+    window.addEventListener("acro-theme", onThemeChange);
+    connection.__onThemeChange = onThemeChange;                            // removed again in disconnect()
+
     // Tells the page whether the live connection works ("connected") or not ("reconnecting"),
     // so it can show a "Reconnecting…" banner
     const status = (s) => handlersRef.current.onConnectionChange?.(s);
@@ -68,6 +79,7 @@ export function useSignalR(roomId, handlers = {}) {
     const joinEverything = async () => {
       const a = getAuth();
       await connection.invoke("JoinRoom", roomId, a?.userId?.toString());
+      sendTheme();                                                          // the palette, for the admin's stats
       if (a?.userId) await joinRoom(roomId, { id: a.userId, nickname: a.username, score: 0 });
       // Back after a lost connection or a server restart: the page sends again what the server may have
       // forgotten (the unsent draft, Done Voting) — see "acro-rejoined" in App.jsx
@@ -96,7 +108,7 @@ export function useSignalR(roomId, handlers = {}) {
       if (connection.__stopped) return;                     // the page was left meanwhile
       try {
         await connection.start();
-        if (firstTime) await connection.invoke("JoinRoom", roomId, getAuth()?.userId?.toString());
+        if (firstTime) { await connection.invoke("JoinRoom", roomId, getAuth()?.userId?.toString()); sendTheme(); }
         else await joinEverything();
         status("connected");
         console.log("SignalR connected to room", roomId);
@@ -124,6 +136,7 @@ export function useSignalR(roomId, handlers = {}) {
     const conn = connectionRef.current;
     if (!conn) return;
     conn.__stopped = true;   // we're closing it on purpose — don't reconnect
+    if (conn.__onThemeChange) window.removeEventListener("acro-theme", conn.__onThemeChange);   // no more palette reports
     try {
       await conn.invoke("LeaveRoom", roomId);
       await conn.stop();

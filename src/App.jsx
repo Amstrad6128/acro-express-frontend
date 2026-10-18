@@ -38,18 +38,7 @@ const THEMES = {
   },
   // 2026-10-16: genuinely different palettes (Damon: "not a remake of the existing ones"). Each has its own
   // tiny background pattern, barely visible. Checked: body text ≥ 4.5:1 on panels, big letters ≥ 3:1.
-  notebook: {  // Notebook — a passenger's old school notebook: ruled lines, a red margin, ballpoint and red pen
-    name: "Notebook",
-    bgApp: "#F2ECD9", bgPanel: "#FBF8EE", bgPanel2: "#F4EEDC", border: "#D9CFB2",
-    textPrimary: "#2B2B30", textSecond: "#3F3E44", textMuted: "#5D5A52",
-    brand: "#2A4FA8", brandHover: "#3A60BC", onBrand: "#FBF8EE",
-    teal: "#B3261E", tealLight: "#C9392F", lavender: "#6B4E9B", ivory: "#2B2B30",
-    success: "#2E7D4F", navy2: "#E9E1C8", navy3: "#E0D6B8", bgGradient: "none",
-    danger: "#9E2A2B", dangerHover: "#B3261E",
-    fieldLine: "#C9BC98", focusLine: "#2A4FA8",
-    pattern: "repeating-linear-gradient(transparent 0 27px, rgba(70,110,180,0.13) 27px 28px), linear-gradient(90deg, transparent 56px, rgba(200,60,50,0.18) 56px 57px, transparent 57px)",
-    patternSize: "4000px 28px, 4000px 28px", patternAttach: "scroll, scroll", letterShadow: "2px 2px 0px rgba(42,79,168,0.15)",
-  },
+  // 2026-10-18: Notebook, Blueprint and Marigold retired (Damon); saved choices move on in loadThemeKey.
   paperticket: {  // Paper Ticket — cream ticket stock, vermilion print, ink-blue names
     name: "Paper Ticket",
     bgApp: "#EFE6D2", bgPanel: "#FBF6EA", bgPanel2: "#F3EBD8", border: "#D8C9A8",
@@ -61,18 +50,6 @@ const THEMES = {
     fieldLine: "#CDBB94", focusLine: "#1F5E8C",
     pattern: svgPattern(12, 12, "<circle cx='6' cy='6' r='0.8' fill='#8a6a3a' fill-opacity='0.14'/>"),
     patternSize: "12px 12px", letterShadow: "2px 2px 0px rgba(120,60,20,0.15)",
-  },
-  blueprint: {  // Blueprint — drafting blue with a faint grid, white lines, yellow letters
-    name: "Blueprint",
-    bgApp: "#1D4F91", bgPanel: "#173F75", bgPanel2: "#1B4782", border: "#5F8CC8",
-    textPrimary: "#FFFFFF", textSecond: "#E3EDFA", textMuted: "#C9DBF2",
-    brand: "#FFD23F", brandHover: "#FFDD6B", onBrand: "#173F75",
-    teal: "#FFF1B8", tealLight: "#FFF7D6", lavender: "#A8E6FF", ivory: "#FFFFFF",
-    success: "#7FE0A8", navy2: "#24579C", navy3: "#275C9F", bgGradient: "none",
-    danger: "#B3261E", dangerHover: "#C9392F",
-    fieldLine: "#5F8CC8", focusLine: "#FFD23F",
-    pattern: "linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)",
-    patternSize: "24px 24px, 24px 24px", patternAttach: "scroll, scroll", letterShadow: "3px 3px 0px rgba(8,30,60,0.45)",
   },
   ember: {  // Ember — a campfire at night: charcoal, orange flame, golden names, a few drifting sparks
     name: "Ember",
@@ -110,18 +87,6 @@ const THEMES = {
     pattern: "repeating-linear-gradient(rgba(157,255,159,0.03) 0 1px, transparent 1px 3px)",
     patternSize: "4000px 3px", letterShadow: "0 0 10px rgba(182,255,107,0.35)",
   },
-  marigold: {  // Marigold — a bright yellow day: red letters, royal-blue names, soft halftone dots
-    name: "Marigold",
-    bgApp: "#F6C945", bgPanel: "#FFF6D6", bgPanel2: "#FFEFC0", border: "#E0A800",
-    textPrimary: "#2B1D0E", textSecond: "#3F2C16", textMuted: "#6B5228",
-    brand: "#B8300F", brandHover: "#CC3F1C", onBrand: "#FFF6D6",
-    teal: "#1F4FA3", tealLight: "#2E62BD", lavender: "#6A3C8F", ivory: "#2B1D0E",
-    success: "#2E7D32", navy2: "#FCE7A6", navy3: "#F8DC86", bgGradient: "none",
-    danger: "#9E2A12", dangerHover: "#B8300F",
-    fieldLine: "#D9A21A", focusLine: "#1F4FA3",
-    pattern: svgPattern(16, 16, "<circle cx='8' cy='8' r='1' fill='#b8300f' fill-opacity='0.07'/>"),
-    patternSize: "16px 16px", letterShadow: "2px 2px 0px rgba(120,60,0,0.18)",
-  },
   sakura: {  // Sakura — cherry blossom: pale pink, deep rose letters, jade names, a few falling petals
     name: "Sakura",
     bgApp: "#F8DFE6", bgPanel: "#FFF7F9", bgPanel2: "#FCEBF0", border: "#E9B6C6",
@@ -157,8 +122,68 @@ const THEMES = {
     danger: "#A8455A", dangerHover: "#BC566B",
     fieldLine: "#7184B8", focusLine: "#86D0D2",
   },
+  // 2026-10-18: five more like Daybreak (Damon: its mid-tone sky with dark boxes is the favourite).
+  // bgText = quiet text that sits right on the page background (tagline, restart notice): lighter than textMuted,
+  // which is made for the dark boxes and would be hard to read on a mid-tone sky.
+  // bgApp = the darker "inset" colour (text boxes, list rows); the page itself shows the sky in bgGradient.
+  goldenhour: {  // Golden Hour — a warm apricot evening sky, plum boxes, gold letters
+    name: "Golden Hour",
+    bgApp: "#8A5440", bgPanel: "#3B2433", bgPanel2: "#46293C", border: "#8A5A6E",
+    textPrimary: "#FFF4E8", textSecond: "#F1DCCF", textMuted: "#D6B6A8", bgText: "#FFF4E8",
+    brand: "#FFC46B", brandHover: "#FFD28C", onBrand: "#3B2433",
+    teal: "#9EE0D0", tealLight: "#BDEBE0", lavender: "#F0B8D0", ivory: "#FFE9CC",
+    success: "#9CD6A0", navy2: "#4E2F43", navy3: "#5A3750",
+    bgGradient: "linear-gradient(180deg, #B06F48 0%, #C4855A 60%, #D49C6C 100%)",
+    danger: "#A33A3A", dangerHover: "#B84848",
+    fieldLine: "#8A5A6E", focusLine: "#FFC46B",
+  },
+  lagoon: {  // Lagoon — clear teal water, deep teal boxes, coral letters, sunny yellow names
+    name: "Lagoon",
+    bgApp: "#2A6B71", bgPanel: "#133A45", bgPanel2: "#184654", border: "#4F8E99",
+    textPrimary: "#F2FBF9", textSecond: "#D6ECEA", textMuted: "#B2D6D3", bgText: "#F2FBF9",
+    brand: "#FF9F7A", brandHover: "#FFB496", onBrand: "#133A45",
+    teal: "#FFE08A", tealLight: "#FFEAA8", lavender: "#C7D2FF", ivory: "#FFF4E0",
+    success: "#8FE0B0", navy2: "#1C5161", navy3: "#225C6D",
+    bgGradient: "linear-gradient(180deg, #3A8790 0%, #5FA9A6 100%)",
+    danger: "#A8404A", dangerHover: "#BC4E58",
+    fieldLine: "#4F8E99", focusLine: "#FFE08A",
+  },
+  dusk: {  // Dusk — a violet sky turning rose, aubergine boxes, orange letters
+    name: "Dusk",
+    bgApp: "#6A5690", bgPanel: "#2A2140", bgPanel2: "#33284D", border: "#6E5C96",
+    textPrimary: "#FBF5FF", textSecond: "#E6DDF2", textMuted: "#BFB2D6", bgText: "#FBF5FF",
+    brand: "#FFB86B", brandHover: "#FFC98C", onBrand: "#2A2140",
+    teal: "#8FE3D4", tealLight: "#B0EDE2", lavender: "#F5B8D8", ivory: "#FFE9D6",
+    success: "#8FD9A8", navy2: "#3A2E58", navy3: "#433564",
+    bgGradient: "linear-gradient(180deg, #6F5F96 0%, #9A7FAE 65%, #D09A9A 100%)",
+    danger: "#A8455A", dangerHover: "#BC566B",
+    fieldLine: "#6E5C96", focusLine: "#8FE3D4",
+  },
+  overcast: {  // Overcast — a soft slate-grey day, charcoal boxes, yellow letters (no gradient)
+    name: "Overcast",
+    bgApp: "#56636F", bgPanel: "#263039", bgPanel2: "#2E3944", border: "#5A6A7A",
+    textPrimary: "#F4F6F8", textSecond: "#DCE2E8", textMuted: "#B4BEC8", bgText: "#F4F6F8",
+    brand: "#F2C94C", brandHover: "#F6D670", onBrand: "#263039",
+    teal: "#7FD1C7", tealLight: "#A3E0D8", lavender: "#C9C2F0", ivory: "#FFF3D6",
+    success: "#8BD3A0", navy2: "#34414D", navy3: "#3C4A58",
+    bgGradient: "linear-gradient(#7D8B99, #7D8B99)",   // flat: the page stays mid-grey
+    danger: "#A8455A", dangerHover: "#BC566B",
+    fieldLine: "#5A6A7A", focusLine: "#F2C94C",
+  },
+  meadow: {  // Meadow — sage-green fields, forest boxes, peach letters, buttercup names
+    name: "Meadow",
+    bgApp: "#52703F", bgPanel: "#22331F", bgPanel2: "#2A3E26", border: "#5E7D4F",
+    textPrimary: "#F6FAEE", textSecond: "#E0EAD2", textMuted: "#BACDA6", bgText: "#F6FAEE",
+    brand: "#FFB07A", brandHover: "#FFC296", onBrand: "#22331F",
+    teal: "#FFE38A", tealLight: "#FFEDAE", lavender: "#E3C2F0", ivory: "#FFF6E0",
+    success: "#A8E08A", navy2: "#314A2C", navy3: "#385533",
+    bgGradient: "linear-gradient(180deg, #688D58 0%, #86A46C 100%)",
+    danger: "#A8453A", dangerHover: "#BC5446",
+    fieldLine: "#5E7D4F", focusLine: "#FFE38A",
+  },
 };
-const THEME_KEYS = ["midnight", "notebook", "paperticket", "blueprint", "ember", "neon", "phosphor", "marigold", "sakura", "nightfall", "daybreak"];
+// The order in the Express Colors menu: the new mid-tone palettes follow Daybreak
+const THEME_KEYS = ["midnight", "paperticket", "ember", "neon", "phosphor", "sakura", "nightfall", "daybreak", "goldenhour", "lagoon", "dusk", "overcast", "meadow"];
 const COLOR_NAMES = ["bgApp", "bgPanel", "bgPanel2", "border", "textPrimary", "textSecond", "textMuted",
   "brand", "brandHover", "onBrand", "teal", "tealLight", "lavender", "ivory", "success", "navy2", "navy3",
   "danger", "dangerHover",    // danger = red for actions like Log out
@@ -172,7 +197,9 @@ function loadThemeKey() {
     let k = localStorage.getItem("acro.theme");
     if (k === "lamplight") k = "nightfall";   // the green palette's old name — keep the player's choice
     // Palettes retired on 2026-10-16 → the nearest new one, so nobody's choice is lost
-    k = { twilight: "neon", moonrise: "neon", afterglow: "ember", bluehour: "blueprint", aurora: "midnight" }[k] || k;
+    // and on 2026-10-18 (Notebook, Blueprint, Marigold retired; bluehour went to Blueprint, now to Lagoon)
+    k = { twilight: "neon", moonrise: "neon", afterglow: "ember", bluehour: "lagoon", aurora: "midnight",
+          notebook: "paperticket", blueprint: "lagoon", marigold: "goldenhour" }[k] || k;
     return THEMES[k] ? k : "midnight";
   } catch { return "midnight"; }
 }
@@ -186,7 +213,19 @@ function applyTheme(key) {
   if (t.pattern) { root.style.setProperty("--c-pattern", t.pattern); root.style.setProperty("--c-patternSize", t.patternSize || "320px 320px"); root.style.setProperty("--c-patternAttach", t.patternAttach || "scroll"); }
   else { root.style.removeProperty("--c-pattern"); root.style.removeProperty("--c-patternSize"); root.style.removeProperty("--c-patternAttach"); }
   root.style.setProperty("--c-letterShadow", t.letterShadow || "3px 3px 0px rgba(0,0,0,0.5)");
+  // Quiet text on the page background (the tagline): the palette's own bgText, otherwise textMuted as before
+  root.style.setProperty("--c-bgText", t.bgText || t.textMuted);
+  // The logo's colours. Honk is a colour font with 8 colours of its own: 0 = drop shadow, 1 = outline and
+  // inner lines, 2–7 = the fill from top to bottom. We repaint them in the palette's colours (Damon,
+  // 2026-10-18): fill = the accent (teal), outline + shadow = the box colour. The rule is rewritten on every
+  // palette change; the logo always uses the palette name "--acro-logo".
+  let logoStyle = document.getElementById("acro-logo-palette");
+  if (!logoStyle) { logoStyle = document.createElement("style"); logoStyle.id = "acro-logo-palette"; document.head.appendChild(logoStyle); }
+  const logoCols = [t.bgPanel, t.bgPanel, t.teal, t.teal, t.teal, t.teal, t.teal, t.teal];   // the 8 colours in order
+  logoStyle.textContent = `@font-palette-values --acro-logo { font-family: 'Honk'; override-colors: ${logoCols.map((c, i) => `${i} ${c}`).join(", ")}; }`;
   try { localStorage.setItem("acro.theme", key); } catch { /* private mode: just not remembered */ }
+  // Tells an open train page the palette changed, so it reports it to the server (palette stats, useSignalR.js)
+  window.dispatchEvent(new CustomEvent("acro-theme", { detail: key }));
 }
 applyTheme(loadThemeKey());   // before the first render, so the page never flashes the wrong colours
 
@@ -644,11 +683,17 @@ function OnlineButton() {
 // ── How to ride (was How to play) ────────────────────────────────────────────────
 // The rules, written from what the server really does (letters, times, scoring — Services/RoundTimerService.cs
 // and Utils/AcroRules.cs). Special topics as explained by Sandy (2026-10-12). Opens over the page.
+// Titles in the logo's font, Honk (Damon, 2026-10-18): same colours and settings as the logo (accent fill,
+// box-colour outline, shadow 41, Honk's own bulge 15; see applyTheme). Only for titles on the boxes
+// (bgPanel), where the outline colour matches the background. Fredoka is the stand-in while Honk loads.
+const honkTitle = { fontFamily: "'Honk', Fredoka, sans-serif", fontWeight: 400, color: C.teal, fontPalette: "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15", lineHeight: 1.15 };
+
 function RulesSection({ icon, title, children }) {
   return (
     <section style={{ marginBottom: 18 }}>
-      <h3 style={{ margin: "0 0 6px", fontFamily: "Fredoka, sans-serif", fontSize: 19, color: C.ivory }}>
-        <span aria-hidden style={{ marginRight: 8 }}>{icon}</span>{title}
+      <h3 style={{ margin: "0 0 8px", fontSize: 27, ...honkTitle }}>
+        {/* the emoji keeps the normal font (Honk has no emoji) */}
+        <span aria-hidden style={{ marginRight: 8, fontFamily: "Fredoka, sans-serif" }}>{icon}</span>{title}
       </h3>
       <div style={{ color: C.textSecond, fontSize: 15, lineHeight: 1.5 }}>{children}</div>
     </section>
@@ -677,7 +722,7 @@ function HowToPlay({ winScore = 30 }) {
           style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,0.55)", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "5vh 16px", boxSizing: "border-box", textAlign: "left" }}>
           <div role="dialog" aria-label="How to ride" style={{ background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: "min(640px, 100%)", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
-              <h2 style={{ margin: 0, fontFamily: "Fredoka, sans-serif", fontSize: 24, color: C.brand }}>How to ride</h2>
+              <h2 style={{ margin: 0, fontSize: 38, ...honkTitle }}>How to ride</h2>
               <button onClick={() => setOpen(false)} aria-label="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>✕</button>
             </div>
             <div style={{ overflowY: "auto", padding: "16px 20px 4px" }}>
@@ -908,7 +953,11 @@ function StationLog() {
         </div>
         {data?.isAdmin && (
           <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8, borderColor: C.teal }}>
-            <h2 style={{ margin: 0, fontSize: 16, color: C.teal }}>New entry</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <h2 style={{ margin: 0, fontSize: 16, color: C.teal }}>New entry</h2>
+              {/* Admin only: which palettes the players use (2026-10-18) */}
+              <BtnSecondary onClick={() => navigate("/admin/palettes")}>Palette stats</BtnSecondary>
+            </div>
             <input id="logTitle" value={title} onChange={ev => setTitle(ev.target.value)} maxLength={120} placeholder="Title, e.g. Tonight's fixes" style={field} />
             <textarea id="logBody" value={body} onChange={ev => setBody(ev.target.value)} rows={6} placeholder={"What's new?\n- Lines starting with a dash become bullet points"} style={{ ...field, resize: "vertical" }} />
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -920,6 +969,87 @@ function StationLog() {
         {err && <p style={{ color: C.brand }}>{err}</p>}
         {!data && !err && <p style={{ color: C.textMuted }}>Loading…</p>}
         {data?.entries?.map(e => <LogEntryCard key={e.id} e={e} isAdmin={data.isAdmin} loggedIn={loggedIn} onRemoved={load} />)}
+      </div>
+    </div>
+  );
+}
+
+// Palette stats (admin only, Damon 2026-10-18): how many stations were played with each Express Colors
+// palette, by whom. The server only answers the admin; everyone else gets "Admin only."
+function PaletteStats() {
+  const navigate = useNavigate();
+  const [days, setDays] = useState(30);          // the period shown: last 7 / 30 / 365 days
+  const [data, setData] = useState(null);        // the server's answer
+  const [err, setErr] = useState("");            // error text, if any
+  useEffect(() => {
+    setData(null); setErr("");
+    fetch(`${API_URL}/api/admin/theme-stats?days=${days}`, { headers: authHeaders() })
+      .then(async r => {
+        if (r.status === 403) throw new Error("This page is for the admin only.");
+        if (!r.ok) throw new Error("Couldn't load the stats. Try again in a moment.");
+        setData(await r.json());
+      })
+      .catch(e => setErr(e.message));
+  }, [days]);
+  // All stations with a known palette, to work out each palette's share
+  const total = data?.themes?.reduce((sum, t) => sum + t.stations, 0) || 0;
+  // Palettes nobody used in the period still get a row (with 0), so you can see what isn't used
+  const rows = data ? [
+    ...data.themes,
+    ...THEME_KEYS.filter(k => !data.themes.some(t => t.theme === k)).map(k => ({ theme: k, stations: 0, players: 0, names: [], lastUsedUtc: null })),
+  ] : [];
+  return (
+    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "24px 16px 48px", boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h1 style={{ margin: 0, fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand }}>Palette stats</h1>
+            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>Stations played with each Express Colors palette (one per player per station). Only you see this page.</p>
+          </div>
+          <BtnSecondary onClick={() => navigate("/log")}>← Station Log</BtnSecondary>
+        </div>
+        {/* The period */}
+        <div style={{ display: "flex", gap: 8 }}>
+          {[7, 30, 365].map(d => (
+            <button key={d} onClick={() => setDays(d)}
+              style={{ background: d === days ? C.brand : C.bgPanel, color: d === days ? C.onBrand : C.textPrimary, border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 12px", fontFamily: "inherit", fontSize: 14, cursor: "pointer" }}>
+              {d === 365 ? "Last year" : `Last ${d} days`}
+            </button>
+          ))}
+        </div>
+        {err && <p style={{ color: C.brand }}>{err}</p>}
+        {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
+        {data && (
+          <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+            {rows.map(t => {
+              const th = THEMES[t.theme];                                    // undefined for a retired palette
+              const share = total ? Math.round(t.stations / total * 100) : 0;  // % of all known stations
+              return (
+                <div key={t.theme}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    {/* the same dot as in the Express Colors menu */}
+                    <span style={{ width: 14, height: 14, borderRadius: "50%", background: th?.bgApp || "transparent", border: `2px solid ${th?.brand || C.textMuted}`, flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontWeight: 700 }}>{th?.name || `${t.theme} (retired)`}</span>
+                    <span style={{ color: C.textSecond, fontSize: 14 }}>{t.stations} stations · {t.players} {t.players === 1 ? "player" : "players"} · {share}%</span>
+                  </div>
+                  {/* a bar for the share */}
+                  <div style={{ height: 8, borderRadius: 4, background: C.bgApp, margin: "6px 0 4px" }}>
+                    <div style={{ width: `${share}%`, height: "100%", borderRadius: 4, background: th?.brand || C.teal }} />
+                  </div>
+                  {t.names.length > 0 && (
+                    <div style={{ color: C.textMuted, fontSize: 13 }}>
+                      {t.names.map(n => `${n.name} (${n.stations})`).join(", ")}
+                      {t.lastUsedUtc && ` · last used ${new Date(t.lastUsedUtc).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {data.unknown > 0 && (
+              <div style={{ color: C.textMuted, fontSize: 13 }}>{data.unknown} stations in this period have no palette recorded (played before 18 Oct 2026, or from a page that hadn't reloaded yet).</div>
+            )}
+          </Panel>
+        )}
       </div>
     </div>
   );
@@ -1275,9 +1405,13 @@ function Lobby() {
           instead of being squeezed and cut off (the page used to shift sideways) */}
       <div style={{ borderBottom: `1px solid ${C.border}`, padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 10, columnGap: 16, ...(phone && { padding: "12px 16px" }) }}>
         <div>
-          <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand, margin: 0, letterSpacing: "-0.5px" }}>Acro Express</h1>
-          {/* The tagline (Damon, 2026-10-16). The lobby is still the Grand Sky Station: named in the welcome and the chat */}
-          <div style={{ color: C.textMuted, fontSize: 13, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 2 }}>We belong in the clouds ☁</div>
+          {/* The logo in Honk (Damon, 2026-10-18), coloured by the palette (see applyTheme).
+              SHLN = how long its shadow is, MORF = how much the letters bulge (15 = Honk's own).
+              Nunito is only the stand-in while Honk loads. Safari can't recolour Honk: it shows Honk's own colours. */}
+          <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 34 : 40, fontWeight: 400, margin: 0, lineHeight: 1.1, color: C.teal, fontPalette: "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>Acro Express</h1>
+          {/* The tagline (Damon, 2026-10-16), with ™ instead of the cloud (2026-10-18). bgText: readable on the
+              mid-tone backgrounds. The lobby is still the Grand Sky Station: named in the welcome and the chat */}
+          <div style={{ color: "var(--c-bgText)", fontSize: 13, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 4 }}>We belong in the clouds™</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <StationLogButton />
@@ -1331,8 +1465,9 @@ function Lobby() {
         </Panel>
 
         {/* Heroku's daily restart, announced (shown from 15 minutes before the expected window) */}
+        {/* bgText: the notice sits right on the page background */}
         {auth && restart?.soon && (
-          <p style={{ margin: "0 0 12px", color: C.textMuted, fontSize: 14, textAlign: "center" }}>ℹ {restart.text}</p>
+          <p style={{ margin: "0 0 12px", color: "var(--c-bgText)", fontSize: 14, textAlign: "center" }}>ℹ {restart.text}</p>
         )}
 
         {auth && <Panel style={{ padding: 16, marginBottom: 20 }}>
@@ -1461,7 +1596,7 @@ function Lobby() {
                   id="lobbyChatInput"
                   name="lobbyChatInput"
                   style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
-                  placeholder="Shout across the platform..."
+                  placeholder="Say hello on the platform..."   // was "Shout across the platform" (2026-10-18: a British player found shouting rude)
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } }}
@@ -3106,6 +3241,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Lobby />} />
       <Route path="/log" element={<StationLog />} />
+      <Route path="/admin/palettes" element={<PaletteStats />} />
       <Route path="/passenger/:name" element={<PassengerPage />} />
       <Route path="/room/:id" element={<Room />} />
     </Routes>
