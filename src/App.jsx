@@ -221,13 +221,38 @@ function applyTheme(key) {
   // palette change; the logo always uses the palette name "--acro-logo".
   let logoStyle = document.getElementById("acro-logo-palette");
   if (!logoStyle) { logoStyle = document.createElement("style"); logoStyle.id = "acro-logo-palette"; document.head.appendChild(logoStyle); }
-  const logoCols = [t.bgPanel, t.bgPanel, t.teal, t.teal, t.teal, t.teal, t.teal, t.teal];   // the 8 colours in order
-  logoStyle.textContent = `@font-palette-values --acro-logo { font-family: 'Honk'; override-colors: ${logoCols.map((c, i) => `${i} ${c}`).join(", ")}; }`;
+  // Two palettes: "--acro-logo" (accent fill: logo, titles, the timer) and "--acro-letters" (letters colour:
+  // the big letters in Honk, and the timer's last 10 seconds). Outline + shadow = the box colour in both.
+  const honkPalette = (name, fill) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[t.bgPanel, t.bgPanel, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
+  logoStyle.textContent = honkPalette("--acro-logo", t.teal) + "\n" + honkPalette("--acro-letters", t.brand);
   try { localStorage.setItem("acro.theme", key); } catch { /* private mode: just not remembered */ }
   // Tells an open train page the palette changed, so it reports it to the server (palette stats, useSignalR.js)
   window.dispatchEvent(new CustomEvent("acro-theme", { detail: key }));
 }
 applyTheme(loadThemeKey());   // before the first render, so the page never flashes the wrong colours
+
+// ── Big letters font (Damon, 2026-10-18) ───────────────────────
+// Each player picks the font of the big letters (and the timer): Bowlby One SC (the original) or Honk (the
+// logo's font). Saved in the browser; picked in the Express Colors menu. Works through CSS variables on <html>,
+// so the letters and the timer change at once:
+//   --lf-family  font of the big letters      --lf-shadow  their shadow (Honk has its own, so none)
+//   --tf-family  font of the timer
+const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk" };   // key → name shown in the menu
+function loadLetterFont() {
+  try { return localStorage.getItem("acro.letterFont") === "honk" ? "honk" : "bowlby"; } catch { return "bowlby"; }
+}
+function applyLetterFont(key) {
+  const root = document.documentElement.style;
+  if (key === "honk") {
+    root.setProperty("--lf-family", "'Honk', 'Bowlby One SC', serif");
+    root.setProperty("--lf-shadow", "none");
+    root.setProperty("--tf-family", "'Honk', " + NUM_FONT);
+    root.setProperty("--tf-weight", "400");   // Honk has one weight; bold would be faked and smudgy
+  } else {   // Bowlby: the original look (the variables are removed, so every style uses its own fallback)
+    root.removeProperty("--lf-family"); root.removeProperty("--lf-shadow"); root.removeProperty("--tf-family"); root.removeProperty("--tf-weight");
+  }
+  try { localStorage.setItem("acro.letterFont", key); } catch { /* private mode: just not remembered */ }
+}
 
 // ── Sound settings ─────────────────────────────────────────────
 // One switch and one volume for all game sounds (song, second tune, drumroll), saved in the
@@ -300,6 +325,7 @@ function HeaderMenu({ label, children, width = 230 }) {
 // "Express Colors: Midnight ▾" — pick a palette; the page recolours at once (Damon: no settings page)
 function ThemePicker() {
   const [current, setCurrent] = useState(loadThemeKey);
+  const [letterFont, setLetterFont] = useState(loadLetterFont);   // "bowlby" or "honk"
   return (
     <HeaderMenu label={<>Express Colors: <span style={{ color: C.teal, fontWeight: 600 }}>{THEMES[current].name}</span></>}>
       {(close, big) => (
@@ -318,6 +344,22 @@ function ThemePicker() {
               </button>
             );
           })}
+          {/* The big letters' font (and the timer's): Bowlby or Honk. Each button shows "B T V" in its own font */}
+          <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 6px", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>Big letters</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {Object.entries(LETTER_FONTS).map(([key, name]) => {
+              const active = key === letterFont;
+              return (
+                <button key={key} onClick={() => { applyLetterFont(key); setLetterFont(key); }}
+                  style={{ flex: 1, background: active ? C.navy3 : "transparent", border: `1px solid ${active ? C.teal : C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: big ? 16 : 14, padding: big ? "10px 6px" : "6px 6px" }}>
+                  <span style={key === "honk"
+                    ? { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }
+                    : { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand }}>B T V</span>
+                  <div style={{ fontSize: 12, marginTop: 2, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</div>
+                </button>
+              );
+            })}
+          </div>
         </>
       )}
     </HeaderMenu>
@@ -970,6 +1012,7 @@ function StationLog() {
         {!data && !err && <p style={{ color: C.textMuted }}>Loading…</p>}
         {data?.entries?.map(e => <LogEntryCard key={e.id} e={e} isAdmin={data.isAdmin} loggedIn={loggedIn} onRemoved={load} />)}
       </div>
+      <Footer />
     </div>
   );
 }
@@ -1052,6 +1095,127 @@ function PaletteStats() {
         )}
       </div>
     </div>
+  );
+}
+
+// ── House Rules, Privacy and the footer (2026-10-18) ───────────
+// Written in train words so the game stays playful. Not legal advice: Damon may have the texts checked.
+// Contact = a private message to the admin in the game (no email address yet).
+const ADMIN_NAME = "TylerDurden";   // who players write to
+const LEGAL_UPDATED = "18 October 2026";   // change when the texts below change
+
+// "© 2026 Acro Express™ · House Rules · Privacy" — at the bottom of the station, the Station Log and these pages
+function Footer() {
+  const navigate = useNavigate();
+  const link = { background: "none", border: "none", padding: 0, color: C.textSecond, cursor: "pointer", fontFamily: "inherit", fontSize: 13, textDecoration: "underline" };
+  // A small box in the palette's box colour: readable on every background (Daybreak's pink horizon included)
+  return (
+    <footer style={{ textAlign: "center", padding: "24px 16px 28px" }}>
+      <div style={{ display: "inline-block", background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 999, padding: "6px 16px", color: C.textMuted, fontSize: 13, lineHeight: 1.8 }}>
+        © {new Date().getFullYear()} Acro Express™ · <button style={link} onClick={() => navigate("/rules")}>House Rules</button>
+        {" · "}<button style={link} onClick={() => navigate("/privacy")}>Privacy</button>
+        {" · "}Questions? Message <b style={{ color: C.textSecond }}>{ADMIN_NAME}</b> in the game
+      </div>
+    </footer>
+  );
+}
+
+// Shared layout of the House Rules and Privacy pages
+function LegalPage({ title, intro, children }) {
+  const navigate = useNavigate();
+  useEffect(() => { window.scrollTo(0, 0); }, []);   // open at the top
+  return (
+    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "24px 16px 0", boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 40, ...honkTitle }}>{title}</h1>
+            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>{intro} Last updated {LEGAL_UPDATED}.</p>
+          </div>
+          <BtnSecondary onClick={() => navigate("/")}>← Grand Sky Station</BtnSecondary>
+        </div>
+        <Panel style={{ padding: "18px 20px 4px" }}>{children}</Panel>
+      </div>
+      <Footer />
+    </div>
+  );
+}
+
+function HouseRules() {
+  return (
+    <LegalPage title="House Rules" intro="The rules of the ride, for every passenger.">
+      <RulesSection icon="🎫" title="Your ticket">
+        Acro Express is free to play. By riding you agree to these House Rules. Passengers should be 13 or older;
+        younger passengers can ride with a parent's OK.
+      </RulesSection>
+      <RulesSection icon="😊" title="Be a good passenger">
+        <ul style={rulesList}>
+          <li>Be kind. Cheeky acros are part of the fun; being cruel to a real person is not.</li>
+          <li>No hate, threats or harassment, in acros, chat or private messages.</li>
+          <li>Keep personal details private, yours and everyone else's: no addresses, phone numbers or photos.</li>
+          <li>No spam, no advertising, no pretending to be someone else.</li>
+          <li>One Sky Pass per person. Don't use bots or tricks to win.</li>
+        </ul>
+      </RulesSection>
+      <RulesSection icon="🚦" title="When someone breaks the rules">
+        Passengers can vote someone off a train. The admin can remove messages, comments and Sky Passes that break
+        these rules, and can block a passenger from the game.
+      </RulesSection>
+      <RulesSection icon="✍️" title="Your acros">
+        Your acros are yours. By playing, you let Acro Express show them in the game: in the results, on your
+        Sky Pass, in the Station Log, and in future features such as a Hall of Fame.
+      </RulesSection>
+      <RulesSection icon="™️" title="The name and the look">
+        Acro Express, its logo, pictures, music and code belong to Acro Express. Acro Express is an independent
+        game, inspired by the classic acronym games; it is not linked to any other game or company.
+      </RulesSection>
+      <RulesSection icon="🛠️" title="As it is">
+        We do our best to keep every line running, but the game comes as it is: trains can be late, servers restart,
+        and we may change or stop features. We are not responsible for what passengers write.
+      </RulesSection>
+      <RulesSection icon="✉️" title="Questions">
+        Send a private message to {ADMIN_NAME} in the game. If we change these rules, the date at the top changes
+        and we mention it in the Station Log.
+      </RulesSection>
+    </LegalPage>
+  );
+}
+
+function Privacy() {
+  return (
+    <LegalPage title="Privacy" intro="What we keep about you, why, and for how long. Short version: only what the game needs.">
+      <RulesSection icon="🧳" title="What we keep">
+        <ul style={rulesList}>
+          <li><b style={{ color: C.textPrimary }}>Your Sky Pass:</b> your passenger name and your password, stored scrambled (hashed) so nobody can read it, not even us.</li>
+          <li><b style={{ color: C.textPrimary }}>Your game:</b> your acros, votes, points and stations, for your Sky Pass stats; acros that weren't accepted, to improve the rules; which colours you play with.</li>
+          <li><b style={{ color: C.textPrimary }}>Your messages:</b> see "Chats" below; Station Log comments and reactions.</li>
+          <li><b style={{ color: C.textPrimary }}>Your login:</b> a login code (stored scrambled) that keeps you signed in for 30 days.</li>
+        </ul>
+        We don't ask for your real name, email, age or location.
+      </RulesSection>
+      <RulesSection icon="💬" title="Chats">
+        <ul style={rulesList}>
+          <li><b style={{ color: C.textPrimary }}>Grand Sky Station Chat</b> is public: everyone at the station sees it. It is deleted after one day.</li>
+          <li><b style={{ color: C.textPrimary }}>Train Chat</b> is seen by everyone on that train. It isn't stored: it's gone when it scrolls away.</li>
+          <li><b style={{ color: C.textPrimary }}>Private messages</b> are between the two of you. We keep the last 50 messages of each conversation so you can read them again.</li>
+          <li>The admin doesn't read private messages. If a passenger reports a problem, the admin may look at the messages involved, only to deal with it.</li>
+          <li>Anything you write in public can be seen, and copied, by other passengers. Think before you share.</li>
+        </ul>
+      </RulesSection>
+      <RulesSection icon="🌐" title="Your connection">
+        Like every website, our servers see your IP address when you connect. We only use it for a minute to stop
+        password guessing, and we don't store it. Our hosting companies (Heroku for the server, Vercel for the
+        pages) keep short technical logs.
+      </RulesSection>
+      <RulesSection icon="🍪" title="No tracking, no cookies">
+        No ads, no tracking, no selling your data, no cookies. Your browser remembers your login, colours, sound
+        and open chats in its own storage, on your device only. All fonts come from our own site.
+      </RulesSection>
+      <RulesSection icon="🔑" title="Your rights">
+        You can ask to see the data we have about you, to correct it, or to delete your Sky Pass. Send a private
+        message to {ADMIN_NAME}. If you live in the EU, you can also contact your data protection authority.
+      </RulesSection>
+    </LegalPage>
   );
 }
 
@@ -1426,7 +1590,7 @@ function Lobby() {
 
         {auth && (
           <Panel style={{ padding: "16px 20px", marginBottom: 20, borderColor: C.teal }}>
-            <p style={{ color: C.teal, fontWeight: 600, margin: 0 }}>Welcome to the Grand Sky Station of Acro Express</p>
+            <p style={{ margin: 0, fontSize: 24, ...honkTitle }}>Welcome to the Grand Sky Station of Acro Express</p>   {/* Honk (2026-10-18) */}
             <p style={{ color: C.textSecond, fontSize: 15, margin: "4px 0 0" }}>
               Board a Sky Train, turn letters into lines, and ride to 30. New things arrive in the Station Log.
             </p>
@@ -1472,7 +1636,7 @@ function Lobby() {
 
         {auth && <Panel style={{ padding: 16, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h2 style={{ margin: 0, fontSize: 16, color: C.textPrimary }}>Departures</h2>
+            <h2 style={{ margin: 0, fontSize: 26, ...honkTitle }}>Departures</h2>   {/* Honk, like a station board (2026-10-18) */}
             {!creating && <Btn onClick={() => setCreating(true)}>+ New Sky Train</Btn>}
           </div>
           {creating && (
@@ -1613,6 +1777,7 @@ function Lobby() {
         <RestartBanner />
         <PassengerCard />
       </div>
+      <Footer />   {/* © + House Rules + Privacy, under the station */}
     </div>
   );
 }
@@ -1621,6 +1786,7 @@ function Lobby() {
 // One font for every number in the game (timers, round number, scores) —
 // plain and bold, like the AcroChallenge countdown
 const NUM_FONT = "'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif";
+applyLetterFont(loadLetterFont());   // the player's big-letters font, before the first render (needs NUM_FONT above)
 
 // Compares two ids (Guids) safely: ignores case and null/undefined.
 // The backend sends Guids as lowercase strings, but localStorage values or older
@@ -2834,13 +3000,19 @@ function Room() {
           Short windows: 86px (smaller topic and gap) instead of 104px */}
       <div style={{ flexShrink: 0, minHeight: isNarrow ? 0 : (isShort ? 64 : 76), display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: "clamp(2px, 0.8vh, 10px)" }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontFamily: "Fredoka, sans-serif", color: C.ivory }}>{data.name || roomNameRef.current || "Sky Train"}</h1>
+          {/* The logo, then the train's name, both in Honk (Damon, 2026-10-18). On the left: the right side is
+              full (menus, Grand Sky Station, the topic). Same line, so the stage below doesn't move.
+              The name is in the logo font with the "letters" colours, so the two are told apart */}
+          <h1 style={{ margin: 0, display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 10 }}>
+            <span style={{ fontSize: isShort ? 22 : 26, ...honkTitle }}>Acro Express</span>
+            <span style={{ fontSize: isShort ? 18 : 21, ...honkTitle, color: C.ivory, fontPalette: "--acro-letters" }}>› {data.name || roomNameRef.current || "Sky Train"}</span>
+          </h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
           <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
             {/* Rounds are stations: a game travels Station 0 → 1 → 2 … → Final Stop (round N = Station N) */}
             Station <span style={{ color: C.teal, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", fontSize: 28, fontWeight: 700 }}>{headerStation}</span>
             {/* What's happening now, in words (first step towards the "Departure Board" announcer) */}
-            {" · "}<span style={{ color: C.ivory, fontFamily: "Fredoka, sans-serif", fontSize: 20, fontWeight: 600 }}>{phaseTitle}</span>
+            {" · "}<span style={{ fontSize: 20, ...honkTitle }}>{phaseTitle}</span>   {/* Honk (2026-10-18) */}
             {/* What wins the game (the number comes from the server); hidden on the winner screen */}
             {phase !== "GameOver" && (
               <span style={{ color: C.textMuted, fontSize: 14, marginLeft: 10, whiteSpace: "nowrap" }}>
@@ -3006,18 +3178,21 @@ function Room() {
           {/* Countdown — number only, centred above the letters, red in the last 10 seconds.
               The line is always there; when the timer has ended it is only made invisible, so the
               letters below keep their place (before, they jumped up when the timer ended). */}
-          <div style={{ fontSize: timerSize, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, lineHeight: 1, marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
+          {/* Font: the player's big-letters choice (--tf-family: Honk, or the plain number font). In Honk the
+              colour comes from its palette: accent normally, letters colour in the last 10 seconds */}
+          <div style={{ fontSize: timerSize, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "--acro-letters" : "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15", lineHeight: 1, marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
             {/* "0" keeps the line one number tall while it is hidden */}
             {timer !== null && timer > 0 ? timer : 0}
           </div>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             {letters.map((l, i) => (
               <span key={i} style={{
-                fontFamily: "'Bowlby One SC', serif",
+                fontFamily: "var(--lf-family, 'Bowlby One SC', serif)",   // the player's choice: Bowlby (default) or Honk
                 fontSize: letterSize, // smaller on short laptop screens (even smaller on short windows)
                 lineHeight: 1,
                 color: C.brand,
-                textShadow: "var(--c-letterShadow)",   // per palette: softer on the light ones
+                fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 41, 'MORF' 15",   // only used by Honk
+                textShadow: "var(--lf-shadow, var(--c-letterShadow))",   // per palette: softer on the light ones; none with Honk (it has its own)
                 fontWeight: 400
               }}>
                 {l}
@@ -3242,6 +3417,8 @@ export default function App() {
       <Route path="/" element={<Lobby />} />
       <Route path="/log" element={<StationLog />} />
       <Route path="/admin/palettes" element={<PaletteStats />} />
+      <Route path="/rules" element={<HouseRules />} />
+      <Route path="/privacy" element={<Privacy />} />
       <Route path="/passenger/:name" element={<PassengerPage />} />
       <Route path="/room/:id" element={<Room />} />
     </Routes>

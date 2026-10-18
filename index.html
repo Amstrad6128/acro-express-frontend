@@ -29,7 +29,9 @@
        "genre":["Word game","Party game"],"playMode":"MultiPlayer","gamePlatform":"Web browser","applicationCategory":"Game",
        "offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Honk:MORF,SHLN@0..45,0..100&family=DM+Serif+Display&family=Fredoka:wght@400;500;600;700&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <!-- Fonts: all served from our own site (public/fonts, declared in src/index.css), none from Google —
+         Google Fonts would see every player's IP address (2026-10-18) -->
+    <link rel="preload" href="/fonts/honk-v6-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <div id="root"></div>
