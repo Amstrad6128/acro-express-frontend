@@ -1707,7 +1707,7 @@ function Lobby() {
     return saved ? JSON.parse(saved) : null;
   });
   const navigate = useNavigate();
-  const { players, messages, notices, sendMessage } = useContext(StationContext);   // the shared station connection (App)
+  const { players, messages, notices, sendMessage, rooms: pushedRooms } = useContext(StationContext);   // the shared station connection (App)
   const pm = usePm();   // private messages (shared with the room)
   const restart = useRestartWindow();
   // Lobby chat shows only the current session: after 15 minutes without a message it starts fresh
@@ -1787,9 +1787,12 @@ function Lobby() {
       } catch (e) { console.error(e); }
     }
     loadRooms();
-    const iv = setInterval(loadRooms, 5000);
+    // Every 30 s as a backup only (was every 5 s): the server sends the list itself when trains change (below)
+    const iv = setInterval(loadRooms, 30000);
     return () => clearInterval(iv);
   }, []);
+  // The train list the server sent ("RoomsChanged"), the moment something changed
+  useEffect(() => { if (pushedRooms) setRoomList(pushedRooms); }, [pushedRooms]);
 
   // New line → scroll inside the chat box only (scrollIntoView moved the whole page, and arrival lines
   // would make it jump while someone reads the departures)
@@ -3760,7 +3763,7 @@ function Room() {
 // The Grand Sky Station connection, shared by all of the station's pages (Damon 2026-10-19): before, opening the
 // Sky Leaderboard or a Sky Passport closed it and you "left the station". Now it stays open on every page except a
 // train (/room/…). The station page reads players, chat and arrival lines from here.
-const StationContext = createContext({ players: [], messages: [], notices: [], sendMessage: () => { } });
+const StationContext = createContext({ players: [], messages: [], notices: [], sendMessage: () => { }, rooms: null });
 const authChanged = () => window.dispatchEvent(new Event("acro-auth"));   // login / logout → the connection follows
 
 export default function App() {

@@ -18,6 +18,8 @@ export function useLobbyHub(username) {
   const [players, setPlayers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [notices, setNotices] = useState([]);   // { username, text, time } — arrival lines
+  // The train list (Departures), sent by the server when it changes (2026-10-19); null until the first one
+  const [rooms, setRooms] = useState(null);
   const playersRef = useRef([]);                 // the list as it is now, for the leave timers
   const lastNoticeRef = useRef({});              // name → when it last got a line
   const leaveTimersRef = useRef({});             // name → pending "left" timer
@@ -64,6 +66,12 @@ export function useLobbyHub(username) {
     connection.on("PrivateMessage", (m) => receivePm(m));
     connection.off("ServerRestarting");
     connection.on("ServerRestarting", () => window.dispatchEvent(new Event("acro-server-restarting")));
+
+    connection.off("RoomsChanged");
+    // Trains changed: the new list. Field names are made to start with a small letter (Name → name), the same
+    // as the list from api/room, whatever the server's JSON settings are
+    const camel = o => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k.charAt(0).toLowerCase() + k.slice(1), v]));
+    connection.on("RoomsChanged", (list) => setRooms((list || []).map(camel)));
 
     connection.on("LobbyPlayers", (playerList) => {
       setPlayers(playerList);
@@ -140,5 +148,5 @@ export function useLobbyHub(username) {
     };
   }, [connect, disconnect]);
 
-  return { players, messages, notices, sendMessage };
+  return { players, messages, notices, sendMessage, rooms };
 }
