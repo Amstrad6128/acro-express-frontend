@@ -1260,6 +1260,207 @@ function Privacy() {
   );
 }
 
+// ── Sky Leaderboard (Damon, 2026-10-18) ─────────────────────────
+// Ideas from other games: Wordle's personal stats, Duolingo's weekly leagues and Game Center's recurring boards
+// (a fresh start each week/month), podiums for the top three, and minimums before percentages count (Board Game
+// Arena). Six boards, each ranking one kind of passenger. Numbers from GET api/leaderboard (LeaderboardController).
+// Every name opens the Sky Passport card, like everywhere else.
+const LB_PERIODS = [["week", "This week"], ["month", "This month"], ["all", "All time"]];
+const pct = (a, b) => (b > 0 ? a / b : 0);                       // a share, 0 when there's nothing to share
+const pctText = v => `${Math.round(v * 100)}%`;
+// The boards: what they rank (value), how it's shown (show), and who qualifies (ok) — percentages need enough stations
+const LB_BOARDS = [
+  { id: "champions", icon: "🏆", name: "Champions", sub: "Journeys won", unit: "journeys won",
+    value: p => p.journeysWon + pct(p.journeysWon, p.journeys) / 100 + p.stationsWon / 1e6, show: p => p.journeysWon, ok: p => p.journeys > 0 },
+  { id: "masters", icon: "🚉", name: "Station Masters", sub: "Station win %", unit: "stations won",
+    value: p => pct(p.stationsWon, p.stations), show: p => pctText(pct(p.stationsWon, p.stations)), ok: (p, d) => p.stations >= d.minStations },
+  { id: "favourites", icon: "💬", name: "Crowd Favourites", sub: "Votes per station", unit: "votes per station",
+    value: p => pct(p.votes, p.stations), show: p => pct(p.votes, p.stations).toFixed(1), ok: (p, d) => p.stations >= d.minStations },
+  { id: "golden", icon: "🎫", name: "Golden Tickets", sub: "Acros with 5+ votes", unit: "golden tickets",
+    value: p => p.goldenTickets + p.votes / 1e6, show: p => p.goldenTickets, ok: p => p.goldenTickets > 0 },
+  { id: "express", icon: "⚡", name: "Express Riders", sub: "Speed bonuses", unit: "speed bonuses",
+    value: p => p.speedBonuses + p.stations / 1e6, show: p => p.speedBonuses, ok: p => p.speedBonuses > 0 },
+  { id: "eyes", icon: "👁️", name: "Sharp Eyes", sub: "Voted for the winner %", unit: "picked the winner",
+    value: p => pct(p.votedForWinner, p.voted), show: p => pctText(pct(p.votedForWinner, p.voted)), ok: (p, d) => p.voted >= d.minStations },
+];
+
+function SkyLeaderboard() {
+  const navigate = useNavigate();
+  const me = String(getAuth()?.username || "").toLowerCase();
+  const [period, setPeriod] = useState("month");
+  const [boardId, setBoardId] = useState("champions");
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    setData(null); setErr("");
+    fetch(`${API_URL}/api/leaderboard?period=${period}`, { headers: authHeaders() })
+      .then(async r => { if (r.status === 401) throw new Error("Log in to see the Sky Leaderboard."); if (!r.ok) throw new Error(); setData(await r.json()); })
+      .catch(e => setErr(e.message || "Couldn't load the Sky Leaderboard. Try again in a moment."));
+  }, [period]);
+  const board = LB_BOARDS.find(b => b.id === boardId);
+  const periodName = LB_PERIODS.find(p => p[0] === period)[1];
+  // The ranking: passengers who qualify for this board, best first; equal values share a rank
+  const ranked = data ? data.players.filter(p => board.ok(p, data)).sort((a, b) => board.value(b) - board.value(a)) : [];
+  const ranks = []; ranked.forEach((p, i) => ranks.push(i > 0 && board.value(p) === board.value(ranked[i - 1]) ? ranks[i - 1] : i + 1));
+  const myEntry = data?.players.find(p => p.name.toLowerCase() === me);
+  const myRank = ranked.findIndex(p => p.name.toLowerCase() === me);
+  const podium = ranked.slice(0, 3);
+  const medal = [C.ivory, C.textSecond, C.brand];     // 1st, 2nd, 3rd: the palette's warm, silver-ish and accent colours
+  const nameBtn = (name, style) => (
+    <button onClick={() => openProfile(name)} title={`${name}: Sky Passport and Message`}
+      style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", ...style }}>{name}</button>
+  );
+  const th = { textAlign: "left", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: C.teal, fontWeight: 700, padding: "8px 10px", borderBottom: `1px solid ${C.border}` };
+  const td = { padding: "8px 10px", borderBottom: `1px solid ${C.border}` };
+  const num = { textAlign: "right", fontVariantNumeric: "tabular-nums" };
+
+  return (
+    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "14px 16px 0", boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Title, the period, back to the station */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
+            <h1 style={{ margin: 0, fontSize: 44, ...honkTitle }}>Sky Leaderboard</h1>
+            <span style={{ color: "var(--c-bgText)", fontSize: 15 }}>Who rules the rails {period === "all" ? "of all time" : period === "week" ? "this week" : "this month"}</span>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            {LB_PERIODS.map(([k, label]) => (
+              <button key={k} onClick={() => setPeriod(k)}
+                style={{ border: `1px solid ${period === k ? C.brand : C.border}`, background: period === k ? C.brand : C.navy2, color: period === k ? C.onBrand : C.textSecond, borderRadius: 999, padding: "6px 14px", fontWeight: 700, fontSize: 14, fontFamily: "inherit", cursor: "pointer" }}>{label}</button>
+            ))}
+            <BtnSecondary onClick={() => navigate("/")} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px", marginLeft: 6 }}>← Grand Sky Station</BtnSecondary>
+          </div>
+        </div>
+
+        {/* The six boards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 }}>
+          {LB_BOARDS.map(b => (
+            <button key={b.id} onClick={() => setBoardId(b.id)}
+              style={{ textAlign: "left", padding: "9px 12px", borderRadius: 12, background: C.bgPanel2, border: `1px solid ${b.id === boardId ? C.teal : C.border}`, boxShadow: b.id === boardId ? `inset 0 0 0 1px ${C.teal}` : "none", color: C.textPrimary, cursor: "pointer", fontFamily: "inherit" }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>{b.icon} {b.name}</div>
+              <div style={{ fontSize: 12, color: C.textMuted }}>{b.sub}</div>
+            </button>
+          ))}
+        </div>
+
+        {err && <Panel style={{ padding: 16 }}><p style={{ margin: 0, color: C.brand }}>{err}</p></Panel>}
+        {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
+        {data && (
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
+            <Panel style={{ padding: 0, overflow: "hidden", gridColumn: "span 2", minWidth: 0 }}>
+              {ranked.length === 0 ? (
+                <p style={{ margin: 0, padding: 20, color: C.textMuted }}>
+                  No one on this board yet {period === "all" ? "" : periodName.toLowerCase()}.
+                  {["masters", "favourites", "eyes"].includes(boardId) && ` It counts from ${data.minStations} stations.`}
+                </p>
+              ) : (
+                <>
+                  {/* Podium: the top three, the winner in the middle and highest */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1.15fr 1fr", gap: 10, alignItems: "end", padding: "14px 14px 0" }}>
+                    {[1, 0, 2].map(i => {
+                      const p = podium[i];
+                      if (!p) return <div key={i} />;
+                      return (
+                        <div key={i} style={{ textAlign: "center", minWidth: 0 }}>
+                          <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}><AvatarSquare name={p.name} size={i === 0 ? 64 : 52} /></div>
+                          <div style={{ borderRadius: "12px 12px 0 0", padding: "10px 8px 12px", background: C.bgPanel2, border: `1px solid ${i === 0 ? medal[0] : C.border}`, borderBottom: "none", minHeight: [150, 122, 108][i], boxSizing: "border-box" }}>
+                            <div style={{ ...honkTitle, fontSize: i === 0 ? 40 : 32, color: medal[i] }}>{ranks[i]}</div>
+                            <div style={{ fontWeight: 800, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nameBtn(p.name)}</div>
+                            <div style={{ fontSize: 12, color: C.textMuted }}>{p.level}</div>
+                            <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{board.show(p)} <span style={{ fontSize: 12, fontWeight: 400, color: C.textMuted }}>{board.unit}</span></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* The full ranking: the board's number first, then the context */}
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 560 }}>
+                      <thead><tr>
+                        <th style={th}>#</th><th style={th}>Passenger</th><th style={{ ...th, ...num }}>{board.sub}</th>
+                        <th style={{ ...th, ...num }}>Journeys</th><th style={{ ...th, ...num }}>Stations</th><th style={{ ...th, ...num }}>Stations won</th><th style={{ ...th, ...num }}>Points / station</th>
+                      </tr></thead>
+                      <tbody>
+                        {ranked.map((p, i) => {
+                          const isMe = p.name.toLowerCase() === me;
+                          return (
+                            <tr key={p.name} style={{ background: isMe ? C.navy2 : "transparent" }}>
+                              <td style={td}><span style={{ display: "inline-flex", width: 38, height: 28, borderRadius: 8, border: `1.5px solid ${isMe ? C.teal : C.border}`, alignItems: "center", justifyContent: "center", fontWeight: 800, color: i < 3 ? medal[i] : C.textPrimary }}>{ranks[i]}</span></td>
+                              <td style={td}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><AvatarSquare name={p.name} size={26} />{nameBtn(p.name, { fontWeight: 600 })}{isMe && <span style={{ color: C.teal }}>(you)</span>}</span></td>
+                              <td style={{ ...td, ...num, fontWeight: 800, color: C.teal }}>{board.show(p)}</td>
+                              <td style={{ ...td, ...num }}>{p.journeysWon}/{p.journeys}</td>
+                              <td style={{ ...td, ...num }}>{p.stations}</td>
+                              <td style={{ ...td, ...num }}>{p.stationsWon}</td>
+                              <td style={{ ...td, ...num }}>{pct(p.points, p.stations).toFixed(1)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ padding: "8px 12px 10px", fontSize: 12, color: C.textMuted }}>
+                    Percentages count from {data.minStations} stations{period === "all" ? "" : ` ${periodName.toLowerCase()}`}, so one lucky win can't top a board. Journeys: won / ridden to the Final Stop.
+                  </div>
+                </>
+              )}
+            </Panel>
+
+            {/* My period: Wordle-style personal numbers, and the best acro of the period */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+              <Panel style={{ padding: 14 }}>
+                <div style={{ fontSize: 24, ...honkTitle }}>{period === "all" ? "My Journey" : period === "week" ? "My Week" : "My Month"}</div>
+                {!myEntry ? (
+                  <div style={{ fontSize: 14, color: C.textMuted, marginTop: 6 }}>You haven't played a station {period === "all" ? "yet" : periodName.toLowerCase()}. Board a Sky Train!</div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 13, color: C.textMuted }}>{myEntry.name} · {myEntry.level}
+                      {myRank >= 0 && <span style={{ marginLeft: 6, fontSize: 12, padding: "2px 8px", borderRadius: 999, background: C.navy2, color: C.success, fontWeight: 700 }}>#{ranks[myRank]} {board.name}</span>}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+                      {[[myEntry.stations, "Stations played"], [pctText(pct(myEntry.stationsWon, myEntry.stations)), "Station win %"], [myEntry.bestStreak, "Best win streak"], [myEntry.goldenTickets, "Golden tickets"]].map(([n, l]) => (
+                        <div key={l} style={{ background: C.bgApp, borderRadius: 10, padding: 8, textAlign: "center" }}>
+                          <div style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{n}</div>
+                          <div style={{ fontSize: 12, color: C.textMuted }}>{l}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* How many votes my acros got: 0, 1, 2, 3, 4, 5+ (the tallest bar highlighted) */}
+                    <div style={{ fontSize: 13, color: C.textSecond, marginTop: 12 }}>Votes per acro</div>
+                    <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 64, marginTop: 6 }}>
+                      {myEntry.votesHist.map((n, i) => {
+                        const maxN = Math.max(1, ...myEntry.votesHist);
+                        return (
+                          <div key={i} style={{ flex: 1, textAlign: "center" }}>
+                            <div title={`${n} acro${n === 1 ? "" : "s"}`} style={{ height: Math.max(3, Math.round(48 * n / maxN)), background: n === maxN && n > 0 ? C.brand : C.navy3, borderRadius: "4px 4px 0 0" }} />
+                            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{i === 5 ? "5+" : i}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </Panel>
+              <Panel style={{ padding: 14 }}>
+                <div style={{ fontSize: 22, ...honkTitle }}>{period === "all" ? "Acro of All Time" : period === "week" ? "Acro of the Week" : "Acro of the Month"}</div>
+                {data.acroOfPeriod ? (
+                  <>
+                    <div style={{ fontSize: 18, marginTop: 6 }}>“{data.acroOfPeriod.sentence}”</div>
+                    <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+                      {data.acroOfPeriod.letters.split("").join(" ")} · {data.acroOfPeriod.topic} · {data.acroOfPeriod.votes} vote{data.acroOfPeriod.votes === 1 ? "" : "s"} · by {nameBtn(data.acroOfPeriod.by, { color: C.teal })}
+                    </div>
+                  </>
+                ) : <div style={{ fontSize: 14, color: C.textMuted, marginTop: 6 }}>No votes yet {periodName.toLowerCase()}.</div>}
+              </Panel>
+            </div>
+          </div>
+        )}
+      </div>
+      <Footer />
+      <PassengerCard />
+    </div>
+  );
+}
+
 // "Station Log" button in the lobby header, with NEW when there's an entry this browser hasn't seen
 function StationLogButton() {
   const navigate = useNavigate();
@@ -1674,6 +1875,7 @@ function Lobby() {
           <Panel style={{ flexShrink: 0, padding: "8px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <IconBadge><Icon name="user" /></IconBadge>
             <div style={{ fontSize: 16, flex: 1, minWidth: 160 }}>{greeting("")}<b style={{ color: C.teal }}>{auth.username}</b></div>
+            <BtnSecondary onClick={() => navigate("/leaderboard")} style={smallBtn}>🏆 Sky Leaderboard</BtnSecondary>   {/* 2026-10-18 */}
             <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)} style={smallBtn}><Icon name="ticket" size={18} /> My Sky Passport</BtnSecondary>
             <button onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4 }}>Leave the station</button>
           </Panel>
@@ -3540,6 +3742,7 @@ export default function App() {
       <Route path="/" element={<Lobby />} />
       <Route path="/log" element={<StationLog />} />
       <Route path="/admin/palettes" element={<PaletteStats />} />
+      <Route path="/leaderboard" element={<SkyLeaderboard />} />
       <Route path="/rules" element={<HouseRules />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/passenger/:name" element={<PassengerPage />} />
