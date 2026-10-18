@@ -1317,7 +1317,8 @@ function AcroQuote({ a, big }) {
 function PassHeader({ p, big }) {
   return (
     <div>
-      <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: big ? 34 : 26, fontWeight: 700, color: C.brand, lineHeight: 1.1, overflowWrap: "anywhere" }}>{p.name}</div>
+      {/* The name in Honk, in the letters colour (Damon, 2026-10-18) */}
+      <div style={{ ...honkTitle, fontSize: big ? 46 : 36, color: C.brand, fontPalette: "--acro-letters", lineHeight: 1.05, overflowWrap: "anywhere" }}>{p.name}</div>
       <div style={{ color: C.textSecond, fontSize: 15, marginTop: 2 }}>
         <b style={{ color: C.teal }}>{p.level}</b> · on board since {monthYear(p.memberSince)}
       </div>
@@ -1445,13 +1446,13 @@ function PassengerPage() {
             </Panel>
 
             <Panel style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
-              <h2 style={{ margin: 0, fontSize: 16, color: C.textMuted }}>Top acros</h2>
+              <h2 style={{ margin: 0, fontSize: 28, ...smallTitle }}>Top acros</h2>   {/* Honk (2026-10-18) */}
               {p.topAcros.length === 0 ? <p style={{ margin: 0, color: C.textMuted }}>No votes yet — the best acros show here.</p>
                 : p.topAcros.map((a, i) => <AcroQuote key={i} a={a} big={i === 0} />)}
             </Panel>
 
             <Panel style={{ padding: 20 }}>
-              <h2 style={{ margin: "0 0 10px", fontSize: 16, color: C.textMuted }}>Last 10 stations</h2>
+              <h2 style={{ margin: "0 0 10px", fontSize: 28, ...smallTitle }}>Last 10 stations</h2>   {/* Honk */}
               {p.last10.length === 0 ? <p style={{ margin: 0, color: C.textMuted }}>No stations yet.</p> : (
                 <>
                   <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 70 }}>
@@ -1466,7 +1467,7 @@ function PassengerPage() {
             </Panel>
 
             <Panel style={{ padding: 20 }}>
-              <h2 style={{ margin: "0 0 10px", fontSize: 16, color: C.textMuted }}>Stamps</h2>
+              <h2 style={{ margin: "0 0 10px", fontSize: 28, ...smallTitle }}>Stamps</h2>   {/* Honk */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {p.stamps.map(s => (
                   <div key={s.id} title={s.earned ? "Earned" : s.progress}
