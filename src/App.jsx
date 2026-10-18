@@ -38,19 +38,9 @@ const THEMES = {
   },
   // 2026-10-16: genuinely different palettes (Damon: "not a remake of the existing ones"). Each has its own
   // tiny background pattern, barely visible. Checked: body text ≥ 4.5:1 on panels, big letters ≥ 3:1.
-  // 2026-10-18: Notebook, Blueprint and Marigold retired (Damon); saved choices move on in loadThemeKey.
-  paperticket: {  // Paper Ticket — cream ticket stock, vermilion print, ink-blue names
-    name: "Paper Ticket",
-    bgApp: "#EFE6D2", bgPanel: "#FBF6EA", bgPanel2: "#F3EBD8", border: "#D8C9A8",
-    textPrimary: "#231F1A", textSecond: "#3A332B", textMuted: "#6B5F50",
-    brand: "#C8391A", brandHover: "#B5321A", onBrand: "#FFF8F0",
-    teal: "#1F5E8C", tealLight: "#2C72A6", lavender: "#6A4C8C", ivory: "#8A3A12",
-    success: "#2F7A4A", navy2: "#E8DEC6", navy3: "#E6DBC2", bgGradient: "none",
-    danger: "#9E2A1A", dangerHover: "#B3361F",
-    fieldLine: "#CDBB94", focusLine: "#1F5E8C",
-    pattern: svgPattern(12, 12, "<circle cx='6' cy='6' r='0.8' fill='#8a6a3a' fill-opacity='0.14'/>"),
-    patternSize: "12px 12px", letterShadow: "2px 2px 0px rgba(120,60,20,0.15)",
-  },
+  // 2026-10-18: Notebook, Blueprint, Marigold and Paper Ticket retired (Damon); saved choices move on in loadThemeKey.
+  // Names are times of the day (Damon), except Neon and Phosphor. The keys (e.g. "sakura") stay as they were,
+  // so players' saved choices and the palette stats keep working; only the names shown changed.
   ember: {  // Ember — a campfire at night: charcoal, orange flame, golden names, a few drifting sparks
     name: "Ember",
     bgApp: "#1C1410", bgPanel: "#2A1D16", bgPanel2: "#33241B", border: "#5A3A28",
@@ -87,8 +77,8 @@ const THEMES = {
     pattern: "repeating-linear-gradient(rgba(157,255,159,0.03) 0 1px, transparent 1px 3px)",
     patternSize: "4000px 3px", letterShadow: "0 0 10px rgba(182,255,107,0.35)",
   },
-  sakura: {  // Sakura — cherry blossom: pale pink, deep rose letters, jade names, a few falling petals
-    name: "Sakura",
+  sakura: {  // First Light (was Sakura) — the pale pink of dawn: deep rose letters, jade names, a few falling petals
+    name: "First Light",
     bgApp: "#F8DFE6", bgPanel: "#FFF7F9", bgPanel2: "#FCEBF0", border: "#E9B6C6",
     textPrimary: "#3B1F2B", textSecond: "#52303F", textMuted: "#7A5566",
     brand: "#C2185B", brandHover: "#D32F6E", onBrand: "#FFFFFF",
@@ -137,8 +127,8 @@ const THEMES = {
     danger: "#A33A3A", dangerHover: "#B84848",
     fieldLine: "#8A5A6E", focusLine: "#FFC46B",
   },
-  lagoon: {  // Lagoon — clear teal water, deep teal boxes, coral letters, sunny yellow names
-    name: "Lagoon",
+  lagoon: {  // High Noon (was Lagoon) — clear teal midday water, deep teal boxes, coral letters, sunny yellow names
+    name: "High Noon",
     bgApp: "#2A6B71", bgPanel: "#133A45", bgPanel2: "#184654", border: "#4F8E99",
     textPrimary: "#F2FBF9", textSecond: "#D6ECEA", textMuted: "#B2D6D3", bgText: "#F2FBF9",
     brand: "#FF9F7A", brandHover: "#FFB496", onBrand: "#133A45",
@@ -170,8 +160,8 @@ const THEMES = {
     danger: "#A8455A", dangerHover: "#BC566B",
     fieldLine: "#5A6A7A", focusLine: "#F2C94C",
   },
-  meadow: {  // Meadow — sage-green fields, forest boxes, peach letters, buttercup names
-    name: "Meadow",
+  meadow: {  // Afternoon (was Meadow) — sage-green fields, forest boxes, peach letters, buttercup names
+    name: "Afternoon",
     bgApp: "#52703F", bgPanel: "#22331F", bgPanel2: "#2A3E26", border: "#5E7D4F",
     textPrimary: "#F6FAEE", textSecond: "#E0EAD2", textMuted: "#BACDA6", bgText: "#F6FAEE",
     brand: "#FFB07A", brandHover: "#FFC296", onBrand: "#22331F",
@@ -183,7 +173,7 @@ const THEMES = {
   },
 };
 // The order in the Express Colors menu: the new mid-tone palettes follow Daybreak
-const THEME_KEYS = ["midnight", "paperticket", "ember", "neon", "phosphor", "sakura", "nightfall", "daybreak", "goldenhour", "lagoon", "dusk", "overcast", "meadow"];
+const THEME_KEYS = ["midnight", "ember", "neon", "phosphor", "sakura", "nightfall", "daybreak", "goldenhour", "lagoon", "dusk", "overcast", "meadow"];
 const COLOR_NAMES = ["bgApp", "bgPanel", "bgPanel2", "border", "textPrimary", "textSecond", "textMuted",
   "brand", "brandHover", "onBrand", "teal", "tealLight", "lavender", "ivory", "success", "navy2", "navy3",
   "danger", "dangerHover",    // danger = red for actions like Log out
@@ -199,7 +189,7 @@ function loadThemeKey() {
     // Palettes retired on 2026-10-16 → the nearest new one, so nobody's choice is lost
     // and on 2026-10-18 (Notebook, Blueprint, Marigold retired; bluehour went to Blueprint, now to Lagoon)
     k = { twilight: "neon", moonrise: "neon", afterglow: "ember", bluehour: "lagoon", aurora: "midnight",
-          notebook: "paperticket", blueprint: "lagoon", marigold: "goldenhour" }[k] || k;
+          notebook: "sakura", paperticket: "sakura", blueprint: "lagoon", marigold: "goldenhour" }[k] || k;   // Paper Ticket → First Light (both light)
     return THEMES[k] ? k : "midnight";
   } catch { return "midnight"; }
 }
@@ -224,7 +214,16 @@ function applyTheme(key) {
   // Two palettes: "--acro-logo" (accent fill: logo, titles, the timer) and "--acro-letters" (letters colour:
   // the big letters in Honk, and the timer's last 10 seconds). Outline + shadow = the box colour in both.
   const honkPalette = (name, fill) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[t.bgPanel, t.bgPanel, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  logoStyle.textContent = honkPalette("--acro-logo", t.teal) + "\n" + honkPalette("--acro-letters", t.brand);
+  // Button palettes (Honk on buttons, Damon 2026-10-18): the text colour as fill, the button's own background
+  // as the outline colour, so Honk's inner lines look cut out of the letters (a palette can't use CSS variables,
+  // so each button colour gets its own palette, rebuilt here with the palette's real colours)
+  const honkOn = (name, fill, bg) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[bg, bg, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
+  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand),
+    honkOn("--acro-btn", t.onBrand, t.brand),            // main buttons (Submit, Send, + New Sky Train …)
+    honkOn("--acro-btn2", t.teal, t.navy2),              // quiet buttons (← Grand Sky Station, My Sky Pass …)
+    honkOn("--acro-btn-pm", t.lavender, t.navy2),        // Send in private chat
+    honkOn("--acro-btn-danger", "#FFF8F6", t.danger),    // Leave the station
+  ].join("\n");
   try { localStorage.setItem("acro.theme", key); } catch { /* private mode: just not remembered */ }
   // Tells an open train page the palette changed, so it reports it to the server (palette stats, useSignalR.js)
   window.dispatchEvent(new CustomEvent("acro-theme", { detail: key }));
@@ -356,7 +355,7 @@ function ThemePicker() {
                 <button key={key} onClick={() => { applyLetterFont(key); setLetterFont(key); }}
                   style={{ flex: 1, background: active ? C.navy3 : "transparent", border: `1px solid ${active ? C.teal : C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: big ? 16 : 14, padding: big ? "10px 6px" : "6px 6px" }}>
                   <span style={key === "honk"
-                    ? { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }
+                    ? { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 0, 'MORF' 15" }
                     : { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand }}>B T V</span>
                   <div style={{ fontSize: 12, marginTop: 2, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</div>
                 </button>
@@ -402,7 +401,12 @@ const Panel = ({ children, style = {}, className = "" }) => (
   </div>
 );
 
-const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, style = {}, disabled = false }) => {
+// Buttons are written in Honk (Damon, 2026-10-18), no shadow. palette = the Honk colours for this button's
+// colours (made in applyTheme): main buttons "--acro-btn"; others pass their own.
+// fontSize 25: Honk's capitals are short, so it needs a much bigger size than the old 16 to read as large
+// (21 was still too small, Damon). lineHeight 1 keeps the buttons about as tall as before.
+const honkButton = { fontFamily: "'Honk', 'Nunito', sans-serif", fontWeight: 400, fontSize: 25, fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: 1 };
+const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, style = {}, disabled = false, palette = "--acro-btn" }) => {
   const [hovered, setHovered] = useState(false);
   return (
     <button
@@ -419,7 +423,7 @@ const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, st
         fontSize: 16,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
-        fontFamily: "inherit",
+        ...honkButton, fontPalette: palette,
         transition: "background 0.15s",
         ...style
       }}>
@@ -443,7 +447,7 @@ const BtnSecondary = ({ children, onClick, style = {} }) => {
         padding: "6px 14px",
         fontSize: 16,
         cursor: "pointer",
-        fontFamily: "inherit",
+        ...honkButton, fontPalette: "--acro-btn2",   // teal on the quiet button colour
         transition: "background 0.15s",
         ...style
       }}>
@@ -568,7 +572,7 @@ function PrivateChatPanel({ style = {}, listMaxHeight }) {
           onChange={e => setPmDraft(active, e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") send(); }}
         />
-        <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.lavender, border: `1px solid ${C.lavender}` }} onClick={send}>Send</Btn>
+        <Btn color={C.navy2} hoverColor={C.navy3} palette="--acro-btn-pm" style={{ color: C.lavender, border: `1px solid ${C.lavender}` }} onClick={send}>Send</Btn>
       </div>
     </Panel>
   );
@@ -1615,7 +1619,7 @@ function Lobby() {
           {auth ? (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)}>My Sky Pass</BtnSecondary>
-              <Btn onClick={doLogout} color={C.danger} hoverColor={C.dangerHover} style={{ color: "#FFF8F6" }}>Leave the station</Btn>
+              <Btn onClick={doLogout} color={C.danger} hoverColor={C.dangerHover} palette="--acro-btn-danger" style={{ color: "#FFF8F6" }}>Leave the station</Btn>
             </div>
           ) : (
             <>
@@ -2959,9 +2963,11 @@ function Room() {
   const resultsGrow = phase === "Results" && !resultsClosed && !topicRequested;
   // Topic: label and topic on one line (compact header)
   const topicBlock = (align) => (
-    <div style={{ textAlign: align, maxWidth: 460, margin: align === "center" ? "0 auto" : undefined }}>
+    // marginTop: a little space under the Grand Sky Station button (Damon, 2026-10-18: too close)
+    <div style={{ textAlign: align, maxWidth: 460, margin: align === "center" ? "0 auto" : "6px 0 0" }}>
       <span style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginRight: 8 }}>Topic</span>
-      <span style={{ fontSize: isShort ? 19 : 24, color: C.teal, fontWeight: 700, fontFamily: "Fredoka, sans-serif", lineHeight: 1.15, overflowWrap: "anywhere" }}>{currentTopic}</span>
+      {/* The topic in Honk (was Fredoka; Damon: a different font) */}
+      <span style={{ fontSize: isShort ? 22 : 27, ...honkTitle, overflowWrap: "anywhere" }}>{currentTopic}</span>
     </div>
   );
   // Who chooses the first topic: whoever started the Sky Train, or the first passenger on board if
@@ -3180,7 +3186,7 @@ function Room() {
               letters below keep their place (before, they jumped up when the timer ended). */}
           {/* Font: the player's big-letters choice (--tf-family: Honk, or the plain number font). In Honk the
               colour comes from its palette: accent normally, letters colour in the last 10 seconds */}
-          <div style={{ fontSize: timerSize, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "--acro-letters" : "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15", lineHeight: 1, marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
+          <div style={{ fontSize: timerSize, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "--acro-letters" : "--acro-logo", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: 1, marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
             {/* "0" keeps the line one number tall while it is hidden */}
             {timer !== null && timer > 0 ? timer : 0}
           </div>
@@ -3194,7 +3200,7 @@ function Room() {
                 fontSize: `calc(${letterSize} * var(--lf-scale, 1))`,
                 lineHeight: "var(--lf-lh, 1)",
                 color: C.brand,
-                fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 41, 'MORF' 15",   // only used by Honk
+                fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 0, 'MORF' 15",   // only used by Honk; no shadow (Damon: confusing on lighter backgrounds)
                 textShadow: "var(--lf-shadow, var(--c-letterShadow))",   // per palette: softer on the light ones; none with Honk (it has its own)
                 fontWeight: 400
               }}>
@@ -3219,7 +3225,7 @@ function Room() {
               <div style={{ flex: 1, minWidth: 0, background: C.bgPanel, border: `2px solid ${C.teal}`, borderRadius: 10, padding: "8px 14px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 19, overflowWrap: "anywhere" }}>
                 {submittedAcro}
               </div>
-              <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
+              <Btn color={C.navy2} hoverColor={C.navy3} palette="--acro-btn2" style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
                 setMyDraft(submittedAcro);
                 setIsEditing(true);
                 // Pause tune 2 and unmute tune 1 when editing
@@ -3228,7 +3234,8 @@ function Room() {
               }}>Edit</Btn>
             </div>
           ) : (
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            // alignItems "stretch": Submit (and Cancel) as tall as the acro box (Damon, 2026-10-18)
+            <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
               <input
                 id="acroInput"
                 // Scroll mode: bring the acro box into the middle of the screen when it is clicked
@@ -3245,7 +3252,7 @@ function Room() {
                 }}
                 onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
               />
-              <Btn onClick={handleSubmitAcro}>{isEditing ? "Update" : "Submit"}</Btn>
+              <Btn onClick={handleSubmitAcro} style={{ borderRadius: 10, fontSize: 28, padding: "0 18px" }}>{isEditing ? "Update" : "Submit"}</Btn>
               {isEditing && <BtnSecondary onClick={() => { setIsEditing(false); setAcroError(""); saveDraft("", true); }}>Cancel</BtnSecondary>}
             </div>
           )}
