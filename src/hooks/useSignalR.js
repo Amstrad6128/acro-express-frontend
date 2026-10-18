@@ -31,6 +31,10 @@ export function useSignalR(roomId, handlers = {}) {
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
+    // Wait up to 2 minutes to hear from the server (default 30 s): background tabs are slowed down by the browser
+    // (Damon 2026-10-19). The server waits 2 minutes too.
+    connection.serverTimeoutInMilliseconds = 2 * 60 * 1000;
+
     // ── Game events ──────────────────────────────────────
     connection.on("RoundStarted", (...args) => handlersRef.current.onRoundStarted?.(...args));
     connection.on("VotingStarted", (...args) => handlersRef.current.onVotingStarted?.(...args));

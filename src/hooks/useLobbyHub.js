@@ -8,6 +8,8 @@ import { receivePm } from "../pm";
 // arriving and leaving at most once a minute, and a leave waits 15 s — a page refresh makes no line.
 const NOTICE_GAP_MS = 60 * 1000;
 const LEAVE_WAIT_MS = 15 * 1000;
+// Reconnect right away, then after 2, 5, 10 s, then every 15 s — never give up (the default stopped after 4 tries)
+const RETRY_POLICY = { nextRetryDelayInMilliseconds: (ctx) => [0, 2000, 5000, 10000][ctx.previousRetryCount] ?? 15000 };
 
 // username: the logged-in player's name — the lobby connection is made only once
 // someone is logged in (before, visitors on the login screen showed as a blank name)
@@ -34,9 +36,23 @@ export function useLobbyHub(username) {
     const connection = new signalR.HubConnectionBuilder()
       // The login token: the server takes the player's name from it (not from what the page sends)
       .withUrl(`${API_URL}/lobbyhub`, { accessTokenFactory: () => getAuth()?.token })
-      .withAutomaticReconnect()
+      .withAutomaticReconnect(RETRY_POLICY)
       .configureLogging(signalR.LogLevel.Warning)
       .build();
+    // Wait up to 2 minutes to hear from the server (default 30 s): a background tab's timers are slowed down by the
+    // browser, and the connection was dropped too early (Damon 2026-10-19). The server waits 2 minutes too.
+    connection.serverTimeoutInMilliseconds = 2 * 60 * 1000;
+    // After an automatic reconnect the server sees a NEW connection that isn't at the station yet: join again.
+    // (Before, the player stayed invisible on everyone's list until they reloaded the page.)
+    connection.onreconnected(() => { connection.invoke("JoinLobby", username).catch(() => { }); });
+    // Closed for good (e.g. offline for long): start again in 5 s, unless we closed it ourselves
+    connection.onclose(() => {
+      if (connection.__stopped) return;
+      setTimeout(async () => {
+        if (connection.__stopped) return;
+        try { await connection.start(); await connection.invoke("JoinLobby", username); } catch { /* the next close tries again */ }
+      }, 5000);
+    });
 
     connection.off("LobbyPlayers");
     connection.off("LobbyPlayerJoined");
@@ -100,6 +116,7 @@ export function useLobbyHub(username) {
   const disconnect = useCallback(async () => {
     const conn = connectionRef.current;
     if (!conn) return;
+    conn.__stopped = true;   // closing on purpose: no restart
     setPlayers([]);
     for (const t of Object.values(leaveTimersRef.current)) clearTimeout(t);   // no lines after leaving the page
     leaveTimersRef.current = {};

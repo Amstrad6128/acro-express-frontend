@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from "react";
-import { Routes, Route, useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback, useRef, createContext, useContext } from "react";
+import { Routes, Route, useParams, useNavigate, useLocation } from "react-router-dom";
 import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, getAuth, doneVoting, API_URL, topicGo, kickVote, fetchPassenger, searchPassengers } from "./services/api";
 import { useSignalR } from "./hooks/useSignalR";
 import { useLobbyHub } from "./hooks/useLobbyHub";
@@ -26,7 +26,7 @@ function rainPattern(opacity) {
 const THEMES = {
   midnight: {  // Midnight — the original night ride. 2026-10-16: stronger rain, brighter quiet text and
                // dark text on the coral buttons (white on coral was only 2.9:1) — Damon kept it as the default
-    name: "Midnight", logoColor: "#FF7A6B",   // the logo in the button colour (Damon, 2026-10-18); the rest of Midnight unchanged
+    name: "Midnight",
     bgApp: "#070b14", bgPanel: "#151D33", bgPanel2: "#1C2540", border: "#2F3D63",
     textPrimary: "#F5F6FA", textSecond: "#D3D9E8", textMuted: "#AEB8D2",
     brand: "#FF7A6B", brandHover: "#FF8E80", onBrand: "#1A0E0C",
@@ -198,6 +198,7 @@ function loadThemeKey() {
 // gradient fixed to the window (index.css), so its colour depends on how far down the letters are: the train
 // page measures that (0 = top of the window, 1 = bottom) and calls setBigLetterSky.
 let currentTheme = null;     // the palette in use (set by applyTheme)
+let currentThemeKey = "midnight";   // its key, for palette names
 let bigLetterSpot = 0.2;     // where the big letters are, as a share of the window height
 // The colour of a palette's sky at "f" (0–1): reads the stops of its bgGradient ("#hex 62%", or no % = evenly
 // spread) and mixes the two around f. No gradient → its bgApp.
@@ -214,15 +215,21 @@ function skyColorAt(t, f) {
   }
   return "#" + stops[stops.length - 1][1];
 }
-// Writes the "--acro-big" palette: fill = the letters colour, outline = the sky at "spot"
+// Writes the big letters' palette: fill = the letters colour, outline = the sky at "spot". Its name carries the
+// sky colour and palette ("--acro-big-<key>-<hex>") and is chosen through the CSS variable --fp-big, so the browser
+// repaints when it changes (it keeps an old palette on text already on screen if only the rule changes).
 function setBigLetterSky(spot) {
   bigLetterSpot = Math.min(1, Math.max(0, spot));
   const t = currentTheme; if (!t) return;
   const sky = skyColorAt(t, bigLetterSpot);
   let tag = document.getElementById("acro-big-palette");
   if (!tag) { tag = document.createElement("style"); tag.id = "acro-big-palette"; document.head.appendChild(tag); }
-  const rule = `@font-palette-values --acro-big { font-family: 'Honk'; override-colors: ${[sky, sky, t.brand, t.brand, t.brand, t.brand, t.brand, t.brand].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  if (tag.textContent !== rule) tag.textContent = rule;   // only when the colour changed (this runs on every render)
+  const name = `--acro-big-${currentThemeKey}-${sky.slice(1)}`;
+  const rule = `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[sky, sky, t.brand, t.brand, t.brand, t.brand, t.brand, t.brand].map((c, i) => `${i} ${c}`).join(", ")}; }`;
+  if (tag.textContent !== rule) {   // only when the colour changed (this runs on every render)
+    tag.textContent = rule;
+    document.documentElement.style.setProperty("--fp-big", name);
+  }
 }
 
 // Puts a scheme's colours into the CSS variables on <html> and remembers the choice
@@ -239,27 +246,22 @@ function applyTheme(key) {
   root.style.setProperty("--c-bgText", t.bgText || t.textMuted);
   // Gold for golden names (afool): bright on the dark palettes, darker on the light one so it stays readable
   root.style.setProperty("--c-gold", t.gold || "#FFD24A");
-  // The logo's colours. Honk is a colour font with 8 colours of its own: 0 = drop shadow, 1 = outline and
-  // inner lines, 2–7 = the fill from top to bottom. We repaint them in the palette's colours (Damon,
-  // 2026-10-18): fill = the accent (teal), outline + shadow = the box colour. The rule is rewritten on every
-  // palette change; the logo always uses the palette name "--acro-logo".
+  // Honk's colours. Honk is a colour font with 8 colours of its own: 0 = drop shadow, 1 = outline and inner lines,
+  // 2–7 = the fill from top to bottom. We repaint them in the palette's colours. Each Express Colors palette has
+  // its OWN Honk palettes (named "--acro-logo-<key>" …), chosen through CSS variables (--fp-logo …): switching
+  // palettes then switches to different Honk palettes and the browser repaints everything (2026-10-19 — with one
+  // shared name it kept the old colours on text already on screen, e.g. the private chat).
   let logoStyle = document.getElementById("acro-logo-palette");
   if (!logoStyle) { logoStyle = document.createElement("style"); logoStyle.id = "acro-logo-palette"; document.head.appendChild(logoStyle); }
-  // Two palettes: "--acro-logo" (accent fill: logo, titles, the timer) and "--acro-letters" (letters colour:
-  // the big letters in Honk, and the timer's last 10 seconds). Outline + shadow = the box colour in both.
-  const honkPalette = (name, fill) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[t.bgPanel, t.bgPanel, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  // Button palettes (Honk on buttons, Damon 2026-10-18): the text colour as fill, the button's own background
-  // as the outline colour, so Honk's inner lines look cut out of the letters (a palette can't use CSS variables,
-  // so each button colour gets its own palette, rebuilt here with the palette's real colours)
-  const honkOn = (name, fill, bg) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[bg, bg, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  // "--acro-mark" = the logo itself: the palette's logoColor if it has one (Midnight), otherwise the accent
-  root.style.setProperty("--c-logo", t.logoColor || t.teal);
-  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-mark", t.logoColor || t.teal), honkPalette("--acro-letters", t.brand), honkPalette("--acro-gold", t.gold || "#FFD24A"),
-    honkOn("--acro-btn", t.onBrand, t.brand),            // main buttons (Submit, Send, + New Sky Train …)
-    honkOn("--acro-btn2", t.teal, t.navy2),              // quiet buttons (← Grand Sky Station, My Sky Passport …)
-    honkOn("--acro-btn-pm", t.lavender, t.navy2),        // Send in private chat
-    honkOn("--acro-btn-danger", "#FFF8F6", t.danger),    // Leave the station
-  ].join("\n");
+  // Four Honk palettes per Express Colors palette, outline + shadow = the box colour:
+  //   logo    titles and the timer (accent fill)        mark  the "Acro Express" logo (the button colour, Damon)
+  //   letters train name, timer's last 10 s (letters)   gold  golden names (afool)
+  const honkPalette = (name, fill) => `@font-palette-values ${name}-${key} { font-family: 'Honk'; override-colors: ${[t.bgPanel, t.bgPanel, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
+  // The logo in the button colour on every palette (Damon, 2026-10-19; Midnight first, then all)
+  root.style.setProperty("--c-logo", t.brand);
+  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-mark", t.brand), honkPalette("--acro-letters", t.brand), honkPalette("--acro-gold", t.gold || "#FFD24A")].join("\n");
+  for (const p of ["logo", "mark", "letters", "gold"]) root.style.setProperty(`--fp-${p}`, `--acro-${p}-${key}`);   // which ones are in use
+  currentThemeKey = key;
   currentTheme = t;                // for setBigLetterSky
   setBigLetterSky(bigLetterSpot);  // the big letters' outline in this palette's sky colour
   try { localStorage.setItem("acro.theme", key); } catch { /* private mode: just not remembered */ }
@@ -393,7 +395,7 @@ function ThemePicker() {
                 <button key={key} onClick={() => { applyLetterFont(key); setLetterFont(key); }}
                   style={{ flex: 1, background: active ? C.navy3 : "transparent", border: `1px solid ${active ? C.teal : C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: big ? 16 : 14, padding: big ? "10px 6px" : "6px 6px" }}>
                   <span style={{
-                    honk: { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "--acro-big", fontVariationSettings: "'SHLN' 0, 'MORF' 15" },
+                    honk: { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "var(--fp-big)", fontVariationSettings: "'SHLN' 0, 'MORF' 15" },
                     bowlby: { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand },
                   }[key]}>B T V</span>
                   <div style={{ fontSize: 12, marginTop: 2, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</div>
@@ -440,12 +442,11 @@ const Panel = ({ children, style = {}, className = "" }) => (
   </div>
 );
 
-// Button text in Honk (Damon, 2026-10-18), no shadow. palette = the Honk
-// colours for this button's colours (made in applyTheme): main buttons "--acro-btn"; others pass their own.
-// fontSize 32: Honk's capitals are short, so it needs a much bigger size than the old 16 to fill the button
+// Button text: Nunito, bold, normal text size on a small button — the same on every button (Damon 2026-10-19:
+// "either all the buttons Honk or not"; the station buttons were already Nunito). (Name kept from the Honk days.)
 // (Damon: 27 was still too small for the frame). Less padding above and below keeps the buttons about as tall.
-const honkButton = { fontFamily: "'Honk', 'Nunito', sans-serif", fontWeight: 400, fontSize: 32, fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: 0.95 };
-const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, style = {}, disabled = false, palette = "--acro-btn" }) => {
+const honkButton = { fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, lineHeight: 1.2, padding: "8px 16px" };
+const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, style = {}, disabled = false }) => {
   const [hovered, setHovered] = useState(false);
   return (
     <button
@@ -461,7 +462,7 @@ const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, st
         padding: "3px 14px",
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
-        ...honkButton, fontPalette: palette,
+        ...honkButton,
         transition: "background 0.15s",
         ...style
       }}>
@@ -484,7 +485,7 @@ const BtnSecondary = ({ children, onClick, style = {} }) => {
         borderRadius: 8,
         padding: "3px 14px",
         cursor: "pointer",
-        ...honkButton, fontPalette: "--acro-btn2",   // teal on the quiet button colour
+        ...honkButton,
         transition: "background 0.15s",
         ...style
       }}>
@@ -609,7 +610,7 @@ function PrivateChatPanel({ style = {}, listMaxHeight }) {
           onChange={e => setPmDraft(active, e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") send(); }}
         />
-        <Btn color={C.navy2} hoverColor={C.navy3} palette="--acro-btn-pm" style={{ color: C.lavender, border: `1px solid ${C.lavender}` }} onClick={send}>Send</Btn>
+        <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.lavender, border: `1px solid ${C.lavender}` }} onClick={send}>Send</Btn>
       </div>
     </Panel>
   );
@@ -703,7 +704,7 @@ const goldName = name => (isGolden(name) ? { color: "var(--c-gold)", fontWeight:
 
 // A player's name you can click. One rule everywhere (Damon asked for it clear, 2026-10-18; like Discord, Slack
 // and Twitch): a click opens the player's Sky Passport card, whose main button is Message. Kicking is never a
-// click: only "/kp name" in Sky Train Chat. ("profile" is kept for older calls; it no longer changes anything.)
+// click: only "/kick name" in Sky Train Chat. ("profile" is kept for older calls; it no longer changes anything.)
 function NameLink({ name, style }) {
   if (!name) return <span style={style}>{name}</span>;
   const go = () => openProfile(name);
@@ -738,7 +739,7 @@ function OnlineButton() {
       <div style={{ color: C.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em", margin: "6px 0 2px" }}>{title}</div>
       {names.length === 0 && <div style={{ color: C.textMuted, fontSize: 14, fontStyle: "italic" }}>Nobody</div>}
       {names.map(n => n.toLowerCase() === me ? (
-        <div key={n} style={{ color: C.textSecond, fontSize: big ? 17 : 15, padding: big ? "8px 8px" : "3px 8px" }}>{n} <span style={{ color: C.teal }}>(you)</span></div>
+        <div key={n} style={{ color: C.textSecond, fontSize: big ? 17 : 15, padding: big ? "8px 8px" : "3px 8px" }}>{n}</div>
       ) : (
         <button key={n} onClick={() => { openPm(n); close(); }} title={`Message ${n}`}
           style={{ display: "flex", justifyContent: "space-between", width: "100%", background: "transparent", border: "none", borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: big ? 17 : 15, padding: big ? "8px 8px" : "3px 8px", textAlign: "left" }}>
@@ -776,7 +777,7 @@ function OnlineButton() {
 // Titles in the logo's font, Honk (Damon, 2026-10-18): same colours and settings as the logo (accent fill,
 // box-colour outline, shadow 41, Honk's own bulge 15; see applyTheme). Only for titles on the boxes
 // (bgPanel), where the outline colour matches the background. Fredoka is the stand-in while Honk loads.
-const honkTitle = { fontFamily: "'Honk', Fredoka, sans-serif", fontWeight: 400, color: C.teal, fontPalette: "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15", lineHeight: 1.15 };
+const honkTitle = { fontFamily: "'Honk', Fredoka, sans-serif", fontWeight: 400, color: C.teal, fontPalette: "var(--fp-logo)", fontVariationSettings: "'SHLN' 41, 'MORF' 15", lineHeight: 1.15 };
 
 // Smaller titles: Honk too (Damon, 2026-10-18 — Lilita One was tried and removed: it looked like Bungee).
 // Kept at 24 px and more, since Honk gets blurry when small. Same look as honkTitle.
@@ -871,7 +872,7 @@ function HowToPlay({ winScore = 30 }) {
                 When someone reaches {winScore}, the highest score wins the journey. After a 30-second break the next journey starts by itself.
               </RulesSection>
               <RulesSection icon="💬" title="Tips">
-                Click a name to send a private message. To vote someone off a train, type <b style={{ color: C.textPrimary }}>/kp name</b> in Sky Train Chat. Change your colours under Express Colors, and your sound under Sound.
+                Click a name to send a private message. To vote someone off a train, type <b style={{ color: C.textPrimary }}>/kick name</b> in Sky Train Chat. Change your colours under Express Colors, and your sound under Sound.
               </RulesSection>
             </div>
             <div style={{ padding: "12px 20px", borderTop: `1px solid ${C.border}`, textAlign: "right" }}>
@@ -1278,20 +1279,22 @@ function Privacy() {
 const LB_PERIODS = [["week", "This week"], ["month", "This month"], ["all", "All time"]];
 const pct = (a, b) => (b > 0 ? a / b : 0);                       // a share, 0 when there's nothing to share
 const pctText = v => `${Math.round(v * 100)}%`;
-// The boards: what they rank (value), how it's shown (show), and who qualifies (ok) — percentages need enough stations
+// The boards: what they rank (value), how it's shown (show), and who qualifies (ok). Revised 2026-10-19 (Damon):
+// points count, not just votes; the journey win % matters most, then stations played. Percentages need enough
+// journeys / stations in the period (data.minJourneys / data.minStations).
 const LB_BOARDS = [
-  { id: "champions", icon: "🏆", name: "Champions", sub: "Journeys won", unit: "journeys won",
-    value: p => p.journeysWon + pct(p.journeysWon, p.journeys) / 100 + p.stationsWon / 1e6, show: p => p.journeysWon, ok: p => p.journeys > 0 },
-  { id: "masters", icon: "🚉", name: "Station Masters", sub: "Station win %", unit: "stations won",
+  { id: "champions", icon: "🏆", name: "Champions", sub: "Journey win %", unit: "of journeys won",
+    value: p => pct(p.journeysWon, p.journeys) + p.journeysWon / 1e4, show: p => pctText(pct(p.journeysWon, p.journeys)), ok: (p, d) => p.journeys >= d.minJourneys },
+  { id: "riders", icon: "🚉", name: "Frequent Riders", sub: "Stations played", unit: "stations",
+    value: p => p.stations + p.points / 1e6, show: p => p.stations, ok: p => p.stations > 0 },
+  { id: "scorers", icon: "⭐", name: "Top Scorers", sub: "Total points", unit: "points",
+    value: p => p.points + p.stations / 1e6, show: p => p.points, ok: p => p.points > 0 },
+  { id: "average", icon: "🎯", name: "Sharpshooters", sub: "Points per station", unit: "points per station",
+    value: p => pct(p.points, p.stations), show: p => pct(p.points, p.stations).toFixed(1), ok: (p, d) => p.stations >= d.minStations },
+  { id: "masters", icon: "🥇", name: "Station Masters", sub: "Station win %", unit: "of stations won",
     value: p => pct(p.stationsWon, p.stations), show: p => pctText(pct(p.stationsWon, p.stations)), ok: (p, d) => p.stations >= d.minStations },
-  { id: "favourites", icon: "💬", name: "Crowd Favourites", sub: "Votes per station", unit: "votes per station",
-    value: p => pct(p.votes, p.stations), show: p => pct(p.votes, p.stations).toFixed(1), ok: (p, d) => p.stations >= d.minStations },
-  { id: "golden", icon: "🎫", name: "Golden Tickets", sub: "Acros with 5+ votes", unit: "golden tickets",
-    value: p => p.goldenTickets + p.votes / 1e6, show: p => p.goldenTickets, ok: p => p.goldenTickets > 0 },
   { id: "express", icon: "⚡", name: "Express Riders", sub: "Speed bonuses", unit: "speed bonuses",
     value: p => p.speedBonuses + p.stations / 1e6, show: p => p.speedBonuses, ok: p => p.speedBonuses > 0 },
-  { id: "eyes", icon: "👁️", name: "Sharp Eyes", sub: "Voted for the winner %", unit: "picked the winner",
-    value: p => pct(p.votedForWinner, p.voted), show: p => pctText(pct(p.votedForWinner, p.voted)), ok: (p, d) => p.voted >= d.minStations },
 ];
 
 function SkyLeaderboard() {
@@ -1361,7 +1364,7 @@ function SkyLeaderboard() {
               {ranked.length === 0 ? (
                 <p style={{ margin: 0, padding: 20, color: C.textMuted }}>
                   No one on this board yet {period === "all" ? "" : periodName.toLowerCase()}.
-                  {["masters", "favourites", "eyes"].includes(boardId) && ` It counts from ${data.minStations} stations.`}
+                  {(boardId === "champions" ? ` It counts from ${data.minJourneys} journeys.` : ["average", "masters"].includes(boardId) ? ` It counts from ${data.minStations} stations.` : "")}
                 </p>
               ) : (
                 <>
@@ -1388,7 +1391,7 @@ function SkyLeaderboard() {
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 560 }}>
                       <thead><tr>
                         <th style={th}>#</th><th style={th}>Passenger</th><th style={{ ...th, ...num }}>{board.sub}</th>
-                        <th style={{ ...th, ...num }}>Journeys</th><th style={{ ...th, ...num }}>Stations</th><th style={{ ...th, ...num }}>Stations won</th><th style={{ ...th, ...num }}>Points / station</th>
+                        <th style={{ ...th, ...num }}>Journeys won</th><th style={{ ...th, ...num }}>Stations</th><th style={{ ...th, ...num }}>Points</th><th style={{ ...th, ...num }}>Points / station</th>
                       </tr></thead>
                       <tbody>
                         {ranked.map((p, i) => {
@@ -1396,11 +1399,11 @@ function SkyLeaderboard() {
                           return (
                             <tr key={p.name} style={{ background: isMe ? C.navy2 : "transparent" }}>
                               <td style={{ ...td, width: 40, fontWeight: 800, fontSize: 16, color: i < 3 ? medal[i] : (isMe ? C.teal : C.textPrimary) }}>{ranks[i]}</td>
-                              <td style={td}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><AvatarSquare name={p.name} size={26} />{nameBtn(p.name, { fontWeight: 600 })}{isMe && <span style={{ color: C.teal }}>(you)</span>}</span></td>
+                              <td style={td}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><AvatarSquare name={p.name} size={26} />{nameBtn(p.name, { fontWeight: 600 })}</span></td>
                               <td style={{ ...td, ...num, fontWeight: 800, color: C.teal }}>{board.show(p)}</td>
-                              <td style={{ ...td, ...num }}>{p.journeysWon}/{p.journeys}</td>
+                              <td style={{ ...td, ...num }}>{p.journeysWon}/{p.journeys}{p.journeys > 0 && <span style={{ color: C.textMuted }}> · {pctText(pct(p.journeysWon, p.journeys))}</span>}</td>
                               <td style={{ ...td, ...num }}>{p.stations}</td>
-                              <td style={{ ...td, ...num }}>{p.stationsWon}</td>
+                              <td style={{ ...td, ...num }}>{p.points}</td>
                               <td style={{ ...td, ...num }}>{pct(p.points, p.stations).toFixed(1)}</td>
                             </tr>
                           );
@@ -1409,7 +1412,7 @@ function SkyLeaderboard() {
                     </table>
                   </div>
                   <div style={{ padding: "8px 12px 10px", fontSize: 12, color: C.textMuted }}>
-                    Percentages count from {data.minStations} stations{period === "all" ? "" : ` ${periodName.toLowerCase()}`}, so one lucky win can't top a board. Journeys: won / ridden to the Final Stop.
+                    Journey win % counts from {data.minJourneys} journeys, the other percentages and averages from {data.minStations} stations{period === "all" ? "" : ` ${periodName.toLowerCase()}`}, so one lucky win can't top a board. Journeys won: won / ridden to the Final Stop.
                   </div>
                 </>
               )}
@@ -1427,22 +1430,22 @@ function SkyLeaderboard() {
                       {myRank >= 0 && <span style={{ marginLeft: 6, fontSize: 12, padding: "2px 8px", borderRadius: 999, background: C.navy2, color: C.success, fontWeight: 700 }}>#{ranks[myRank]} {board.name}</span>}
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-                      {[[myEntry.stations, "Stations played"], [pctText(pct(myEntry.stationsWon, myEntry.stations)), "Station win %"], [myEntry.bestStreak, "Best win streak"], [myEntry.goldenTickets, "Golden tickets"]].map(([n, l]) => (
+                      {[[myEntry.journeys ? pctText(pct(myEntry.journeysWon, myEntry.journeys)) : "–", `Journeys won (${myEntry.journeysWon}/${myEntry.journeys})`], [myEntry.stations, "Stations played"], [myEntry.points, "Total points"], [pct(myEntry.points, myEntry.stations).toFixed(1), "Points per station"]].map(([n, l]) => (
                         <div key={l} style={{ background: C.bgApp, borderRadius: 10, padding: 8, textAlign: "center" }}>
                           <div style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{n}</div>
                           <div style={{ fontSize: 12, color: C.textMuted }}>{l}</div>
                         </div>
                       ))}
                     </div>
-                    {/* How many votes my acros got: 0, 1, 2, 3, 4, 5+ (the tallest bar highlighted) */}
-                    <div style={{ fontSize: 13, color: C.textSecond, marginTop: 12 }}>Votes per acro</div>
+                    {/* How many points my acros earned: 0, 1–2, 3–4, 5–7, 8–10, 11+ (the tallest bar highlighted) */}
+                    <div style={{ fontSize: 13, color: C.textSecond, marginTop: 12 }}>Points per acro</div>
                     <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 64, marginTop: 6 }}>
-                      {myEntry.votesHist.map((n, i) => {
-                        const maxN = Math.max(1, ...myEntry.votesHist);
+                      {(myEntry.pointsHist || []).map((n, i) => {
+                        const maxN = Math.max(1, ...myEntry.pointsHist);
                         return (
                           <div key={i} style={{ flex: 1, textAlign: "center" }}>
                             <div title={`${n} acro${n === 1 ? "" : "s"}`} style={{ height: Math.max(3, Math.round(48 * n / maxN)), background: n === maxN && n > 0 ? C.brand : C.navy3, borderRadius: "4px 4px 0 0" }} />
-                            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{i === 5 ? "5+" : i}</div>
+                            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{["0", "1–2", "3–4", "5–7", "8–10", "11+"][i]}</div>
                           </div>
                         );
                       })}
@@ -1456,10 +1459,10 @@ function SkyLeaderboard() {
                   <>
                     <div style={{ fontSize: 18, marginTop: 6 }}>“{data.acroOfPeriod.sentence}”</div>
                     <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
-                      {data.acroOfPeriod.letters.split("").join(" ")} · {data.acroOfPeriod.topic} · {data.acroOfPeriod.votes} vote{data.acroOfPeriod.votes === 1 ? "" : "s"} · by {nameBtn(data.acroOfPeriod.by, { color: C.teal })}
+                      {data.acroOfPeriod.letters.split("").join(" ")} · {data.acroOfPeriod.topic} · <b style={{ color: C.teal }}>{data.acroOfPeriod.points} points</b> · {data.acroOfPeriod.votes} vote{data.acroOfPeriod.votes === 1 ? "" : "s"} · by {nameBtn(data.acroOfPeriod.by, { color: C.teal })}
                     </div>
                   </>
-                ) : <div style={{ fontSize: 14, color: C.textMuted, marginTop: 6 }}>No votes yet {periodName.toLowerCase()}.</div>}
+                ) : <div style={{ fontSize: 14, color: C.textMuted, marginTop: 6 }}>No points yet {periodName.toLowerCase()}.</div>}
               </Panel>
             </div>
           </div>
@@ -1516,7 +1519,7 @@ function AcroQuote({ a, big }) {
     <div style={{ borderLeft: `3px solid ${C.teal}`, padding: "2px 0 2px 12px" }}>
       <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: big ? 20 : 17, color: C.ivory }}>"{a.sentence}"</div>
       <div style={{ fontSize: 13, color: C.textMuted }}>
-        {a.letters.split("").join(" ")} · {a.topic} · <span style={{ color: C.teal }}>{a.votes} vote{a.votes === 1 ? "" : "s"}</span>{a.won ? " · won the station" : ""}
+        {a.letters.split("").join(" ")} · {a.topic} · <span style={{ color: C.teal }}>{a.points != null ? `${a.points} point${a.points === 1 ? "" : "s"} · ` : ""}{a.votes} vote{a.votes === 1 ? "" : "s"}</span>{a.won ? " · won the station" : ""}
       </div>
     </div>
   );
@@ -1525,7 +1528,7 @@ function PassHeader({ p, big }) {
   return (
     <div>
       {/* The name in Honk, in the letters colour (Damon, 2026-10-18) */}
-      <div style={{ ...honkTitle, fontSize: big ? 46 : 36, color: isGolden(p.name) ? "var(--c-gold)" : C.brand, fontPalette: isGolden(p.name) ? "--acro-gold" : "--acro-letters", lineHeight: 1.05, overflowWrap: "anywhere" }}>{p.name}</div>
+      <div style={{ ...honkTitle, fontSize: big ? 46 : 36, color: isGolden(p.name) ? "var(--c-gold)" : C.brand, fontPalette: isGolden(p.name) ? "var(--fp-gold)" : "var(--fp-letters)", lineHeight: 1.05, overflowWrap: "anywhere" }}>{p.name}</div>
       <div style={{ color: C.textSecond, fontSize: 15, marginTop: 2 }}>
         <b style={{ color: C.teal }}>{p.level}</b> · on board since {monthYear(p.memberSince)}
       </div>
@@ -1704,7 +1707,7 @@ function Lobby() {
     return saved ? JSON.parse(saved) : null;
   });
   const navigate = useNavigate();
-  const { players, messages, notices, sendMessage } = useLobbyHub(auth?.username);
+  const { players, messages, notices, sendMessage } = useContext(StationContext);   // the shared station connection (App)
   const pm = usePm();   // private messages (shared with the room)
   const restart = useRestartWindow();
   // Lobby chat shows only the current session: after 15 minutes without a message it starts fresh
@@ -1739,6 +1742,7 @@ function Lobby() {
       const { register } = await import("./services/api");
       const data = await register(username.trim(), password);
       localStorage.setItem("acro.auth", JSON.stringify(data));
+      authChanged();   // the station connection logs in too
       setAuth(data); setUsername(""); setPassword("");
     } catch (e) { alert(e.message || e); }
   }
@@ -1748,12 +1752,14 @@ function Lobby() {
       const { login } = await import("./services/api");
       const data = await login(username.trim(), password);
       localStorage.setItem("acro.auth", JSON.stringify(data));
+      authChanged();   // the station connection logs in too
       setAuth(data); setUsername(""); setPassword("");
     } catch (e) { alert(e.message || e); }
   }
 
   function doLogout() {
     localStorage.removeItem("acro.auth");
+    authChanged();   // the station connection closes
     setAuth(null);
   }
 
@@ -1865,7 +1871,7 @@ function Lobby() {
     <div style={{ height: "100vh", overflowY: fits ? "hidden" : "auto", overflowX: "hidden", color: C.textPrimary, display: "flex", flexDirection: "column" }}>
       {/* Header: the logo, then the menus (on phones the menus go under the logo) */}
       <div style={{ flexShrink: 0, borderBottom: `1px solid ${C.border}`, padding: phone ? "10px 16px" : "10px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 8, columnGap: shortWin ? 20 : 16 }}>
-        <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : (shortWin ? 40 : 46), fontWeight: 400, margin: 0, lineHeight: 1.05, color: "var(--c-logo)", fontPalette: "--acro-mark", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
+        <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : (shortWin ? 40 : 46), fontWeight: 400, margin: 0, lineHeight: 1.05, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
           Acro Express<sup style={{ fontFamily: "'Nunito', sans-serif", fontSize: 12, color: "var(--c-bgText)", marginLeft: 3, verticalAlign: "super" }}>™</sup>
         </h1>
         {/* Short windows: the greeting and your buttons sit here, next to the logo, instead of in their own bar */}
@@ -1931,7 +1937,7 @@ function Lobby() {
                         <AvatarSquare name={o.name} size={32} />
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            <span style={goldName(o.name)}>{o.name}</span>{isMe && <span style={{ color: C.teal, fontWeight: 400 }}> (you)</span>}
+                            <span style={goldName(o.name)}>{o.name}</span>
                           </div>
                           <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Online · {o.where}</div>
                         </div>
@@ -2077,7 +2083,6 @@ function Lobby() {
         <Footer compact />   {/* © + House Rules + Privacy, a plain line under the station */}
         <PmToast />
         <RestartBanner />
-        <PassengerCard inTrain />   {/* the card a name click opens, without a link that leaves the train */}
         <PassengerCard />
       </div>
     </div>
@@ -2411,7 +2416,6 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
                       {isWinner ? "🏆" : votedWinner.has(name) ? <span style={{ color: C.success, fontWeight: 800 }}>✓</span> : ""}
                     </span>
                     {name}
-                    {name === myName && <span style={{ marginLeft: 6, fontWeight: 400, color: C.teal }}>(you)</span>}
                   </td>
                   {votes && <td style={td({ textAlign: "center", color: isWinner ? C.textPrimary : C.textSecond, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" })}>{votes[name] ?? 0}</td>}
                   <td style={td({ textAlign: "center", color: isWinner ? C.brand : C.teal, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" })}>{score}</td>
@@ -2959,7 +2963,7 @@ function Room() {
     return () => clearInterval(iv);
   }, [topicTimer]);
 
-  // Vote to kick (or take the vote back) — only by typing "/kp name" or "/kick name" in Sky Train Chat
+  // Vote to kick (or take the vote back) — only by typing "/kick name" in Sky Train Chat
   async function voteKick(name) {
     try {
       const r = await kickVote(id, name);
@@ -2972,9 +2976,9 @@ function Room() {
   async function sendRoomMessage() {
     const text = roomChatInput.trim();
     if (!text || !auth) return;
-    // "/kick name" (or AcroChallenge's "/kp name") votes to kick instead of chatting
-    const cmd = text.match(/^\/(kick|kp)\s+(.+)$/i);
-    if (cmd) { setRoomChatInput(""); voteKick(cmd[2].trim()); return; }
+    // "/kick name" votes to kick instead of chatting (Damon 2026-10-19: /kick only; /kp no longer)
+    const cmd = text.match(/^\/kick\s+(.+)$/i);
+    if (cmd) { setRoomChatInput(""); voteKick(cmd[1].trim()); return; }
     try {
       const conn = connectionRef.current;
       if (conn) {
@@ -3051,7 +3055,7 @@ function Room() {
           if (String(e?.message || "").includes("passenger vote")) { leavingRef.current = true; setKicked(true); return; }
           // 401 = the server no longer knows our login (it restarted) — go to the login screen
           // instead of staying in a room we can't play in
-          if (String(e?.message || "").startsWith("401")) { localStorage.removeItem("acro.auth"); navigate("/"); }
+          if (String(e?.message || "").startsWith("401")) { localStorage.removeItem("acro.auth"); authChanged(); navigate("/"); }
         });
         // Also join the live updates again, in case this connection lost the room group
         connectionRef.current?.invoke("JoinRoom", id, String(me)).catch(() => { });
@@ -3378,8 +3382,8 @@ function Room() {
               The name is in the logo font with the "letters" colours, so the two are told apart */}
           <h1 style={{ margin: 0, display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 10 }}>
             {/* Bigger on 2026-10-18 (Damon: too small) */}
-            <span style={{ fontSize: isShort ? 30 : 34, ...honkTitle, color: "var(--c-logo)", fontPalette: "--acro-mark" }}>Acro Express</span>
-            <span style={{ fontSize: isShort ? 24 : 28, ...smallTitle, color: C.brand, fontPalette: "--acro-letters" }}>› {data.name || roomNameRef.current || "Sky Train"}</span>
+            <span style={{ fontSize: isShort ? 30 : 34, ...honkTitle, color: "var(--c-logo)", fontPalette: "var(--fp-mark)" }}>Acro Express</span>
+            <span style={{ fontSize: isShort ? 24 : 28, ...smallTitle, color: C.brand, fontPalette: "var(--fp-letters)" }}>› {data.name || roomNameRef.current || "Sky Train"}</span>
           </h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
           {/* "Station 2 · Results", in Honk (Damon, 2026-10-18). "First to 30 wins" was removed here
@@ -3550,7 +3554,7 @@ function Room() {
               letters below keep their place (before, they jumped up when the timer ended). */}
           {/* Font: the player's big-letters choice (--tf-family: Honk, or the plain number font). In Honk the
               colour comes from its palette: accent normally, letters colour in the last 10 seconds */}
-          <div style={{ fontSize: timerSize, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "--acro-letters" : "--acro-logo", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: 1, marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
+          <div style={{ fontSize: timerSize, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: 1, marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
             {/* "0" keeps the line one number tall while it is hidden */}
             {timer !== null && timer > 0 ? timer : 0}
           </div>
@@ -3564,7 +3568,7 @@ function Room() {
                 fontSize: `calc(${letterSize} * var(--lf-scale, 1))`,
                 lineHeight: "var(--lf-lh, 1)",
                 color: C.brand,
-                fontPalette: "--acro-big", fontVariationSettings: "'SHLN' 0, 'MORF' 15",   // only used by Honk; outline in the background colour; no shadow (Damon: confusing on lighter backgrounds)
+                fontPalette: "var(--fp-big)", fontVariationSettings: "'SHLN' 0, 'MORF' 15",   // only used by Honk; outline in the background colour; no shadow (Damon: confusing on lighter backgrounds)
                 textShadow: "var(--lf-shadow, var(--c-letterShadow))",   // per palette: softer on the light ones; none with Honk (it has its own)
                 fontWeight: 400
               }}>
@@ -3589,7 +3593,7 @@ function Room() {
               <div style={{ flex: 1, minWidth: 0, background: C.bgPanel, border: `2px solid ${C.teal}`, borderRadius: 10, padding: "8px 14px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 19, overflowWrap: "anywhere" }}>
                 {submittedAcro}
               </div>
-              <Btn color={C.navy2} hoverColor={C.navy3} palette="--acro-btn2" style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
+              <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
                 setMyDraft(submittedAcro);
                 setIsEditing(true);
                 // Pause tune 2 and unmute tune 1 when editing
@@ -3616,7 +3620,7 @@ function Room() {
                 }}
                 onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
               />
-              <Btn onClick={handleSubmitAcro} style={{ borderRadius: 10, fontSize: 36, padding: "0 18px" }}>{isEditing ? "Update" : "Submit"}</Btn>
+              <Btn onClick={handleSubmitAcro} style={{ borderRadius: 10, fontSize: 18, padding: "0 20px" }}>{isEditing ? "Update" : "Submit"}</Btn>
               {isEditing && <BtnSecondary onClick={() => { setIsEditing(false); setAcroError(""); saveDraft("", true); }}>Cancel</BtnSecondary>}
             </div>
           )}
@@ -3673,7 +3677,7 @@ function Room() {
                   title={`${p.nickname}: Sky Passport and Message`}
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
                   // One click opens their Sky Passport card (Message is its main button), like everywhere else.
-                  // Kicking is never mixed in here (Damon, 2026-10-18): only "/kp name" in Sky Train Chat
+                  // Kicking is never mixed in here (Damon, 2026-10-18): only "/kick name" in Sky Train Chat
                   onClick={() => openProfile(p.nickname)}>
                   {/* Left side: a fixed tick column, then the name — the ✓ sits outside the name in its own
                       16px column, so names never move when someone submits (Damon's request) */}
@@ -3685,7 +3689,6 @@ function Room() {
                   {/* Submitted this round (while writing): name in teal */}
                   <span style={{ color: p.isConnected === false ? C.textMuted : (phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? C.teal : C.textSecond), fontWeight: phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? 700 : 400, opacity: p.isConnected === false ? 0.6 : 1 }}>
                     <span style={goldName(p.nickname)}>{p.nickname}</span>
-                    {p.id === auth?.userId && <span style={{ color: C.teal, marginLeft: 4 }}>(you)</span>}
                     {/* Window closed / connection lost — removed after about 10 seconds */}
                     {p.isConnected === false && <span style={{ marginLeft: 4, fontStyle: "italic" }}>(away)</span>}
                     {(pm.unread[p.nickname] || 0) > 0 && (
@@ -3749,12 +3752,29 @@ function Room() {
       </div>
       <PmToast />
         <RestartBanner />
+        <PassengerCard inTrain />   {/* the card a passenger click opens, without a link that leaves the train */}
     </div>
   );
 }
 
+// The Grand Sky Station connection, shared by all of the station's pages (Damon 2026-10-19): before, opening the
+// Sky Leaderboard or a Sky Passport closed it and you "left the station". Now it stays open on every page except a
+// train (/room/…). The station page reads players, chat and arrival lines from here.
+const StationContext = createContext({ players: [], messages: [], notices: [], sendMessage: () => { } });
+const authChanged = () => window.dispatchEvent(new Event("acro-auth"));   // login / logout → the connection follows
+
 export default function App() {
+  const location = useLocation();
+  const [authName, setAuthName] = useState(() => getAuth()?.username || null);   // who is logged in (null = nobody)
+  useEffect(() => {
+    const on = () => setAuthName(getAuth()?.username || null);
+    window.addEventListener("acro-auth", on);
+    return () => window.removeEventListener("acro-auth", on);
+  }, []);
+  const onTrain = location.pathname.startsWith("/room/");
+  const station = useLobbyHub(onTrain ? null : authName);   // no name = not connected (on a train, or logged out)
   return (
+    <StationContext.Provider value={station}>
     <Routes>
       <Route path="/" element={<Lobby />} />
       <Route path="/log" element={<StationLog />} />
@@ -3765,5 +3785,6 @@ export default function App() {
       <Route path="/passenger/:name" element={<PassengerPage />} />
       <Route path="/room/:id" element={<Room />} />
     </Routes>
+    </StationContext.Provider>
   );
 }
