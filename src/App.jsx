@@ -214,19 +214,10 @@ function applyTheme(key) {
   // Two palettes: "--acro-logo" (accent fill: logo, titles, the timer) and "--acro-letters" (letters colour:
   // the big letters in Honk, and the timer's last 10 seconds). Outline + shadow = the box colour in both.
   const honkPalette = (name, fill) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[t.bgPanel, t.bgPanel, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  // Button palettes (Honk on buttons, Damon 2026-10-18): the text colour as fill, the button's own background
-  // as the outline colour, so Honk's inner lines look cut out of the letters (a palette can't use CSS variables,
-  // so each button colour gets its own palette, rebuilt here with the palette's real colours)
-  const honkOn = (name, fill, bg) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[bg, bg, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
   // The big letters in Honk: a lighter outline (Damon, 2026-10-18) — the box colour at 45% (hex alpha "73"),
   // so it reads as a soft shadow instead of a dark block
   const bigLetters = `@font-palette-values --acro-big { font-family: 'Honk'; override-colors: ${[t.bgPanel + "73", t.bgPanel + "73", t.brand, t.brand, t.brand, t.brand, t.brand, t.brand].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand), bigLetters,
-    honkOn("--acro-btn", t.onBrand, t.brand),            // main buttons (Submit, Send, + New Sky Train …)
-    honkOn("--acro-btn2", t.teal, t.navy2),              // quiet buttons (← Grand Sky Station, My Sky Pass …)
-    honkOn("--acro-btn-pm", t.lavender, t.navy2),        // Send in private chat
-    honkOn("--acro-btn-danger", "#FFF8F6", t.danger),    // Leave the station
-  ].join("\n");
+  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand), bigLetters].join("\n");
   try { localStorage.setItem("acro.theme", key); } catch { /* private mode: just not remembered */ }
   // Tells an open train page the palette changed, so it reports it to the server (palette stats, useSignalR.js)
   window.dispatchEvent(new CustomEvent("acro-theme", { detail: key }));
@@ -234,15 +225,15 @@ function applyTheme(key) {
 applyTheme(loadThemeKey());   // before the first render, so the page never flashes the wrong colours
 
 // ── Big letters font (Damon, 2026-10-18) ───────────────────────
-// Each player picks the font of the big letters (and the timer): Bowlby One SC (the original) or Honk (the
-// logo's font). Saved in the browser; picked in the Express Colors menu. Works through CSS variables on <html>,
+// Each player picks the font of the big letters (and the timer): Bowlby One SC (the original), Honk (the
+// logo's font) or Bungee (a sign-painter's font, added 2026-10-18 as a clearer third choice). Saved in the browser; picked in the Express Colors menu. Works through CSS variables on <html>,
 // so the letters and the timer change at once:
 //   --lf-family  font of the big letters      --lf-shadow  their shadow (Honk has its own, so none)
 //   --tf-family  font of the timer            --tf-weight  its weight
 //   --lf-scale / --lf-lh  size factor and line height of the big letters (Honk's capitals are smaller)
-const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk" };   // key → name shown in the menu
+const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", bungee: "Bungee" };   // key → name shown in the menu
 function loadLetterFont() {
-  try { return localStorage.getItem("acro.letterFont") === "honk" ? "honk" : "bowlby"; } catch { return "bowlby"; }
+  try { const k = localStorage.getItem("acro.letterFont"); return LETTER_FONTS[k] ? k : "bowlby"; } catch { return "bowlby"; }
 }
 function applyLetterFont(key) {
   const root = document.documentElement.style;
@@ -253,8 +244,13 @@ function applyLetterFont(key) {
     root.setProperty("--tf-weight", "400");   // Honk has one weight; bold would be faked and smudgy
     root.setProperty("--lf-scale", "1.4");    // Honk's capitals are smaller: 1.4× to look as big as Bowlby's
     root.setProperty("--lf-lh", "0.72");      // …in the same height (1 ÷ 1.4), so nothing below moves
-  } else {   // Bowlby: the original look (the variables are removed, so every style uses its own fallback)
+  } else {   // Bowlby (and the base for Bungee): the original look — the variables are removed, so every style uses its own fallback
     for (const v of ["--lf-family", "--lf-shadow", "--tf-family", "--tf-weight", "--lf-scale", "--lf-lh"]) root.removeProperty(v);
+    if (key === "bungee") {   // Bungee: same size and shadow as Bowlby; the timer in Bungee too
+      root.setProperty("--lf-family", "'Bungee', 'Bowlby One SC', serif");
+      root.setProperty("--tf-family", "'Bungee', " + NUM_FONT);
+      root.setProperty("--tf-weight", "400");   // Bungee has one weight
+    }
   }
   try { localStorage.setItem("acro.letterFont", key); } catch { /* private mode: just not remembered */ }
 }
@@ -349,7 +345,7 @@ function ThemePicker() {
               </button>
             );
           })}
-          {/* The big letters' font (and the timer's): Bowlby or Honk. Each button shows "B T V" in its own font */}
+          {/* The big letters' font (and the timer's): Bowlby, Honk or Bungee. Each button shows "B T V" in its own font */}
           <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 6px", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>Big letters</div>
           <div style={{ display: "flex", gap: 8 }}>
             {Object.entries(LETTER_FONTS).map(([key, name]) => {
@@ -357,9 +353,11 @@ function ThemePicker() {
               return (
                 <button key={key} onClick={() => { applyLetterFont(key); setLetterFont(key); }}
                   style={{ flex: 1, background: active ? C.navy3 : "transparent", border: `1px solid ${active ? C.teal : C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: big ? 16 : 14, padding: big ? "10px 6px" : "6px 6px" }}>
-                  <span style={key === "honk"
-                    ? { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "--acro-big", fontVariationSettings: "'SHLN' 0, 'MORF' 15" }
-                    : { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand }}>B T V</span>
+                  <span style={{
+                    honk: { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "--acro-big", fontVariationSettings: "'SHLN' 0, 'MORF' 15" },
+                    bowlby: { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand },
+                    bungee: { fontFamily: "'Bungee', serif", fontSize: 17, color: C.brand },
+                  }[key]}>B T V</span>
                   <div style={{ fontSize: 12, marginTop: 2, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</div>
                 </button>
               );
@@ -404,12 +402,9 @@ const Panel = ({ children, style = {}, className = "" }) => (
   </div>
 );
 
-// Buttons are written in Honk (Damon, 2026-10-18), no shadow. palette = the Honk colours for this button's
-// colours (made in applyTheme): main buttons "--acro-btn"; others pass their own.
-// fontSize 25: Honk's capitals are short, so it needs a much bigger size than the old 16 to read as large
-// (21 was still too small, Damon). lineHeight 1 keeps the buttons about as tall as before.
-const honkButton = { fontFamily: "'Honk', 'Nunito', sans-serif", fontWeight: 400, fontSize: 25, fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: 1 };
-const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, style = {}, disabled = false, palette = "--acro-btn" }) => {
+// Button text in Lilita One (2026-10-18: Honk was too small and blurry on buttons).
+const honkButton = { fontFamily: "'Lilita One', Fredoka, sans-serif", fontWeight: 400, fontSize: 18, lineHeight: 1.2, letterSpacing: "0.2px" };   // (name kept: used by Btn and BtnSecondary)
+const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, style = {}, disabled = false }) => {
   const [hovered, setHovered] = useState(false);
   return (
     <button
@@ -426,7 +421,7 @@ const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, st
         fontSize: 16,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
-        ...honkButton, fontPalette: palette,
+        ...honkButton,
         transition: "background 0.15s",
         ...style
       }}>
@@ -450,7 +445,7 @@ const BtnSecondary = ({ children, onClick, style = {} }) => {
         padding: "6px 14px",
         fontSize: 16,
         cursor: "pointer",
-        ...honkButton, fontPalette: "--acro-btn2",   // teal on the quiet button colour
+        ...honkButton,
         transition: "background 0.15s",
         ...style
       }}>
@@ -575,7 +570,7 @@ function PrivateChatPanel({ style = {}, listMaxHeight }) {
           onChange={e => setPmDraft(active, e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") send(); }}
         />
-        <Btn color={C.navy2} hoverColor={C.navy3} palette="--acro-btn-pm" style={{ color: C.lavender, border: `1px solid ${C.lavender}` }} onClick={send}>Send</Btn>
+        <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.lavender, border: `1px solid ${C.lavender}` }} onClick={send}>Send</Btn>
       </div>
     </Panel>
   );
@@ -740,10 +735,15 @@ function OnlineButton() {
 // (bgPanel), where the outline colour matches the background. Fredoka is the stand-in while Honk loads.
 const honkTitle = { fontFamily: "'Honk', Fredoka, sans-serif", fontWeight: 400, color: C.teal, fontPalette: "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15", lineHeight: 1.15 };
 
+// Smaller titles in Lilita One (2026-10-18): Honk is blurry below ~30 px, so it stays for the logo and the big
+// page titles; Lilita One is bold and playful too, and sharp when small. Its letters are taller than Honk's,
+// so sizes are a little smaller than they were in Honk.
+const smallTitle = { fontFamily: "'Lilita One', Fredoka, sans-serif", fontWeight: 400, color: C.teal, lineHeight: 1.15 };
+
 function RulesSection({ icon, title, children }) {
   return (
     <section style={{ marginBottom: 18 }}>
-      <h3 style={{ margin: "0 0 8px", fontSize: 27, ...honkTitle }}>
+      <h3 style={{ margin: "0 0 8px", fontSize: 22, ...smallTitle }}>
         {/* the emoji keeps the normal font (Honk has no emoji) */}
         <span aria-hidden style={{ marginRight: 8, fontFamily: "Fredoka, sans-serif" }}>{icon}</span>{title}
       </h3>
@@ -918,7 +918,7 @@ function LogEntryCard({ e, isAdmin, loggedIn, onRemoved }) {
   return (
     <Panel style={{ padding: "16px 20px", scrollMarginTop: 16 }}>
       <div id={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 27, ...honkTitle }}>{e.title}</h2>   {/* Honk, like How to ride (Damon, 2026-10-18) */}
+        <h2 style={{ margin: 0, fontSize: 22, ...smallTitle }}>{e.title}</h2>   {/* Lilita One, like the How to ride sections */}
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ color: C.textMuted, fontSize: 13 }}>{logDate(e.createdAtUtc)}</span>
           <button onClick={copyLink} style={small} title="Copy a link to this entry">{copied ? "Copied" : "Link"}</button>
@@ -1600,7 +1600,7 @@ function Lobby() {
 
         {auth && (
           <Panel style={{ padding: "16px 20px", marginBottom: 20, borderColor: C.teal }}>
-            <p style={{ margin: 0, fontSize: 24, ...honkTitle }}>Welcome to the Grand Sky Station of Acro Express</p>   {/* Honk (2026-10-18) */}
+            <p style={{ margin: 0, fontSize: 20, ...smallTitle }}>Welcome to the Grand Sky Station of Acro Express</p>   {/* Lilita One (2026-10-18) */}
             <p style={{ color: C.textSecond, fontSize: 15, margin: "4px 0 0" }}>
               Board a Sky Train, turn letters into lines, and ride to 30. New things arrive in the Station Log.
             </p>
@@ -1622,7 +1622,7 @@ function Lobby() {
           {auth ? (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)}>My Sky Pass</BtnSecondary>
-              <Btn onClick={doLogout} color={C.danger} hoverColor={C.dangerHover} palette="--acro-btn-danger" style={{ color: "#FFF8F6" }}>Leave the station</Btn>
+              <Btn onClick={doLogout} color={C.danger} hoverColor={C.dangerHover} style={{ color: "#FFF8F6" }}>Leave the station</Btn>
             </div>
           ) : (
             <>
@@ -1646,7 +1646,7 @@ function Lobby() {
 
         {auth && <Panel style={{ padding: 16, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h2 style={{ margin: 0, fontSize: 26, ...honkTitle }}>Departures</h2>   {/* Honk, like a station board (2026-10-18) */}
+            <h2 style={{ margin: 0, fontSize: 22, ...smallTitle }}>Departures</h2>   {/* Lilita One (2026-10-18) */}
             {!creating && <Btn onClick={() => setCreating(true)}>+ New Sky Train</Btn>}
           </div>
           {creating && (
@@ -2969,8 +2969,8 @@ function Room() {
     // marginTop: a little space under the Grand Sky Station button (Damon, 2026-10-18: too close)
     <div style={{ textAlign: align, maxWidth: 460, margin: align === "center" ? "0 auto" : "6px 0 0" }}>
       <span style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginRight: 8 }}>Topic</span>
-      {/* The topic in Honk (was Fredoka; Damon: a different font) */}
-      <span style={{ fontSize: isShort ? 22 : 27, ...honkTitle, overflowWrap: "anywhere" }}>{currentTopic}</span>
+      {/* The topic in Lilita One (was Fredoka, then Honk; Damon: a different font) */}
+      <span style={{ fontSize: isShort ? 19 : 23, ...smallTitle, overflowWrap: "anywhere" }}>{currentTopic}</span>
     </div>
   );
   // Who chooses the first topic: whoever started the Sky Train, or the first passenger on board if
@@ -3018,12 +3018,12 @@ function Room() {
           <h1 style={{ margin: 0, display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 10 }}>
             {/* Bigger on 2026-10-18 (Damon: too small) */}
             <span style={{ fontSize: isShort ? 30 : 34, ...honkTitle }}>Acro Express</span>
-            <span style={{ fontSize: isShort ? 22 : 26, ...honkTitle, color: C.ivory, fontPalette: "--acro-letters" }}>› {data.name || roomNameRef.current || "Sky Train"}</span>
+            <span style={{ fontSize: isShort ? 19 : 22, ...smallTitle, color: C.brand }}>› {data.name || roomNameRef.current || "Sky Train"}</span>
           </h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
-          {/* "Station 2 · Results", all in Honk (Damon, 2026-10-18). "First to 30 wins" was removed here
+          {/* "Station 2 · Results", in Lilita One (Damon, 2026-10-18). "First to 30 wins" was removed here
               (Damon: not necessary; How to ride still says it) */}
-          <div style={{ margin: "4px 0 0", fontSize: isShort ? 22 : 26, ...honkTitle }}>
+          <div style={{ margin: "4px 0 0", fontSize: isShort ? 19 : 22, ...smallTitle }}>
             {/* Rounds are stations: a game travels Station 0 → 1 → 2 … → Final Stop (round N = Station N) */}
             Station {headerStation}
             {/* What's happening now, in words (first step towards the "Departure Board" announcer) */}
@@ -3228,7 +3228,7 @@ function Room() {
               <div style={{ flex: 1, minWidth: 0, background: C.bgPanel, border: `2px solid ${C.teal}`, borderRadius: 10, padding: "8px 14px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 19, overflowWrap: "anywhere" }}>
                 {submittedAcro}
               </div>
-              <Btn color={C.navy2} hoverColor={C.navy3} palette="--acro-btn2" style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
+              <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
                 setMyDraft(submittedAcro);
                 setIsEditing(true);
                 // Pause tune 2 and unmute tune 1 when editing
@@ -3255,7 +3255,7 @@ function Room() {
                 }}
                 onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
               />
-              <Btn onClick={handleSubmitAcro} style={{ borderRadius: 10, fontSize: 28, padding: "0 18px" }}>{isEditing ? "Update" : "Submit"}</Btn>
+              <Btn onClick={handleSubmitAcro} style={{ borderRadius: 10, fontSize: 22, padding: "0 18px" }}>{isEditing ? "Update" : "Submit"}</Btn>
               {isEditing && <BtnSecondary onClick={() => { setIsEditing(false); setAcroError(""); saveDraft("", true); }}>Cancel</BtnSecondary>}
             </div>
           )}
