@@ -236,7 +236,8 @@ applyTheme(loadThemeKey());   // before the first render, so the page never flas
 // logo's font). Saved in the browser; picked in the Express Colors menu. Works through CSS variables on <html>,
 // so the letters and the timer change at once:
 //   --lf-family  font of the big letters      --lf-shadow  their shadow (Honk has its own, so none)
-//   --tf-family  font of the timer
+//   --tf-family  font of the timer            --tf-weight  its weight
+//   --lf-scale / --lf-lh  size factor and line height of the big letters (Honk's capitals are smaller)
 const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk" };   // key → name shown in the menu
 function loadLetterFont() {
   try { return localStorage.getItem("acro.letterFont") === "honk" ? "honk" : "bowlby"; } catch { return "bowlby"; }
@@ -248,8 +249,10 @@ function applyLetterFont(key) {
     root.setProperty("--lf-shadow", "none");
     root.setProperty("--tf-family", "'Honk', " + NUM_FONT);
     root.setProperty("--tf-weight", "400");   // Honk has one weight; bold would be faked and smudgy
+    root.setProperty("--lf-scale", "1.4");    // Honk's capitals are smaller: 1.4× to look as big as Bowlby's
+    root.setProperty("--lf-lh", "0.72");      // …in the same height (1 ÷ 1.4), so nothing below moves
   } else {   // Bowlby: the original look (the variables are removed, so every style uses its own fallback)
-    root.removeProperty("--lf-family"); root.removeProperty("--lf-shadow"); root.removeProperty("--tf-family"); root.removeProperty("--tf-weight");
+    for (const v of ["--lf-family", "--lf-shadow", "--tf-family", "--tf-weight", "--lf-scale", "--lf-lh"]) root.removeProperty(v);
   }
   try { localStorage.setItem("acro.letterFont", key); } catch { /* private mode: just not remembered */ }
 }
@@ -3004,21 +3007,18 @@ function Room() {
               full (menus, Grand Sky Station, the topic). Same line, so the stage below doesn't move.
               The name is in the logo font with the "letters" colours, so the two are told apart */}
           <h1 style={{ margin: 0, display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 10 }}>
-            <span style={{ fontSize: isShort ? 22 : 26, ...honkTitle }}>Acro Express</span>
-            <span style={{ fontSize: isShort ? 18 : 21, ...honkTitle, color: C.ivory, fontPalette: "--acro-letters" }}>› {data.name || roomNameRef.current || "Sky Train"}</span>
+            {/* Bigger on 2026-10-18 (Damon: too small) */}
+            <span style={{ fontSize: isShort ? 30 : 34, ...honkTitle }}>Acro Express</span>
+            <span style={{ fontSize: isShort ? 22 : 26, ...honkTitle, color: C.ivory, fontPalette: "--acro-letters" }}>› {data.name || roomNameRef.current || "Sky Train"}</span>
           </h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
-          <div style={{ margin: "4px 0 0", fontSize: 15, color: C.textMuted }}>
+          {/* "Station 2 · Results", all in Honk (Damon, 2026-10-18). "First to 30 wins" was removed here
+              (Damon: not necessary; How to ride still says it) */}
+          <div style={{ margin: "4px 0 0", fontSize: isShort ? 22 : 26, ...honkTitle }}>
             {/* Rounds are stations: a game travels Station 0 → 1 → 2 … → Final Stop (round N = Station N) */}
-            Station <span style={{ color: C.teal, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", fontSize: 28, fontWeight: 700 }}>{headerStation}</span>
+            Station {headerStation}
             {/* What's happening now, in words (first step towards the "Departure Board" announcer) */}
-            {" · "}<span style={{ fontSize: 20, ...honkTitle }}>{phaseTitle}</span>   {/* Honk (2026-10-18) */}
-            {/* What wins the game (the number comes from the server); hidden on the winner screen */}
-            {phase !== "GameOver" && (
-              <span style={{ color: C.textMuted, fontSize: 14, marginLeft: 10, whiteSpace: "nowrap" }}>
-                First to <span style={{ fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{data.winScore || 30}</span> wins
-              </span>
-            )}
+            {" · "}{phaseTitle}
             {/* The timer moved to the centre, above the letters */}
           </div>
         </div>
@@ -3188,8 +3188,11 @@ function Room() {
             {letters.map((l, i) => (
               <span key={i} style={{
                 fontFamily: "var(--lf-family, 'Bowlby One SC', serif)",   // the player's choice: Bowlby (default) or Honk
-                fontSize: letterSize, // smaller on short laptop screens (even smaller on short windows)
-                lineHeight: 1,
+                // smaller on short laptop screens (even smaller on short windows). Honk's capitals are smaller than
+                // Bowlby's, so with Honk the size is ×1.4 (--lf-scale) and the line height ÷1.4 (--lf-lh): the
+                // letters look as big as Bowlby's while taking the same height, so the acro box doesn't move
+                fontSize: `calc(${letterSize} * var(--lf-scale, 1))`,
+                lineHeight: "var(--lf-lh, 1)",
                 color: C.brand,
                 fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 41, 'MORF' 15",   // only used by Honk
                 textShadow: "var(--lf-shadow, var(--c-letterShadow))",   // per palette: softer on the light ones; none with Honk (it has its own)
