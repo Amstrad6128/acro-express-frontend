@@ -26,7 +26,7 @@ function rainPattern(opacity) {
 const THEMES = {
   midnight: {  // Midnight — the original night ride. 2026-10-16: stronger rain, brighter quiet text and
                // dark text on the coral buttons (white on coral was only 2.9:1) — Damon kept it as the default
-    name: "Midnight",
+    name: "Midnight", logoColor: "#FF7A6B",   // the logo in the button colour (Damon, 2026-10-18); the rest of Midnight unchanged
     bgApp: "#070b14", bgPanel: "#151D33", bgPanel2: "#1C2540", border: "#2F3D63",
     textPrimary: "#F5F6FA", textSecond: "#D3D9E8", textMuted: "#AEB8D2",
     brand: "#FF7A6B", brandHover: "#FF8E80", onBrand: "#1A0E0C",
@@ -252,7 +252,9 @@ function applyTheme(key) {
   // as the outline colour, so Honk's inner lines look cut out of the letters (a palette can't use CSS variables,
   // so each button colour gets its own palette, rebuilt here with the palette's real colours)
   const honkOn = (name, fill, bg) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[bg, bg, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand), honkPalette("--acro-gold", t.gold || "#FFD24A"),
+  // "--acro-mark" = the logo itself: the palette's logoColor if it has one (Midnight), otherwise the accent
+  root.style.setProperty("--c-logo", t.logoColor || t.teal);
+  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-mark", t.logoColor || t.teal), honkPalette("--acro-letters", t.brand), honkPalette("--acro-gold", t.gold || "#FFD24A"),
     honkOn("--acro-btn", t.onBrand, t.brand),            // main buttons (Submit, Send, + New Sky Train …)
     honkOn("--acro-btn2", t.teal, t.navy2),              // quiet buttons (← Grand Sky Station, My Sky Passport …)
     honkOn("--acro-btn-pm", t.lavender, t.navy2),        // Send in private chat
@@ -1863,7 +1865,7 @@ function Lobby() {
     <div style={{ height: "100vh", overflowY: fits ? "hidden" : "auto", overflowX: "hidden", color: C.textPrimary, display: "flex", flexDirection: "column" }}>
       {/* Header: the logo, then the menus (on phones the menus go under the logo) */}
       <div style={{ flexShrink: 0, borderBottom: `1px solid ${C.border}`, padding: phone ? "10px 16px" : "10px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 8, columnGap: shortWin ? 20 : 16 }}>
-        <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : (shortWin ? 40 : 46), fontWeight: 400, margin: 0, lineHeight: 1.05, color: C.teal, fontPalette: "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
+        <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : (shortWin ? 40 : 46), fontWeight: 400, margin: 0, lineHeight: 1.05, color: "var(--c-logo)", fontPalette: "--acro-mark", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
           Acro Express<sup style={{ fontFamily: "'Nunito', sans-serif", fontSize: 12, color: "var(--c-bgText)", marginLeft: 3, verticalAlign: "super" }}>™</sup>
         </h1>
         {/* Short windows: the greeting and your buttons sit here, next to the logo, instead of in their own bar */}
@@ -3376,7 +3378,7 @@ function Room() {
               The name is in the logo font with the "letters" colours, so the two are told apart */}
           <h1 style={{ margin: 0, display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 10 }}>
             {/* Bigger on 2026-10-18 (Damon: too small) */}
-            <span style={{ fontSize: isShort ? 30 : 34, ...honkTitle }}>Acro Express</span>
+            <span style={{ fontSize: isShort ? 30 : 34, ...honkTitle, color: "var(--c-logo)", fontPalette: "--acro-mark" }}>Acro Express</span>
             <span style={{ fontSize: isShort ? 24 : 28, ...smallTitle, color: C.brand, fontPalette: "--acro-letters" }}>› {data.name || roomNameRef.current || "Sky Train"}</span>
           </h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
