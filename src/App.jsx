@@ -41,8 +41,8 @@ const THEMES = {
   // 2026-10-18: Notebook, Blueprint, Marigold and Paper Ticket retired (Damon); saved choices move on in loadThemeKey.
   // Names are times of the day (Damon), except Neon and Phosphor. The keys (e.g. "sakura") stay as they were,
   // so players' saved choices and the palette stats keep working; only the names shown changed.
-  ember: {  // Ember — a campfire at night: charcoal, orange flame, golden names, a few drifting sparks
-    name: "Ember",
+  ember: {  // Last Light (was Ember, renamed 2026-10-18) — the last glow of a campfire at night: charcoal, orange flame, golden names, a few drifting sparks
+    name: "Last Light",
     bgApp: "#1C1410", bgPanel: "#2A1D16", bgPanel2: "#33241B", border: "#5A3A28",
     textPrimary: "#FBEEE0", textSecond: "#E8D5C2", textMuted: "#C9AD94",
     brand: "#FF8A3D", brandHover: "#FF9E5C", onBrand: "#1C1410",
@@ -149,8 +149,8 @@ const THEMES = {
     danger: "#A8455A", dangerHover: "#BC566B",
     fieldLine: "#6E5C96", focusLine: "#8FE3D4",
   },
-  overcast: {  // Overcast — a soft slate-grey day, charcoal boxes, yellow letters (no gradient)
-    name: "Overcast",
+  overcast: {  // Grey Morning (was Overcast, renamed 2026-10-18) — a soft slate-grey morning, charcoal boxes, yellow letters (no gradient)
+    name: "Grey Morning",
     bgApp: "#56636F", bgPanel: "#263039", bgPanel2: "#2E3944", border: "#5A6A7A",
     textPrimary: "#F4F6F8", textSecond: "#DCE2E8", textMuted: "#B4BEC8", bgText: "#F4F6F8",
     brand: "#F2C94C", brandHover: "#F6D670", onBrand: "#263039",
@@ -1637,7 +1637,7 @@ function Lobby() {
 
         {auth && (
           <Panel style={{ padding: "16px 20px", marginBottom: 20, borderColor: C.teal }}>
-            <p style={{ margin: 0, fontSize: 26, ...smallTitle }}>Welcome to the Grand Sky Station of Acro Express</p>   {/* Honk (2026-10-18) */}
+            <p style={{ margin: 0, fontSize: 30, ...smallTitle }}>Welcome to the Grand Sky Station of Acro Express</p>   {/* Honk, as big as Departures (2026-10-18) */}
             <p style={{ color: C.textSecond, fontSize: 15, margin: "4px 0 0" }}>
               Board a Sky Train, turn letters into lines, and ride to 30. New things arrive in the Station Log.
             </p>
