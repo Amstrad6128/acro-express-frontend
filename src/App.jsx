@@ -252,7 +252,7 @@ function applyTheme(key) {
   const honkOn = (name, fill, bg) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[bg, bg, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
   logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand),
     honkOn("--acro-btn", t.onBrand, t.brand),            // main buttons (Submit, Send, + New Sky Train …)
-    honkOn("--acro-btn2", t.teal, t.navy2),              // quiet buttons (← Grand Sky Station, My Sky Pass …)
+    honkOn("--acro-btn2", t.teal, t.navy2),              // quiet buttons (← Grand Sky Station, My Sky Passport …)
     honkOn("--acro-btn-pm", t.lavender, t.navy2),        // Send in private chat
     honkOn("--acro-btn-danger", "#FFF8F6", t.danger),    // Leave the station
   ].join("\n");
@@ -691,16 +691,14 @@ function RestartBanner() {
   );
 }
 
-// A player's name you can click to message them privately (your own name isn't clickable).
-// Used in Grand Sky Station Chat, Sky Train Chat and Departures (Damon: every name you see is one click from a chat).
-// profile: at the Grand Sky Station the name opens the Sky Pass card instead (not during a journey).
-function NameLink({ name, style, profile = false }) {
-  const me = getAuth()?.username;
-  const isMe = !name || String(name).toLowerCase() === String(me).toLowerCase();
-  if (isMe && !profile) return <span style={style}>{name}</span>;
-  const go = () => (profile ? openProfile(name) : openPm(name));
+// A player's name you can click. One rule everywhere (Damon asked for it clear, 2026-10-18; like Discord, Slack
+// and Twitch): a click opens the player's Sky Passport card, whose main button is Message. Kicking is never a
+// click: only "/kp name" in Sky Train Chat. ("profile" is kept for older calls; it no longer changes anything.)
+function NameLink({ name, style }) {
+  if (!name) return <span style={style}>{name}</span>;
+  const go = () => openProfile(name);
   return (
-    <span role="button" tabIndex={0} title={profile ? `${name}'s Sky Pass` : `Message ${name}`}
+    <span role="button" tabIndex={0} title={`${name}: Sky Passport and Message`}
       onClick={e => { e.stopPropagation(); go(); }}
       onKeyDown={e => { if (e.key === "Enter") go(); }}
       style={{ cursor: "pointer", ...style }}>{name}</span>
@@ -1197,16 +1195,16 @@ function HouseRules() {
           <li>No hate, threats or harassment, in acros, chat or private messages.</li>
           <li>Keep personal details private, yours and everyone else's: no addresses, phone numbers or photos.</li>
           <li>No spam, no advertising, no pretending to be someone else.</li>
-          <li>One Sky Pass per person. Don't use bots or tricks to win.</li>
+          <li>One Sky Passport per person. Don't use bots or tricks to win.</li>
         </ul>
       </RulesSection>
       <RulesSection icon="🚦" title="When someone breaks the rules">
-        Passengers can vote someone off a train. The admin can remove messages, comments and Sky Passes that break
+        Passengers can vote someone off a train. The admin can remove messages, comments and Sky Passports that break
         these rules, and can block a passenger from the game.
       </RulesSection>
       <RulesSection icon="✍️" title="Your acros">
         Your acros are yours. By playing, you let Acro Express show them in the game: in the results, on your
-        Sky Pass, in the Station Log, and in future features such as a Hall of Fame.
+        Sky Passport, in the Station Log, and in future features such as a Hall of Fame.
       </RulesSection>
       <RulesSection icon="™️" title="The name and the look">
         Acro Express, its logo, pictures, music and code belong to Acro Express. Acro Express is an independent
@@ -1229,8 +1227,8 @@ function Privacy() {
     <LegalPage title="Privacy" intro="What we keep about you, why, and for how long. Short version: only what the game needs.">
       <RulesSection icon="🧳" title="What we keep">
         <ul style={rulesList}>
-          <li><b style={{ color: C.textPrimary }}>Your Sky Pass:</b> your passenger name and your password, stored scrambled (hashed) so nobody can read it, not even us.</li>
-          <li><b style={{ color: C.textPrimary }}>Your game:</b> your acros, votes, points and stations, for your Sky Pass stats; acros that weren't accepted, to improve the rules; which colours you play with.</li>
+          <li><b style={{ color: C.textPrimary }}>Your Sky Passport:</b> your passenger name and your password, stored scrambled (hashed) so nobody can read it, not even us.</li>
+          <li><b style={{ color: C.textPrimary }}>Your game:</b> your acros, votes, points and stations, for your Sky Passport stats; acros that weren't accepted, to improve the rules; which colours you play with.</li>
           <li><b style={{ color: C.textPrimary }}>Your messages:</b> see "Chats" below; Station Log comments and reactions.</li>
           <li><b style={{ color: C.textPrimary }}>Your login:</b> a login code (stored scrambled) that keeps you signed in for 30 days.</li>
         </ul>
@@ -1255,7 +1253,7 @@ function Privacy() {
         and open chats in its own storage, on your device only. All fonts come from our own site.
       </RulesSection>
       <RulesSection icon="🔑" title="Your rights">
-        You can ask to see the data we have about you, to correct it, or to delete your Sky Pass. Send a private
+        You can ask to see the data we have about you, to correct it, or to delete your Sky Passport. Send a private
         message to {ADMIN_NAME}. If you live in the EU, you can also contact your data protection authority.
       </RulesSection>
     </LegalPage>
@@ -1280,7 +1278,7 @@ function StationLogButton() {
   );
 }
 
-// ── Sky Pass (player profiles) ─────────────────────────────────
+// ── Sky Passport (player profiles) ─────────────────────────────────
 // Built from the stats recorded since 2026-10-12. Quick card at the Grand Sky Station (click a name),
 // full page at /passenger/<name>. No avatar for now (Damon, 2026-10-16). Not on trains: during a
 // journey a name opens a private chat / the passenger menu instead.
@@ -1325,8 +1323,8 @@ function PassHeader({ p, big }) {
   );
 }
 
-// Quick card — opens over the lobby when a name is clicked
-function PassengerCard() {
+// Quick card — opens when a name is clicked (station and trains). inTrain: no button that leaves the train
+function PassengerCard({ inTrain = false }) {
   const navigate = useNavigate();
   const [name, setName] = useState(null);
   const [p, setP] = useState(null);
@@ -1338,7 +1336,7 @@ function PassengerCard() {
   }, []);
   useEffect(() => {
     if (!name) return;
-    fetchPassenger(name).then(setP).catch(e => setErr(String(e.message || "").replace(/^\d{3}:\s*/, "") || "Couldn't load the Sky Pass."));
+    fetchPassenger(name).then(setP).catch(e => setErr(String(e.message || "").replace(/^\d{3}:\s*/, "") || "Couldn't load the Sky Passport."));
     const onKey = e => { if (e.key === "Escape") setName(null); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -1348,7 +1346,7 @@ function PassengerCard() {
   return (
     <div onPointerDown={e => { if (e.target === e.currentTarget) setName(null); }}
       style={{ position: "fixed", inset: 0, zIndex: 88, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "10vh 16px", boxSizing: "border-box" }}>
-      <div role="dialog" aria-label={`Sky Pass of ${name}`} style={{ background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: "min(400px, 100%)", padding: 18, boxShadow: "0 16px 48px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div role="dialog" aria-label={`Sky Passport of ${name}`} style={{ background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: "min(400px, 100%)", padding: 18, boxShadow: "0 16px 48px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
           {p ? <PassHeader p={p} /> : <div style={{ color: C.textMuted }}>{err || "Loading…"}</div>}
           <button onClick={() => setName(null)} aria-label="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 20 }}>✕</button>
@@ -1365,7 +1363,7 @@ function PassengerCard() {
               : <div style={{ fontSize: 14, color: C.textMuted }}>No votes yet — the best acro shows here.</div>}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {!me && <Btn onClick={() => { openPm(p.name); setName(null); }}>✉ Message</Btn>}
-              <BtnSecondary onClick={() => { setName(null); navigate(`/passenger/${encodeURIComponent(p.name)}`); }}>Full Sky Pass →</BtnSecondary>
+              {!inTrain && <BtnSecondary onClick={() => { setName(null); navigate(`/passenger/${encodeURIComponent(p.name)}`); }}>Open Sky Passport →</BtnSecondary>}
             </div>
           </>
         )}
@@ -1384,8 +1382,8 @@ function PassengerPage() {
   const [found, setFound] = useState([]);
   useEffect(() => {
     setP(null); setErr("");
-    if (!getAuth()?.token) { setErr("Log in at the Grand Sky Station to see Sky Passes."); return; }
-    fetchPassenger(name).then(setP).catch(e => setErr(String(e.message || "").replace(/^\d{3}:\s*/, "") || "Couldn't load the Sky Pass."));
+    if (!getAuth()?.token) { setErr("Log in at the Grand Sky Station to see Sky Passports."); return; }
+    fetchPassenger(name).then(setP).catch(e => setErr(String(e.message || "").replace(/^\d{3}:\s*/, "") || "Couldn't load the Sky Passport."));
   }, [name]);
   useEffect(() => {
     if (!q.trim()) { setFound([]); return; }
@@ -1398,7 +1396,7 @@ function PassengerPage() {
     <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "24px 16px 48px", boxSizing: "border-box" }}>
       <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Sky Pass</div>
+          <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Sky Passport</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", position: "relative" }}>
             <input id="passengerSearch" value={q} onChange={e => setQ(e.target.value)} placeholder="Find a passenger"
               style={{ width: 200, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
@@ -1486,7 +1484,7 @@ function PassengerPage() {
 // ── Lobby ──────────────────────────────────────────────────────
 function Lobby() {
   const [status, setStatus] = useState("");   // "ok" / "down" once checked
-  const [myPass, setMyPass] = useState(null);   // my Sky Pass, for the line under the greeting
+  const [myPass, setMyPass] = useState(null);   // my Sky Passport, for the line under the greeting
   const [roomList, setRoomList] = useState([]);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -1548,7 +1546,7 @@ function Lobby() {
     setAuth(null);
   }
 
-  // My Sky Pass for the greeting ("Level · stations won"); quietly left out if it can't be loaded
+  // My Sky Passport for the greeting ("Level · stations won"); quietly left out if it can't be loaded
   useEffect(() => {
     if (!auth?.username) { setMyPass(null); return; }
     fetchPassenger(auth.username).then(setMyPass).catch(() => setMyPass(null));
@@ -1607,7 +1605,10 @@ function Lobby() {
     } catch (e) { setCreateError(`Couldn't start the Sky Train: ${String(e.message).replace(/^\d+:\s*/, "")}`); }   // without "409:"
   }
 
-  // ── Grand Sky Station layout, v2 (Damon, 2026-10-18, after his example picture) ──
+  // ── Grand Sky Station layout, v3 (Damon, 2026-10-18, after his example picture) ──
+  // v3: one welcome bar (greeting + My Sky Passport + Leave the station); New Sky Train lives inside the board
+  // (the first free platform row); "On the platform" 240px; 8px gaps; a name click always opens the Sky
+  // Passport card (Message is its main button) — no separate ✉ shortcut.
   // Desktop: fills the window exactly, no page scrollbar. Order: header (logo + menus) → welcome strip →
   // "On the platform" (left) + Grand Sky Station Chat (right), which get all the height that is left →
   // Departures board (always 3 rows: free platforms fill the empty ones) → footer line.
@@ -1630,9 +1631,10 @@ function Lobby() {
   const sendLobby = () => { if (chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } };   // Enter or Send
   const boxTitle = { margin: 0, fontSize: 24, ...smallTitle, display: "flex", alignItems: "center", gap: 10 };   // Honk box titles
   const smallBtn = { fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, lineHeight: 1.2, padding: "8px 16px", letterSpacing: 0, display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" };
-  // Departures: the trains, then free platforms so the board always shows 3 rows
+  // Departures: the trains, then free platforms so the board always shows 3 rows — and always at least one
+  // free platform, the row where you start a new Sky Train
   const used = new Set(roomList.map(r => r.platform));
-  const freeNumbers = []; for (let n = 1; freeNumbers.length < Math.max(0, 3 - roomList.length); n++) if (!used.has(n)) freeNumbers.push(n);
+  const freeNumbers = []; for (let n = 1; freeNumbers.length < Math.max(1, 3 - roomList.length); n++) if (!used.has(n)) freeNumbers.push(n);
   const boardCols = "76px minmax(0, 2.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) 132px";   // platform · train · aboard · status · button
 
   return (
@@ -1650,7 +1652,7 @@ function Lobby() {
         </div>
       </div>
 
-      <div style={{ flex: fits ? 1 : "none", minHeight: 0, width: "100%", maxWidth: 1400, margin: "0 auto", boxSizing: "border-box", padding: phone ? "12px 12px 0" : "12px 20px 0", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ flex: fits ? 1 : "none", minHeight: 0, width: "100%", maxWidth: 1400, margin: "0 auto", boxSizing: "border-box", padding: phone ? "8px 10px 0" : "8px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
 
         {/* Not signed in: the sign-in box */}
         {!auth && (
@@ -1661,29 +1663,20 @@ function Lobby() {
               <Input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} style={{ textAlign: "left" }} />
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <Btn onClick={doRegister} style={smallBtn}>Get your Sky Pass</Btn>
+              <Btn onClick={doRegister} style={smallBtn}>Get your Sky Passport</Btn>
               <BtnSecondary onClick={doLogin} style={smallBtn}>Log in</BtnSecondary>
             </div>
           </Panel>
         )}
 
-        {/* Welcome strip: a word of welcome (left); you, your Sky Pass and leaving (right) */}
+        {/* Welcome bar (one box, Damon): the greeting; your Sky Passport and leaving on the right */}
         {auth && (
-          <div style={{ flexShrink: 0, display: "grid", gap: 12, gridTemplateColumns: phone ? "minmax(0, 1fr)" : "minmax(0, 1fr) auto" }}>
-            <Panel style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 14 }}>
-              <IconBadge><Icon name="train" /></IconBadge>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>Welcome aboard Acro Express.</div>
-                <div style={{ fontSize: 14, color: C.textSecond }}>Board a Sky Train, turn letters into lines, and ride to 30. New things arrive in the Station Log.</div>
-              </div>
-            </Panel>
-            <Panel style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-              <IconBadge><Icon name="user" /></IconBadge>
-              <div style={{ fontSize: 15 }}>{greeting("")}<b style={{ color: C.teal }}>{auth.username}</b></div>
-              <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)} style={smallBtn}><Icon name="ticket" size={18} /> Sky Pass</BtnSecondary>
-              <button onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4 }}>Leave the station</button>
-            </Panel>
-          </div>
+          <Panel style={{ flexShrink: 0, padding: "8px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <IconBadge><Icon name="user" /></IconBadge>
+            <div style={{ fontSize: 16, flex: 1, minWidth: 160 }}>{greeting("")}<b style={{ color: C.teal }}>{auth.username}</b></div>
+            <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)} style={smallBtn}><Icon name="ticket" size={18} /> My Sky Passport</BtnSecondary>
+            <button onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4 }}>Leave the station</button>
+          </Panel>
         )}
 
         {/* Heroku's daily restart, announced (shown from 15 minutes before the expected window) */}
@@ -1694,12 +1687,12 @@ function Lobby() {
         {/* Who's here (left) and the chat (right); private chats on the right when open.
             Desktop: takes all the height that's left. Phones: the chat first, then the list */}
         {auth && (
-          <div style={{ flex: fits ? 1 : "none", minHeight: 0, display: "grid", gap: 12, height: fits ? undefined : (phone ? undefined : 440),
-            gridTemplateColumns: phone ? "minmax(0, 1fr)" : (pm.active ? "300px minmax(0, 1.6fr) minmax(0, 1fr)" : "300px minmax(0, 1fr)") }}>
+          <div style={{ flex: fits ? 1 : "none", minHeight: 0, display: "grid", gap: 8, height: fits ? undefined : (phone ? undefined : 440),
+            gridTemplateColumns: phone ? "minmax(0, 1fr)" : (pm.active ? "240px minmax(0, 1.6fr) minmax(0, 1fr)" : "240px minmax(0, 1fr)") }}>
             <Panel style={{ padding: 14, display: "flex", flexDirection: "column", minHeight: 0, order: phone ? 2 : 0 }}>
               {/* Phones: tap the title to fold the list away */}
-              <h2 onClick={phone ? () => setListOpen(o => !o) : undefined} style={{ ...boxTitle, marginBottom: phone && !listOpen ? 0 : 8, cursor: phone ? "pointer" : "default" }}>
-                <Icon name="users" size={24} color={C.teal} /> On the platform ({online.length})
+              <h2 onClick={phone ? () => setListOpen(o => !o) : undefined} style={{ ...boxTitle, fontSize: phone ? 24 : 20, whiteSpace: "nowrap", marginBottom: phone && !listOpen ? 0 : 8, cursor: phone ? "pointer" : "default" }}>
+                <Icon name="users" size={20} color={C.teal} /> On the platform ({online.length})
                 {phone && <span style={{ marginLeft: "auto", fontFamily: "'Nunito', sans-serif", fontSize: 18, color: C.textMuted }}>{listOpen ? "▴" : "▾"}</span>}
               </h2>
               {phone && !listOpen ? null : (
@@ -1707,8 +1700,8 @@ function Lobby() {
                   {online.map(o => {
                     const isMe = String(o.name).toLowerCase() === String(auth?.username).toLowerCase();
                     return (
-                      // The row opens the player's Sky Pass card (it has a Message button); ✉ messages straight away
-                      <li key={o.name} onClick={() => openProfile(o.name)} title={`${o.name}'s Sky Pass`}
+                      // One rule everywhere: a click opens the player's Sky Passport card; Message is its main button
+                      <li key={o.name} onClick={() => openProfile(o.name)} title={`${o.name}: Sky Passport and Message`}
                         style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: isMe ? C.navy2 : "transparent", cursor: "pointer" }}>
                         <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.success, flexShrink: 0 }} />
                         <AvatarSquare name={o.name} size={32} />
@@ -1718,9 +1711,8 @@ function Lobby() {
                           </div>
                           <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Online · {o.where}</div>
                         </div>
+                        {/* Unread private messages from them */}
                         {(pm.unread[o.name] || 0) > 0 && <span style={{ background: C.brand, color: C.onBrand, fontSize: 11, borderRadius: 999, padding: "1px 6px" }}>{pm.unread[o.name]}</span>}
-                        {!isMe && <span role="button" tabIndex={0} title={`Message ${o.name}`} onClick={e => { e.stopPropagation(); openPm(o.name); }}
-                          style={{ color: C.lavender, fontSize: 15, padding: "0 4px", cursor: "pointer" }}>✉</span>}
                       </li>
                     );
                   })}
@@ -1768,29 +1760,15 @@ function Lobby() {
         {/* Departures board, under the chat (Damon): always 3 rows — free platforms fill the empty ones */}
         {auth && (
           <Panel style={{ flexShrink: 0, padding: "12px 14px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <Icon name="train" size={34} color={C.teal} />
-                <div>
-                  <h2 style={{ ...boxTitle, fontSize: 26 }}>Departures</h2>
-                  <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}</div>
-                </div>
+            {/* Title only: starting a train happens in the board itself, on the first free platform (Damon:
+                "New Sky Train and Start one should be one thing") */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+              <Icon name="train" size={30} color={C.teal} />
+              <div>
+                <h2 style={{ ...boxTitle, fontSize: 26 }}>Departures</h2>
+                <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}</div>
               </div>
-              {!creating && <Btn onClick={() => setCreating(true)} style={smallBtn}><span style={{ fontSize: 18, lineHeight: 1 }}>+</span> New Sky Train</Btn>}
             </div>
-            {creating && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input autoFocus maxLength={80} placeholder="Name your Sky Train..." value={newRoomName}
-                    onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
-                    onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
-                    style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
-                  <Btn onClick={handleCreate} style={smallBtn}>Create</Btn>
-                  <BtnSecondary onClick={cancelCreate} style={smallBtn}>Cancel</BtnSecondary>
-                </div>
-                {createError && <p style={{ margin: "6px 0 0", fontSize: 14, color: C.brand }}>{createError}</p>}
-              </div>
-            )}
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
               {/* Column titles (not on phones: rows stack there) */}
               {!phone && (
@@ -1834,18 +1812,44 @@ function Lobby() {
                     </div>
                   );
                 })}
-                {/* Free platforms: quiet rows that invite you to start a train there */}
-                {freeNumbers.map(n => (
-                  <div key={`free-${n}`} style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`, opacity: 0.6,
-                    gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
-                    <PlatformBox n={n} free />
-                    <div style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform · waiting for a Sky Train</div>
-                    {!phone && <span />}{!phone && <span />}
-                    {!phone && (!creating
-                      ? <BtnSecondary onClick={() => setCreating(true)} style={{ ...smallBtn, justifyContent: "center" }}>+ Start one</BtnSecondary>
-                      : <span />)}
-                  </div>
-                ))}
+                {/* Free platforms. The first one is where you start a new Sky Train: its button opens the name
+                    box right in the row. The others are quiet placeholders, so the board always has 3 rows */}
+                {freeNumbers.map((n, i) => {
+                  const rowStyle = { display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
+                    gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols };
+                  if (i > 0) return (
+                    <div key={`free-${n}`} style={{ ...rowStyle, opacity: 0.5 }}>
+                      <PlatformBox n={n} free />
+                      <div style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform</div>
+                    </div>
+                  );
+                  return (
+                    <div key={`free-${n}`} style={{ ...rowStyle, gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : "76px minmax(0, 1fr) auto" }}>
+                      <PlatformBox n={n} free />
+                      {creating ? (
+                        // Naming the new train, right here on its platform
+                        <div style={{ gridColumn: phone ? "2" : "2 / 4", minWidth: 0 }}>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <input autoFocus maxLength={80} placeholder="Name your Sky Train..." value={newRoomName}
+                              onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
+                              onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
+                              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
+                            <Btn onClick={handleCreate} style={smallBtn}>Create</Btn>
+                            <BtnSecondary onClick={cancelCreate} style={smallBtn}>Cancel</BtnSecondary>
+                          </div>
+                          {createError && <div style={{ marginTop: 4, fontSize: 13, color: C.brand }}>{createError}</div>}
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform · start your own Sky Train here</div>
+                          <Btn onClick={() => setCreating(true)} style={{ ...smallBtn, justifyContent: "center", gridColumn: phone ? "2" : undefined, justifySelf: phone ? "start" : undefined }}>
+                            <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> New Sky Train
+                          </Btn>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </Panel>
@@ -1854,6 +1858,7 @@ function Lobby() {
         <Footer compact />   {/* © + House Rules + Privacy, a plain line under the station */}
         <PmToast />
         <RestartBanner />
+        <PassengerCard inTrain />   {/* the card a name click opens, without a link that leaves the train */}
         <PassengerCard />
       </div>
     </div>
@@ -3446,11 +3451,11 @@ function Room() {
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
               {[...players].sort((a, b) => shownScore(b) - shownScore(a)).map(p => (
                 <li key={p.id}
-                  title={p.id !== auth?.userId ? `Message ${p.nickname}` : undefined}
+                  title={`${p.nickname}: Sky Passport and Message`}
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
-                  // One click opens a private message with them. Kicking is never mixed in here (Damon,
-                  // 2026-10-18): it is only "/kp name" (or "/kick name") in Sky Train Chat
-                  onClick={() => { if (p.id !== auth?.userId) openPm(p.nickname); }}>
+                  // One click opens their Sky Passport card (Message is its main button), like everywhere else.
+                  // Kicking is never mixed in here (Damon, 2026-10-18): only "/kp name" in Sky Train Chat
+                  onClick={() => openProfile(p.nickname)}>
                   {/* Left side: a fixed tick column, then the name — the ✓ sits outside the name in its own
                       16px column, so names never move when someone submits (Damon's request) */}
                   <span style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
