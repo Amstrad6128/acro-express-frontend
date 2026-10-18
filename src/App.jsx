@@ -218,7 +218,12 @@ function applyTheme(key) {
   // as the outline colour, so Honk's inner lines look cut out of the letters (a palette can't use CSS variables,
   // so each button colour gets its own palette, rebuilt here with the palette's real colours)
   const honkOn = (name, fill, bg) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[bg, bg, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand),
+  // The big letters in Honk: outline in the page's background colour (Damon), so Honk's outline and the square
+  // behind each letter disappear into the page. The sky colour = the first colour of the palette's gradient
+  // (the top of the page, where the letters are), otherwise bgApp.
+  const sky = (t.bgGradient && t.bgGradient.match(/#[0-9A-Fa-f]{6}/)?.[0]) || t.bgApp;
+  const bigLetters = `@font-palette-values --acro-big { font-family: 'Honk'; override-colors: ${[sky, sky, t.brand, t.brand, t.brand, t.brand, t.brand, t.brand].map((c, i) => `${i} ${c}`).join(", ")}; }`;
+  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand), bigLetters,
     honkOn("--acro-btn", t.onBrand, t.brand),            // main buttons (Submit, Send, + New Sky Train …)
     honkOn("--acro-btn2", t.teal, t.navy2),              // quiet buttons (← Grand Sky Station, My Sky Pass …)
     honkOn("--acro-btn-pm", t.lavender, t.navy2),        // Send in private chat
@@ -355,7 +360,7 @@ function ThemePicker() {
                 <button key={key} onClick={() => { applyLetterFont(key); setLetterFont(key); }}
                   style={{ flex: 1, background: active ? C.navy3 : "transparent", border: `1px solid ${active ? C.teal : C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: big ? 16 : 14, padding: big ? "10px 6px" : "6px 6px" }}>
                   <span style={{
-                    honk: { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 0, 'MORF' 15" },
+                    honk: { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "--acro-big", fontVariationSettings: "'SHLN' 0, 'MORF' 15" },
                     bowlby: { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand },
                   }[key]}>B T V</span>
                   <div style={{ fontSize: 12, marginTop: 2, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</div>
@@ -1582,10 +1587,11 @@ function Lobby() {
           {/* The logo in Honk (Damon, 2026-10-18), coloured by the palette (see applyTheme).
               SHLN = how long its shadow is, MORF = how much the letters bulge (15 = Honk's own).
               Nunito is only the stand-in while Honk loads. Safari can't recolour Honk: it shows Honk's own colours. */}
-          <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 34 : 40, fontWeight: 400, margin: 0, lineHeight: 1.1, color: C.teal, fontPalette: "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>Acro Express</h1>
-          {/* The tagline (Damon, 2026-10-16), with ™ instead of the cloud (2026-10-18). bgText: readable on the
-              mid-tone backgrounds. The lobby is still the Grand Sky Station: named in the welcome and the chat */}
-          <div style={{ color: "var(--c-bgText)", fontSize: 13, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 4 }}>We belong in the clouds™</div>
+          {/* Bigger since the tagline under it was removed (Damon, 2026-10-18); the ™ that was on the tagline
+              sits as a small mark after the logo */}
+          <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 42 : 54, fontWeight: 400, margin: 0, lineHeight: 1.05, color: C.teal, fontPalette: "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
+            Acro Express<sup style={{ fontFamily: "'Nunito', sans-serif", fontSize: 13, color: "var(--c-bgText)", marginLeft: 3, verticalAlign: "super" }}>™</sup>
+          </h1>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <StationLogButton />
@@ -1714,7 +1720,7 @@ function Lobby() {
         {auth && (
           <div style={{ display: "grid", gridTemplateColumns: phone ? "minmax(0, 1fr)" : (pm.active ? "minmax(0, 1fr) minmax(0, 2fr) minmax(0, 2fr)" : "minmax(0, 1fr) minmax(0, 3fr)"), gap: 16 }}>
             <Panel style={{ padding: 16 }}>
-              <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              <h2 style={{ margin: "0 0 10px", fontSize: 26, ...smallTitle }}>   {/* Honk (Damon, 2026-10-18) */}
                 On the platform ({players.length})
               </h2>
               {players.length === 0 ? (
@@ -1907,7 +1913,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
           {topic && (
             <div style={{ margin: "10px 0 0", textAlign: "center" }}>
               <div style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Topic</div>
-              <div style={{ fontSize: 24, color: C.teal, fontWeight: 700, fontFamily: "Fredoka, sans-serif", lineHeight: 1.2, overflowWrap: "anywhere" }}>{topic}</div>
+              <div style={{ fontSize: 34, ...smallTitle, overflowWrap: "anywhere" }}>{topic}</div>   {/* Honk (Damon, 2026-10-18) */}
             </div>
           )}
           {selected && selected !== "blank" && !submitted && (
@@ -2016,8 +2022,8 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
   return (
     <Panel style={{ padding: "10px 14px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 4 }}>
-        <h2 style={{ margin: 0, color: C.teal, fontFamily: "Fredoka, sans-serif", fontSize: 18 }}>
-          Station <span style={{ fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{round}</span>{topic ? ` – ${topic}` : ""}
+        <h2 style={{ margin: 0, fontSize: 28, ...smallTitle }}>   {/* Honk (Damon, 2026-10-18) */}
+          Station {round}{topic ? ` – ${topic}` : ""}
         </h2>
         <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {/* The symbols, in words (AcroChallenge's legend) — next to the title to save a line */}
@@ -2968,9 +2974,9 @@ function Room() {
   const topicBlock = (align) => (
     // marginTop: a little space under the Grand Sky Station button (Damon, 2026-10-18: too close)
     <div style={{ textAlign: align, maxWidth: 460, margin: align === "center" ? "0 auto" : "6px 0 0" }}>
-      <span style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginRight: 8 }}>Topic</span>
+      <span style={{ fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginRight: 8 }}>Topic</span>
       {/* The topic in Honk (was Fredoka; Damon: a different font) */}
-      <span style={{ fontSize: isShort ? 24 : 28, ...smallTitle, overflowWrap: "anywhere" }}>{currentTopic}</span>
+      <span style={{ fontSize: isShort ? 30 : 36, ...smallTitle, overflowWrap: "anywhere" }}>{currentTopic}</span>
     </div>
   );
   // Who chooses the first topic: whoever started the Sky Train, or the first passenger on board if
@@ -3023,7 +3029,7 @@ function Room() {
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
           {/* "Station 2 · Results", in Honk (Damon, 2026-10-18). "First to 30 wins" was removed here
               (Damon: not necessary; How to ride still says it) */}
-          <div style={{ margin: "4px 0 0", fontSize: isShort ? 24 : 28, ...smallTitle }}>
+          <div style={{ margin: "4px 0 0", fontSize: isShort ? 30 : 34, ...smallTitle, whiteSpace: "nowrap" }}>   {/* one line, never "Write your / acro" */}
             {/* Rounds are stations: a game travels Station 0 → 1 → 2 … → Final Stop (round N = Station N) */}
             Station {headerStation}
             {/* What's happening now, in words (first step towards the "Departure Board" announcer) */}
@@ -3203,7 +3209,7 @@ function Room() {
                 fontSize: `calc(${letterSize} * var(--lf-scale, 1))`,
                 lineHeight: "var(--lf-lh, 1)",
                 color: C.brand,
-                fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 0, 'MORF' 15",   // only used by Honk; no shadow (Damon: confusing on lighter backgrounds)
+                fontPalette: "--acro-big", fontVariationSettings: "'SHLN' 0, 'MORF' 15",   // only used by Honk; outline in the background colour; no shadow (Damon: confusing on lighter backgrounds)
                 textShadow: "var(--lf-shadow, var(--c-letterShadow))",   // per palette: softer on the light ones; none with Honk (it has its own)
                 fontWeight: 400
               }}>
