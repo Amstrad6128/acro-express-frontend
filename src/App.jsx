@@ -214,10 +214,16 @@ function applyTheme(key) {
   // Two palettes: "--acro-logo" (accent fill: logo, titles, the timer) and "--acro-letters" (letters colour:
   // the big letters in Honk, and the timer's last 10 seconds). Outline + shadow = the box colour in both.
   const honkPalette = (name, fill) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[t.bgPanel, t.bgPanel, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  // The big letters in Honk: a lighter outline (Damon, 2026-10-18) — the box colour at 45% (hex alpha "73"),
-  // so it reads as a soft shadow instead of a dark block
-  const bigLetters = `@font-palette-values --acro-big { font-family: 'Honk'; override-colors: ${[t.bgPanel + "73", t.bgPanel + "73", t.brand, t.brand, t.brand, t.brand, t.brand, t.brand].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand), bigLetters].join("\n");
+  // Button palettes (Honk on buttons, Damon 2026-10-18): the text colour as fill, the button's own background
+  // as the outline colour, so Honk's inner lines look cut out of the letters (a palette can't use CSS variables,
+  // so each button colour gets its own palette, rebuilt here with the palette's real colours)
+  const honkOn = (name, fill, bg) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[bg, bg, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
+  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand),
+    honkOn("--acro-btn", t.onBrand, t.brand),            // main buttons (Submit, Send, + New Sky Train …)
+    honkOn("--acro-btn2", t.teal, t.navy2),              // quiet buttons (← Grand Sky Station, My Sky Pass …)
+    honkOn("--acro-btn-pm", t.lavender, t.navy2),        // Send in private chat
+    honkOn("--acro-btn-danger", "#FFF8F6", t.danger),    // Leave the station
+  ].join("\n");
   try { localStorage.setItem("acro.theme", key); } catch { /* private mode: just not remembered */ }
   // Tells an open train page the palette changed, so it reports it to the server (palette stats, useSignalR.js)
   window.dispatchEvent(new CustomEvent("acro-theme", { detail: key }));
@@ -225,13 +231,13 @@ function applyTheme(key) {
 applyTheme(loadThemeKey());   // before the first render, so the page never flashes the wrong colours
 
 // ── Big letters font (Damon, 2026-10-18) ───────────────────────
-// Each player picks the font of the big letters (and the timer): Bowlby One SC (the original), Honk (the
-// logo's font) or Bungee (a sign-painter's font, added 2026-10-18 as a clearer third choice). Saved in the browser; picked in the Express Colors menu. Works through CSS variables on <html>,
+// Each player picks the font of the big letters (and the timer): Bowlby One SC (the original) or Honk (the
+// logo's font). (Bungee was tried as a third choice on 2026-10-18 and removed: Damon didn't like it.) Saved in the browser; picked in the Express Colors menu. Works through CSS variables on <html>,
 // so the letters and the timer change at once:
 //   --lf-family  font of the big letters      --lf-shadow  their shadow (Honk has its own, so none)
 //   --tf-family  font of the timer            --tf-weight  its weight
 //   --lf-scale / --lf-lh  size factor and line height of the big letters (Honk's capitals are smaller)
-const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", bungee: "Bungee" };   // key → name shown in the menu
+const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk" };   // key → name shown in the menu
 function loadLetterFont() {
   try { const k = localStorage.getItem("acro.letterFont"); return LETTER_FONTS[k] ? k : "bowlby"; } catch { return "bowlby"; }
 }
@@ -244,13 +250,8 @@ function applyLetterFont(key) {
     root.setProperty("--tf-weight", "400");   // Honk has one weight; bold would be faked and smudgy
     root.setProperty("--lf-scale", "1.4");    // Honk's capitals are smaller: 1.4× to look as big as Bowlby's
     root.setProperty("--lf-lh", "0.72");      // …in the same height (1 ÷ 1.4), so nothing below moves
-  } else {   // Bowlby (and the base for Bungee): the original look — the variables are removed, so every style uses its own fallback
+  } else {   // Bowlby: the original look (the variables are removed, so every style uses its own fallback)
     for (const v of ["--lf-family", "--lf-shadow", "--tf-family", "--tf-weight", "--lf-scale", "--lf-lh"]) root.removeProperty(v);
-    if (key === "bungee") {   // Bungee: same size and shadow as Bowlby; the timer in Bungee too
-      root.setProperty("--lf-family", "'Bungee', 'Bowlby One SC', serif");
-      root.setProperty("--tf-family", "'Bungee', " + NUM_FONT);
-      root.setProperty("--tf-weight", "400");   // Bungee has one weight
-    }
   }
   try { localStorage.setItem("acro.letterFont", key); } catch { /* private mode: just not remembered */ }
 }
@@ -345,7 +346,7 @@ function ThemePicker() {
               </button>
             );
           })}
-          {/* The big letters' font (and the timer's): Bowlby, Honk or Bungee. Each button shows "B T V" in its own font */}
+          {/* The big letters' font (and the timer's): Bowlby or Honk. Each button shows "B T V" in its own font */}
           <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 6px", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>Big letters</div>
           <div style={{ display: "flex", gap: 8 }}>
             {Object.entries(LETTER_FONTS).map(([key, name]) => {
@@ -354,9 +355,8 @@ function ThemePicker() {
                 <button key={key} onClick={() => { applyLetterFont(key); setLetterFont(key); }}
                   style={{ flex: 1, background: active ? C.navy3 : "transparent", border: `1px solid ${active ? C.teal : C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: big ? 16 : 14, padding: big ? "10px 6px" : "6px 6px" }}>
                   <span style={{
-                    honk: { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "--acro-big", fontVariationSettings: "'SHLN' 0, 'MORF' 15" },
+                    honk: { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 0, 'MORF' 15" },
                     bowlby: { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand },
-                    bungee: { fontFamily: "'Bungee', serif", fontSize: 17, color: C.brand },
                   }[key]}>B T V</span>
                   <div style={{ fontSize: 12, marginTop: 2, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</div>
                 </button>
@@ -402,9 +402,11 @@ const Panel = ({ children, style = {}, className = "" }) => (
   </div>
 );
 
-// Button text in Lilita One (2026-10-18: Honk was too small and blurry on buttons).
-const honkButton = { fontFamily: "'Lilita One', Fredoka, sans-serif", fontWeight: 400, fontSize: 18, lineHeight: 1.2, letterSpacing: "0.2px" };   // (name kept: used by Btn and BtnSecondary)
-const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, style = {}, disabled = false }) => {
+// Button text in Honk (Damon, 2026-10-18; Lilita One was tried for a moment), no shadow. palette = the Honk
+// colours for this button's colours (made in applyTheme): main buttons "--acro-btn"; others pass their own.
+// fontSize 27: Honk's capitals are short, so it needs a much bigger size than the old 16 to read as large.
+const honkButton = { fontFamily: "'Honk', 'Nunito', sans-serif", fontWeight: 400, fontSize: 27, fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: 1 };
+const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, style = {}, disabled = false, palette = "--acro-btn" }) => {
   const [hovered, setHovered] = useState(false);
   return (
     <button
@@ -421,7 +423,7 @@ const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, st
         fontSize: 16,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
-        ...honkButton,
+        ...honkButton, fontPalette: palette,
         transition: "background 0.15s",
         ...style
       }}>
@@ -445,7 +447,7 @@ const BtnSecondary = ({ children, onClick, style = {} }) => {
         padding: "6px 14px",
         fontSize: 16,
         cursor: "pointer",
-        ...honkButton,
+        ...honkButton, fontPalette: "--acro-btn2",   // teal on the quiet button colour
         transition: "background 0.15s",
         ...style
       }}>
@@ -570,7 +572,7 @@ function PrivateChatPanel({ style = {}, listMaxHeight }) {
           onChange={e => setPmDraft(active, e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") send(); }}
         />
-        <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.lavender, border: `1px solid ${C.lavender}` }} onClick={send}>Send</Btn>
+        <Btn color={C.navy2} hoverColor={C.navy3} palette="--acro-btn-pm" style={{ color: C.lavender, border: `1px solid ${C.lavender}` }} onClick={send}>Send</Btn>
       </div>
     </Panel>
   );
@@ -1622,7 +1624,7 @@ function Lobby() {
           {auth ? (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)}>My Sky Pass</BtnSecondary>
-              <Btn onClick={doLogout} color={C.danger} hoverColor={C.dangerHover} style={{ color: "#FFF8F6" }}>Leave the station</Btn>
+              <Btn onClick={doLogout} color={C.danger} hoverColor={C.dangerHover} palette="--acro-btn-danger" style={{ color: "#FFF8F6" }}>Leave the station</Btn>
             </div>
           ) : (
             <>
@@ -3203,7 +3205,7 @@ function Room() {
                 fontSize: `calc(${letterSize} * var(--lf-scale, 1))`,
                 lineHeight: "var(--lf-lh, 1)",
                 color: C.brand,
-                fontPalette: "--acro-big", fontVariationSettings: "'SHLN' 0, 'MORF' 15",   // only used by Honk; lighter outline (--acro-big); no shadow (Damon: confusing on lighter backgrounds)
+                fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 0, 'MORF' 15",   // only used by Honk; no shadow (Damon: confusing on lighter backgrounds)
                 textShadow: "var(--lf-shadow, var(--c-letterShadow))",   // per palette: softer on the light ones; none with Honk (it has its own)
                 fontWeight: 400
               }}>
@@ -3228,7 +3230,7 @@ function Room() {
               <div style={{ flex: 1, minWidth: 0, background: C.bgPanel, border: `2px solid ${C.teal}`, borderRadius: 10, padding: "8px 14px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 19, overflowWrap: "anywhere" }}>
                 {submittedAcro}
               </div>
-              <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
+              <Btn color={C.navy2} hoverColor={C.navy3} palette="--acro-btn2" style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
                 setMyDraft(submittedAcro);
                 setIsEditing(true);
                 // Pause tune 2 and unmute tune 1 when editing
@@ -3255,7 +3257,7 @@ function Room() {
                 }}
                 onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
               />
-              <Btn onClick={handleSubmitAcro} style={{ borderRadius: 10, fontSize: 22, padding: "0 18px" }}>{isEditing ? "Update" : "Submit"}</Btn>
+              <Btn onClick={handleSubmitAcro} style={{ borderRadius: 10, fontSize: 30, padding: "0 18px" }}>{isEditing ? "Update" : "Submit"}</Btn>
               {isEditing && <BtnSecondary onClick={() => { setIsEditing(false); setAcroError(""); saveDraft("", true); }}>Cancel</BtnSecondary>}
             </div>
           )}
