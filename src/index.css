@@ -84,7 +84,8 @@
 }
 
 html {
-  overflow-y: scroll;
+  /* auto (was scroll): no empty scrollbar track when a page fits the window (Damon, 2026-10-18) */
+  overflow-y: auto;
   overflow-x: hidden;
 }
 

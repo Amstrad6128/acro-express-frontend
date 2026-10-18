@@ -863,7 +863,7 @@ function HowToPlay({ winScore = 30 }) {
                 When someone reaches {winScore}, the highest score wins the journey. After a 30-second break the next journey starts by itself.
               </RulesSection>
               <RulesSection icon="💬" title="Tips">
-                Click a name to send a private message. Change your colours under Express Colors, and your sound under Sound.
+                Click a name to send a private message. To vote someone off a train, type <b style={{ color: C.textPrimary }}>/kp name</b> in Sky Train Chat. Change your colours under Express Colors, and your sound under Sound.
               </RulesSection>
             </div>
             <div style={{ padding: "12px 20px", borderTop: `1px solid ${C.border}`, textAlign: "right" }}>
@@ -1149,18 +1149,16 @@ function PaletteStats() {
 const ADMIN_NAME = "TylerDurden";   // who players write to
 const LEGAL_UPDATED = "18 October 2026";   // change when the texts below change
 
-// "© 2026 Acro Express™ · House Rules · Privacy" — at the bottom of the station, the Station Log and these pages
-function Footer() {
+// "© 2026 Acro Express™ · House Rules · Privacy" — a plain line (no frame, Damon 2026-10-18) at the bottom of
+// the station, the Station Log and these pages. compact = less space around it (the station fills the window).
+function Footer({ compact }) {
   const navigate = useNavigate();
-  const link = { background: "none", border: "none", padding: 0, color: C.textSecond, cursor: "pointer", fontFamily: "inherit", fontSize: 13, textDecoration: "underline" };
-  // A small box in the palette's box colour: readable on every background (Daybreak's pink horizon included)
+  const link = { background: "none", border: "none", padding: 0, color: "var(--c-bgText)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, textDecoration: "underline" };
   return (
-    <footer style={{ textAlign: "center", padding: "24px 16px 28px" }}>
-      <div style={{ display: "inline-block", background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 999, padding: "6px 16px", color: C.textMuted, fontSize: 13, lineHeight: 1.8 }}>
-        © {new Date().getFullYear()} Acro Express™ · <button style={link} onClick={() => navigate("/rules")}>House Rules</button>
-        {" · "}<button style={link} onClick={() => navigate("/privacy")}>Privacy</button>
-        {" · "}Questions? Message <b style={{ color: C.textSecond }}>{ADMIN_NAME}</b> in the game
-      </div>
+    // A soft shadow keeps the quiet text readable on every sky (Daybreak's pink horizon included)
+    <footer style={{ flexShrink: 0, textAlign: "center", padding: compact ? "8px 16px 10px" : "24px 16px 28px", color: "var(--c-bgText)", fontSize: 13, textShadow: "0 1px 2px rgba(0,0,0,0.35)" }}>
+      © {new Date().getFullYear()} Acro Express™ · <button style={link} onClick={() => navigate("/rules")}>House Rules</button>
+      {" · "}<button style={link} onClick={() => navigate("/privacy")}>Privacy</button>
     </footer>
   );
 }
@@ -1609,10 +1607,17 @@ function Lobby() {
     } catch (e) { setCreateError(`Couldn't start the Sky Train: ${String(e.message).replace(/^\d+:\s*/, "")}`); }   // without "409:"
   }
 
-  // ── Station layout, chat first (UI test, branch ui/station-redesign, 2026-10-18) ──
-  // From Damon's mockup B: the chat is the heart of the station. Header with "Grand Sky Station"; a slim welcome
-  // strip with the Sky Pass level bar; "On the platform" (everyone online) on the left; the big chat in the
-  // middle; Departures as a station board above the chat (moved up 2026-10-18). Avatars: placeholder squares with the first letter.
+  // ── Grand Sky Station layout, v2 (Damon, 2026-10-18, after his example picture) ──
+  // Desktop: fills the window exactly, no page scrollbar. Order: header (logo + menus) → welcome strip →
+  // "On the platform" (left) + Grand Sky Station Chat (right), which get all the height that is left →
+  // Departures board (always 3 rows: free platforms fill the empty ones) → footer line.
+  // Short windows and phones: the page scrolls instead, with fixed box heights.
+  // Text is thin and quiet (Nunito); Honk only for the logo and the box titles. Buttons on this page use
+  // Nunito at normal text size on small buttons (Damon: "New Sky Train and Send are huge").
+  // Avatars: placeholder squares with the first letter.
+  const [winH, setWinH] = useState(() => window.innerHeight);
+  useEffect(() => { const on = () => setWinH(window.innerHeight); window.addEventListener("resize", on); return () => window.removeEventListener("resize", on); }, []);
+  const fits = !phone && winH >= 720;   // tall enough to show everything without scrolling
   // Everyone online, with where they are: the station's list (players) plus the passengers aboard each train
   // (roomList). Someone aboard a train is shown aboard it, not twice.
   const aboard = roomList.flatMap(r => (r.playingNames || []).map(n => ({ name: n, where: `Aboard ${r.name}`, onTrain: true })));
@@ -1623,21 +1628,21 @@ function Lobby() {
   ];
   const [listOpen, setListOpen] = useState(true);   // phones: the "On the platform" list folded open or closed
   const sendLobby = () => { if (chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } };   // Enter or Send
-  const sectionTitle = { margin: 0, fontSize: phone ? 24 : 28, ...smallTitle };   // Honk titles of the boxes
+  const boxTitle = { margin: 0, fontSize: 24, ...smallTitle, display: "flex", alignItems: "center", gap: 10 };   // Honk box titles
+  const smallBtn = { fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, lineHeight: 1.2, padding: "8px 16px", letterSpacing: 0, display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" };
+  // Departures: the trains, then free platforms so the board always shows 3 rows
+  const used = new Set(roomList.map(r => r.platform));
+  const freeNumbers = []; for (let n = 1; freeNumbers.length < Math.max(0, 3 - roomList.length); n++) if (!used.has(n)) freeNumbers.push(n);
+  const boardCols = "76px minmax(0, 2.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) 132px";   // platform · train · aboard · status · button
 
   return (
-    <div style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", color: C.textPrimary }}>
-      {/* Header: logo + "GRAND SKY STATION", then the menus. flexWrap: on phones the menus go under the logo */}
-      <div style={{ borderBottom: `1px solid ${C.border}`, padding: phone ? "12px 16px" : "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 10, columnGap: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
-          {/* The logo in Honk, coloured by the palette (see applyTheme); ™ as a small mark */}
-          <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 40 : 52, fontWeight: 400, margin: 0, lineHeight: 1.05, color: C.teal, fontPalette: "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
-            Acro Express<sup style={{ fontFamily: "'Nunito', sans-serif", fontSize: 13, color: "var(--c-bgText)", marginLeft: 3, verticalAlign: "super" }}>™</sup>
-          </h1>
-          {/* Where you are, like a station sign (mockup B) */}
-          {!phone && <span style={{ color: "var(--c-bgText)", fontSize: 15, fontWeight: 700, letterSpacing: "0.3em", textTransform: "uppercase" }}>Grand Sky Station</span>}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+    <div style={{ height: "100vh", overflowY: fits ? "hidden" : "auto", overflowX: "hidden", color: C.textPrimary, display: "flex", flexDirection: "column" }}>
+      {/* Header: the logo, then the menus (on phones the menus go under the logo) */}
+      <div style={{ flexShrink: 0, borderBottom: `1px solid ${C.border}`, padding: phone ? "10px 16px" : "10px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 8, columnGap: 16 }}>
+        <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : 46, fontWeight: 400, margin: 0, lineHeight: 1.05, color: C.teal, fontPalette: "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
+          Acro Express<sup style={{ fontFamily: "'Nunito', sans-serif", fontSize: 12, color: "var(--c-bgText)", marginLeft: 3, verticalAlign: "super" }}>™</sup>
+        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <StationLogButton />
           <HowToPlay winScore={roomList[0]?.winScore || 30} />
           <ThemePicker />
@@ -1645,9 +1650,9 @@ function Lobby() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1320, margin: "0 auto", padding: phone ? "16px 16px" : "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ flex: fits ? 1 : "none", minHeight: 0, width: "100%", maxWidth: 1400, margin: "0 auto", boxSizing: "border-box", padding: phone ? "12px 12px 0" : "12px 20px 0", display: "flex", flexDirection: "column", gap: 12 }}>
 
-        {/* Not signed in: the same sign-in box as before */}
+        {/* Not signed in: the sign-in box */}
         {!auth && (
           <Panel style={{ padding: 16 }}>
             <h2 style={{ margin: "0 0 12px", fontSize: 16, color: C.textPrimary, fontWeight: 600 }}>Sign in to play</h2>
@@ -1656,147 +1661,64 @@ function Lobby() {
               <Input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} style={{ textAlign: "left" }} />
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <Btn onClick={doRegister}>Get your Sky Pass</Btn>
-              <BtnSecondary onClick={doLogin}>Log in</BtnSecondary>
+              <Btn onClick={doRegister} style={smallBtn}>Get your Sky Pass</Btn>
+              <BtnSecondary onClick={doLogin} style={smallBtn}>Log in</BtnSecondary>
             </div>
           </Panel>
         )}
 
-        {/* Welcome strip: greeting on the left; level bar, My Sky Pass and Leave the station on the right */}
+        {/* Welcome strip: a word of welcome (left); you, your Sky Pass and leaving (right) */}
         {auth && (
-          <Panel style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", borderColor: C.teal }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: phone ? 24 : 28, ...smallTitle }}>{greeting("")}{auth.username}</div>
-              <div style={{ color: C.textSecond, fontSize: 15, marginTop: 2 }}>Board a Sky Train, turn letters into lines, and ride to 30.</div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-              {/* Sky Pass mini: level and how far to the next one (from mockup A) */}
-              {myPass && (
-                <div style={{ minWidth: 170 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 14 }}>
-                    <b style={{ color: C.teal }}>{myPass.level}</b>
-                    <span style={{ color: C.textMuted }}>{myPass.nextLevel ? `${myPass.stationsToNext} to ${myPass.nextLevel}` : "Top level"}</span>
-                  </div>
-                  <div style={{ height: 8, borderRadius: 4, background: C.bgApp, marginTop: 4 }}>
-                    <div style={{ width: `${Math.round((myPass.levelProgress || 0) * 100)}%`, height: 8, borderRadius: 4, background: C.brand }} />
-                  </div>
-                </div>
-              )}
-              <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)}>My Sky Pass</BtnSecondary>
-              <Btn onClick={doLogout} color={C.danger} hoverColor={C.dangerHover} palette="--acro-btn-danger" style={{ color: "#FFF8F6" }}>Leave the station</Btn>
-            </div>
-          </Panel>
+          <div style={{ flexShrink: 0, display: "grid", gap: 12, gridTemplateColumns: phone ? "minmax(0, 1fr)" : "minmax(0, 1fr) auto" }}>
+            <Panel style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 14 }}>
+              <IconBadge><Icon name="train" /></IconBadge>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>Welcome aboard Acro Express.</div>
+                <div style={{ fontSize: 14, color: C.textSecond }}>Board a Sky Train, turn letters into lines, and ride to 30. New things arrive in the Station Log.</div>
+              </div>
+            </Panel>
+            <Panel style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+              <IconBadge><Icon name="user" /></IconBadge>
+              <div style={{ fontSize: 15 }}>{greeting("")}<b style={{ color: C.teal }}>{auth.username}</b></div>
+              <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)} style={smallBtn}><Icon name="ticket" size={18} /> Sky Pass</BtnSecondary>
+              <button onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4 }}>Leave the station</button>
+            </Panel>
+          </div>
         )}
 
         {/* Heroku's daily restart, announced (shown from 15 minutes before the expected window) */}
         {auth && restart?.soon && (
-          <p style={{ margin: 0, color: "var(--c-bgText)", fontSize: 14, textAlign: "center" }}>ℹ {restart.text}</p>
+          <p style={{ flexShrink: 0, margin: 0, color: "var(--c-bgText)", fontSize: 14, textAlign: "center" }}>ℹ {restart.text}</p>
         )}
 
-        {/* Departures as a station board (mockup B): platform, Sky Train, who's aboard, status, Board.
-            Above the chat (Damon, 2026-10-18): starting a game is the first thing a passenger looks for */}
+        {/* Who's here (left) and the chat (right); private chats on the right when open.
+            Desktop: takes all the height that's left. Phones: the chat first, then the list */}
         {auth && (
-          <Panel style={{ padding: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-              <div>
-                <h2 style={sectionTitle}>Departures</h2>
-                <div style={{ color: C.textSecond, fontSize: 15 }}>{roomList.length === 0 ? "Ready for your next game? Start a Sky Train and your friends can hop on." : "Pick a train and hop on, or start your own."}</div>
-              </div>
-              {/* The main action of the page: a bigger button */}
-              {!creating && <Btn onClick={() => setCreating(true)} style={{ fontSize: 36, padding: "8px 22px", borderRadius: 12 }}>+ New Sky Train →</Btn>}
-            </div>
-            {creating && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input autoFocus maxLength={80} placeholder="Name your Sky Train..." value={newRoomName}
-                    onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
-                    onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
-                    style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit" }} />
-                  <Btn onClick={handleCreate}>Create</Btn>
-                  <BtnSecondary onClick={cancelCreate}>Cancel</BtnSecondary>
-                </div>
-                {createError && <p style={{ margin: "6px 0 0", fontSize: 14, color: C.brand }}>{createError}</p>}
-              </div>
-            )}
-            {roomList.length > 0 && (
-              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
-                {/* Column titles (not on phones: each row stacks there) */}
-                {!phone && (
-                  <div style={{ display: "grid", gridTemplateColumns: "84px minmax(0, 2.4fr) minmax(0, 1fr) minmax(0, 1.2fr) 150px", gap: 12, padding: "8px 14px", fontSize: 12, color: C.teal, letterSpacing: "0.08em", textTransform: "uppercase", borderBottom: `1px solid ${C.border}` }}>
-                    <span>Platform</span><span>Sky Train</span><span>Aboard</span><span>Status</span><span />
-                  </div>
-                )}
-                {roomList.map((room, idx) => {
-                  const names = room.playingNames || [];
-                  const away = room.awayNames || [];
-                  const pill = room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand };
-                  return (
-                    <div key={room.id} style={{ display: "grid", alignItems: "center", gap: 12, padding: "10px 14px", background: idx % 2 ? "transparent" : C.navy2,
-                      gridTemplateColumns: phone ? "64px minmax(0, 1fr)" : "84px minmax(0, 2.4fr) minmax(0, 1fr) minmax(0, 1.2fr) 150px" }}>
-                      {/* Platform number in a box, like a station sign */}
-                      <div style={{ width: phone ? 56 : 64, height: phone ? 48 : 54, borderRadius: 10, border: `2px solid ${C.teal}`, background: C.bgApp, display: "flex", alignItems: "center", justifyContent: "center", ...smallTitle, fontSize: phone ? 26 : 30 }}>
-                        {room.platform > 0 ? String(room.platform).padStart(2, "0") : "–"}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 17, color: C.textPrimary, overflowWrap: "anywhere" }}>{room.name}</div>
-                        <div style={{ fontSize: 13, color: C.textMuted, overflowWrap: "anywhere" }}>
-                          {room.gameOn && room.station > 0 && <>Station {room.station}{room.leaderName && <> · leader <span style={{ color: C.teal }}>{room.leaderName}</span> {room.leaderScore} of {room.winScore || 30}</>}</>}
-                          {!room.gameOn && (names.length ? names.map((n, i) => <span key={n}>{i > 0 && ", "}<NameLink profile name={n} style={{ color: C.textSecond }} /></span>) : "No one aboard yet")}
-                        </div>
-                        {/* Phones: aboard, status and the button go under the name */}
-                        {phone && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 14, color: C.textSecond }}>👤 {names.length}</span>
-                            <StatusPill {...pill} />
-                            <BtnSecondary onClick={() => navigate(`/room/${room.id}`)}>{room.gameOn ? "Board now" : "Board"}</BtnSecondary>
-                          </div>
-                        )}
-                      </div>
-                      {!phone && <span style={{ fontSize: 15, color: C.textSecond }} title={[...names, ...away.map(a => `${a} (away)`)].join(", ")}>👤 {names.length}{away.length > 0 && <span style={{ color: C.textMuted }}> +{away.length} away</span>}</span>}
-                      {!phone && <span><StatusPill {...pill} /></span>}
-                      {!phone && <Btn onClick={() => navigate(`/room/${room.id}`)} style={{ width: "100%" }}>{room.gameOn ? "Board now →" : "Board →"}</Btn>}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Panel>
-        )}
-
-
-        {/* The social area, under Departures: who's here (left) and the big chat; private chats on the right when open.
-            Phones: the chat first, then the list */}
-        {auth && (
-          <div style={{ "--chatH": "clamp(360px, calc(100vh - 420px), 680px)", display: "grid", gap: 16, alignItems: "stretch",
-            // Desktop: the player list a fixed ~300px column, the chat takes the rest (and the private chats a share)
+          <div style={{ flex: fits ? 1 : "none", minHeight: 0, display: "grid", gap: 12, height: fits ? undefined : (phone ? undefined : 440),
             gridTemplateColumns: phone ? "minmax(0, 1fr)" : (pm.active ? "300px minmax(0, 1.6fr) minmax(0, 1fr)" : "300px minmax(0, 1fr)") }}>
-            <Panel style={{ padding: 16, display: "flex", flexDirection: "column", order: phone ? 2 : 0, minHeight: 0 }}>
-              {/* Phones: tap the title to fold the list away (the chat comes first there) */}
-              <h2 onClick={phone ? () => setListOpen(o => !o) : undefined}
-                style={{ ...sectionTitle, marginBottom: phone && !listOpen ? 0 : 10, cursor: phone ? "pointer" : "default", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                On the platform ({online.length})
-                {phone && <span style={{ fontFamily: "'Nunito', sans-serif", fontSize: 18, color: C.textMuted }}>{listOpen ? "▴" : "▾"}</span>}
+            <Panel style={{ padding: 14, display: "flex", flexDirection: "column", minHeight: 0, order: phone ? 2 : 0 }}>
+              {/* Phones: tap the title to fold the list away */}
+              <h2 onClick={phone ? () => setListOpen(o => !o) : undefined} style={{ ...boxTitle, marginBottom: phone && !listOpen ? 0 : 8, cursor: phone ? "pointer" : "default" }}>
+                <Icon name="users" size={24} color={C.teal} /> On the platform ({online.length})
+                {phone && <span style={{ marginLeft: "auto", fontFamily: "'Nunito', sans-serif", fontSize: 18, color: C.textMuted }}>{listOpen ? "▴" : "▾"}</span>}
               </h2>
-              {phone && !listOpen ? null : online.length === 0 ? (
-                <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No one else on the platform yet</p>
-              ) : (
-                <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4, overflowY: "auto", maxHeight: phone ? 260 : "var(--chatH)" }}>
+              {phone && !listOpen ? null : (
+                <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", flex: 1, minHeight: 0, maxHeight: phone ? 260 : undefined }}>
                   {online.map(o => {
                     const isMe = String(o.name).toLowerCase() === String(auth?.username).toLowerCase();
                     return (
+                      // The row opens the player's Sky Pass card (it has a Message button); ✉ messages straight away
                       <li key={o.name} onClick={() => openProfile(o.name)} title={`${o.name}'s Sky Pass`}
-                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: isMe ? C.navy3 : "transparent", cursor: "pointer" }}>
-                        <AvatarSquare name={o.name} />
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: isMe ? C.navy2 : "transparent", cursor: "pointer" }}>
+                        <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.success, flexShrink: 0 }} />
+                        <AvatarSquare name={o.name} size={32} />
                         <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: 15, fontWeight: 600, color: C.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <div style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {o.name}{isMe && <span style={{ color: C.teal, fontWeight: 400 }}> (you)</span>}
                           </div>
-                          <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            <span style={{ color: o.onTrain ? C.brand : C.success }}>●</span> {o.where}
-                          </div>
+                          <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Online · {o.where}</div>
                         </div>
                         {(pm.unread[o.name] || 0) > 0 && <span style={{ background: C.brand, color: C.onBrand, fontSize: 11, borderRadius: 999, padding: "1px 6px" }}>{pm.unread[o.name]}</span>}
-                        {/* ✉ = straight to a private message; the row opens the Sky Pass */}
                         {!isMe && <span role="button" tabIndex={0} title={`Message ${o.name}`} onClick={e => { e.stopPropagation(); openPm(o.name); }}
                           style={{ color: C.lavender, fontSize: 15, padding: "0 4px", cursor: "pointer" }}>✉</span>}
                       </li>
@@ -1806,25 +1728,25 @@ function Lobby() {
               )}
             </Panel>
 
-            <Panel style={{ padding: 16, display: "flex", flexDirection: "column", order: phone ? 1 : 0, minHeight: 0 }}>
-              <h2 style={{ ...sectionTitle, marginBottom: 10 }}>Grand Sky Station Chat</h2>
-              {/* The messages: a fixed tall box that scrolls inside (the page doesn't jump) */}
-              <div style={{ height: phone ? 300 : "var(--chatH)", overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, padding: "10px 4px 4px 0", marginBottom: 10, borderTop: `1px solid ${C.border}` }}>
+            <Panel style={{ padding: 14, display: "flex", flexDirection: "column", minHeight: 0, order: phone ? 1 : 0 }}>
+              <h2 style={{ ...boxTitle, marginBottom: 8 }}><Icon name="chat" size={24} color={C.teal} /> Grand Sky Station Chat</h2>
+              {/* The messages scroll inside their own box; the input stays at the bottom */}
+              <div style={{ flex: 1, minHeight: phone ? 260 : 0, maxHeight: phone ? 300 : undefined, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, padding: "8px 4px 4px 2px", marginBottom: 10, borderTop: `1px solid ${C.border}` }}>
                 {lobbyChat.map((m, i) => m.notice ? (
                   // Arrival line: quiet, the name still clickable
-                  <div key={i} style={{ fontSize: 13, color: C.textMuted, fontStyle: "italic", paddingLeft: 46 }}>
+                  <div key={i} style={{ fontSize: 13, color: C.textMuted, fontStyle: "italic", paddingLeft: 42 }}>
                     <NameLink profile name={m.username} style={{ color: C.textSecond }} /> {m.text} · {lobbyTime(m.time)}
                   </div>
                 ) : (
-                  // A message: placeholder square, then name + time on one line and the text under it (mockup B)
+                  // A message: placeholder square, name + time, the text under it
                   <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <AvatarSquare name={m.username} />
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 14 }}>
+                    <AvatarSquare name={m.username} size={32} />
+                    <div style={{ minWidth: 0, lineHeight: 1.35 }}>
+                      <div style={{ fontSize: 13 }}>
                         <NameLink profile name={m.username} style={{ color: C.teal, fontWeight: 700 }} />
                         <span style={{ color: C.textMuted, fontSize: 12, marginLeft: 8, fontVariantNumeric: "tabular-nums" }}>{lobbyTime(m.time)}</span>
                       </div>
-                      <div style={{ color: C.textPrimary, fontSize: 15, overflowWrap: "anywhere" }}>{m.message}</div>
+                      <div style={{ fontSize: 15, fontWeight: 400, color: C.textPrimary, overflowWrap: "anywhere" }}>{m.message}</div>
                     </div>
                   </div>
                 ))}
@@ -1833,33 +1755,119 @@ function Lobby() {
               <div style={{ display: "flex", gap: 8 }}>
                 <input id="lobbyChatInput" name="lobbyChatInput" value={chatInput} placeholder="Say hello on the platform..."
                   onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendLobby(); }}
-                  style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 10, padding: "10px 14px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit" }} />
-                <Btn onClick={sendLobby} style={{ borderRadius: 10 }}>Send</Btn>
+                  style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 10, padding: "9px 14px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
+                <Btn onClick={sendLobby} style={{ ...smallBtn, borderRadius: 10 }}><Icon name="send" size={17} /> Send</Btn>
               </div>
             </Panel>
 
             {/* Private messages — one tab per person (shown when a conversation is open) */}
-            {!phone ? <PrivateChatPanel listMaxHeight={360} /> : <div style={{ order: 3 }}><PrivateChatPanel listMaxHeight={240} /></div>}
+            {!phone ? <PrivateChatPanel listMaxHeight={300} /> : <div style={{ order: 3 }}><PrivateChatPanel listMaxHeight={240} /></div>}
           </div>
         )}
 
+        {/* Departures board, under the chat (Damon): always 3 rows — free platforms fill the empty ones */}
+        {auth && (
+          <Panel style={{ flexShrink: 0, padding: "12px 14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <Icon name="train" size={34} color={C.teal} />
+                <div>
+                  <h2 style={{ ...boxTitle, fontSize: 26 }}>Departures</h2>
+                  <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}</div>
+                </div>
+              </div>
+              {!creating && <Btn onClick={() => setCreating(true)} style={smallBtn}><span style={{ fontSize: 18, lineHeight: 1 }}>+</span> New Sky Train</Btn>}
+            </div>
+            {creating && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input autoFocus maxLength={80} placeholder="Name your Sky Train..." value={newRoomName}
+                    onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
+                    onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
+                    style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
+                  <Btn onClick={handleCreate} style={smallBtn}>Create</Btn>
+                  <BtnSecondary onClick={cancelCreate} style={smallBtn}>Cancel</BtnSecondary>
+                </div>
+                {createError && <p style={{ margin: "6px 0 0", fontSize: 14, color: C.brand }}>{createError}</p>}
+              </div>
+            )}
+            <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+              {/* Column titles (not on phones: rows stack there) */}
+              {!phone && (
+                <div style={{ display: "grid", gridTemplateColumns: boardCols, gap: 12, padding: "6px 14px", fontSize: 11, color: C.teal, letterSpacing: "0.1em", textTransform: "uppercase", borderBottom: `1px solid ${C.border}` }}>
+                  <span>Platform</span><span>Sky Train</span><span>Aboard</span><span>Status</span><span />
+                </div>
+              )}
+              {/* Up to 3 rows show; more trains scroll inside the board */}
+              <div style={{ maxHeight: fits ? 3 * 62 : undefined, overflowY: fits ? "auto" : "visible" }}>
+                {roomList.map(room => {
+                  const names = room.playingNames || [];
+                  const away = room.awayNames || [];
+                  const pill = room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand };
+                  const board = () => navigate(`/room/${room.id}`);
+                  return (
+                    <div key={room.id} style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
+                      gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
+                      <PlatformBox n={room.platform} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                        {!phone && <Icon name="train" size={22} color={C.textSecond} />}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{room.name}</div>
+                          <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {room.gameOn && room.station > 0
+                              ? <>Station {room.station}{room.leaderName && <> · leader <span style={{ color: C.teal }}>{room.leaderName}</span> {room.leaderScore} of {room.winScore || 30}</>}</>
+                              : (names.length ? names.join(", ") : "No one aboard yet")}
+                          </div>
+                          {phone && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 14, color: C.textSecond, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="users" size={15} /> {names.length}</span>
+                              <StatusPill {...pill} />
+                              <Btn onClick={board} style={smallBtn}>Board →</Btn>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {!phone && <span style={{ fontSize: 14, color: C.textSecond, display: "inline-flex", alignItems: "center", gap: 6 }} title={[...names, ...away.map(a => `${a} (away)`)].join(", ")}>
+                        <Icon name="users" size={16} /> {names.length}{away.length > 0 && <span style={{ color: C.textMuted }}>+{away.length}</span>}</span>}
+                      {!phone && <span><StatusPill {...pill} /></span>}
+                      {!phone && <Btn onClick={board} style={{ ...smallBtn, justifyContent: "center" }}>{room.gameOn ? "Board now →" : "Board →"}</Btn>}
+                    </div>
+                  );
+                })}
+                {/* Free platforms: quiet rows that invite you to start a train there */}
+                {freeNumbers.map(n => (
+                  <div key={`free-${n}`} style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`, opacity: 0.6,
+                    gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
+                    <PlatformBox n={n} free />
+                    <div style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform · waiting for a Sky Train</div>
+                    {!phone && <span />}{!phone && <span />}
+                    {!phone && (!creating
+                      ? <BtnSecondary onClick={() => setCreating(true)} style={{ ...smallBtn, justifyContent: "center" }}>+ Start one</BtnSecondary>
+                      : <span />)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Panel>
+        )}
+
+        <Footer compact />   {/* © + House Rules + Privacy, a plain line under the station */}
         <PmToast />
         <RestartBanner />
         <PassengerCard />
       </div>
-      <Footer />   {/* © + House Rules + Privacy, under the station */}
     </div>
   );
 }
 
 // A placeholder square for a passenger (avatars are parked): their first letter, in one of the palette's
-// accent colours chosen from the name, so the same person always gets the same colour (UI test, 2026-10-18)
+// accent colours chosen from the name, so the same person always gets the same colour
 function AvatarSquare({ name, size = 36 }) {
   const accents = [C.teal, C.brand, C.lavender, C.success, C.ivory];
   let h = 0; for (const ch of String(name || "?")) h = (h * 31 + ch.charCodeAt(0)) >>> 0;   // the same name → the same number
   const color = accents[h % accents.length];
   return (
-    <div aria-hidden style={{ flexShrink: 0, width: size, height: size, borderRadius: 9, background: C.navy3, border: `2px solid ${color}`, color, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: size * 0.45, fontFamily: "'Nunito', sans-serif" }}>
+    <div aria-hidden style={{ flexShrink: 0, width: size, height: size, borderRadius: 8, background: C.navy3, border: `1.5px solid ${color}`, color, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: size * 0.45, fontFamily: "'Nunito', sans-serif" }}>
       {String(name || "?").charAt(0).toUpperCase()}
     </div>
   );
@@ -1868,9 +1876,43 @@ function AvatarSquare({ name, size = 36 }) {
 // A small coloured status label: "● Boarding now" / "● On the move"
 function StatusPill({ text, color }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 999, border: `1px solid ${color}`, color, fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 999, background: C.navy2, color, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
       <span style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />{text}
     </span>
+  );
+}
+
+// The platform number in a box, like a station sign ("01"); "free" = a quiet dashed box
+function PlatformBox({ n, free }) {
+  return (
+    <div style={{ width: 56, height: 44, borderRadius: 9, border: `1.5px ${free ? "dashed" : "solid"} ${free ? C.border : C.teal}`, background: C.bgApp, display: "flex", alignItems: "center", justifyContent: "center", ...smallTitle, fontSize: 24, color: free ? C.textMuted : C.teal }}>
+      {n > 0 ? String(n).padStart(2, "0") : "–"}
+    </div>
+  );
+}
+
+// A round badge for an icon (the welcome strip)
+function IconBadge({ children }) {
+  return (
+    <div aria-hidden style={{ flexShrink: 0, width: 40, height: 40, borderRadius: "50%", border: `1.5px solid ${C.teal}`, color: C.teal, display: "flex", alignItems: "center", justifyContent: "center" }}>{children}</div>
+  );
+}
+
+// Small line icons, drawn here (no icon package): train, user, users, chat, send, ticket.
+// Thin strokes in the current text colour (or "color"), like the example picture.
+function Icon({ name, size = 20, color = "currentColor" }) {
+  const paths = {
+    train: <><rect x="5" y="3" width="14" height="13" rx="3" /><path d="M5 10h14M9 20l-2 2M15 20l2 2M8 16l-1 4h10l-1-4" /><circle cx="9" cy="13" r="0.6" /><circle cx="15" cy="13" r="0.6" /></>,
+    user: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" /></>,
+    users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" /><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.3c2 .7 3.5 2.6 3.5 5.7" /></>,
+    chat: <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4V6a1 1 0 0 1 1-1z" />,
+    send: <><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4 20-7z" /></>,
+    ticket: <><path d="M3 7a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-3a2 2 0 0 0 0-4z" /><path d="M14 5v14" strokeDasharray="2 2" /></>,
+  };
+  return (
+    <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      {paths[name]}
+    </svg>
   );
 }
 
@@ -2338,7 +2380,6 @@ function Room() {
   const [kicked, setKicked] = useState(false);
   const [kickVotes, setKickVotes] = useState({});      // targetId → { votes, needed } (shown in Passengers)
   const [myKicks, setMyKicks] = useState([]);           // targetIds I voted to kick
-  const [passMenu, setPassMenu] = useState(null);       // { p, x, y, confirm } — the menu on a Passengers name
   // Last known room name, so the title never falls back to "Room #<id>"
   const roomNameRef = useRef("");
   // Set while leaving with Back to Lobby, so the poll below doesn't join the room again
@@ -2694,7 +2735,7 @@ function Room() {
     return () => clearInterval(iv);
   }, [topicTimer]);
 
-  // Vote to kick (or take the vote back) — from the Passengers menu or "/kick name" in chat
+  // Vote to kick (or take the vote back) — only by typing "/kp name" or "/kick name" in Sky Train Chat
   async function voteKick(name) {
     try {
       const r = await kickVote(id, name);
@@ -3405,15 +3446,11 @@ function Room() {
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
               {[...players].sort((a, b) => shownScore(b) - shownScore(a)).map(p => (
                 <li key={p.id}
-                  title={p.id !== auth?.userId ? `Message or vote to kick ${p.nickname}` : undefined}
+                  title={p.id !== auth?.userId ? `Message ${p.nickname}` : undefined}
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
-                  // One click opens a small menu: Message / Vote to kick (positioned under the name;
-                  // the page may be zoomed to fit the window, so the screen position is divided by it)
-                  onClick={e => {
-                    if (p.id === auth?.userId) return;
-                    const r = e.currentTarget.getBoundingClientRect();
-                    setPassMenu({ p, x: r.left / view.scale, y: r.bottom / view.scale, confirm: false });
-                  }}>
+                  // One click opens a private message with them. Kicking is never mixed in here (Damon,
+                  // 2026-10-18): it is only "/kp name" (or "/kick name") in Sky Train Chat
+                  onClick={() => { if (p.id !== auth?.userId) openPm(p.nickname); }}>
                   {/* Left side: a fixed tick column, then the name — the ✓ sits outside the name in its own
                       16px column, so names never move when someone submits (Damon's request) */}
                   <span style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
@@ -3488,34 +3525,6 @@ function Room() {
       </div>
       <PmToast />
         <RestartBanner />
-      {passMenu && (
-        // Click outside closes it
-        <div onPointerDown={e => { if (e.target === e.currentTarget) setPassMenu(null); }} style={{ position: "fixed", inset: 0, zIndex: 84 }}>
-          <div style={{ position: "fixed", left: Math.min(passMenu.x, view.w - 250), top: passMenu.y + 4, width: 230, background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 10, padding: 8, boxShadow: "0 12px 32px rgba(0,0,0,0.4)", display: "flex", flexDirection: "column", gap: 4 }}>
-            {!passMenu.confirm ? (
-              <>
-                <button onClick={() => { openPm(passMenu.p.nickname); setPassMenu(null); }}
-                  style={{ textAlign: "left", background: "none", border: "none", color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: 15, padding: "7px 8px", borderRadius: 6 }}>✉ Message {passMenu.p.nickname}</button>
-                <button onClick={() => {
-                  if (myKicks.includes(String(passMenu.p.id).toLowerCase())) { voteKick(passMenu.p.nickname); setPassMenu(null); }
-                  else setPassMenu(m => ({ ...m, confirm: true }));
-                }}
-                  style={{ textAlign: "left", background: "none", border: "none", color: C.brand, cursor: "pointer", fontFamily: "inherit", fontSize: 15, padding: "7px 8px", borderRadius: 6 }}>
-                  {myKicks.includes(String(passMenu.p.id).toLowerCase()) ? "Take back my kick vote" : "Vote to kick"}
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 15, padding: "4px 6px 8px", color: C.textPrimary }}>Vote to kick <b>{passMenu.p.nickname}</b> off this train?</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Btn onClick={() => { voteKick(passMenu.p.nickname); setPassMenu(null); }}>Yes</Btn>
-                  <BtnSecondary onClick={() => setPassMenu(null)}>Cancel</BtnSecondary>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
