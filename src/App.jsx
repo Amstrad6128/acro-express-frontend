@@ -1778,7 +1778,7 @@ function Lobby() {
             </Panel>
 
             <Panel style={{ padding: 16, display: "flex", flexDirection: "column" }}>
-              <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              <h2 style={{ margin: "0 0 10px", fontSize: 26, ...smallTitle }}>   {/* Honk, like On the platform (Damon, 2026-10-18) */}
                 Grand Sky Station Chat
               </h2>
               <div style={{ flex: 1, overflowY: "auto", maxHeight: 180, display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
