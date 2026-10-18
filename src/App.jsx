@@ -866,7 +866,7 @@ function LogEntryCard({ e, isAdmin, loggedIn, onRemoved }) {
   return (
     <Panel style={{ padding: "16px 20px", scrollMarginTop: 16 }}>
       <div id={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontFamily: "Fredoka, sans-serif", fontSize: 21, color: C.ivory }}>{e.title}</h2>
+        <h2 style={{ margin: 0, fontSize: 27, ...honkTitle }}>{e.title}</h2>   {/* Honk, like How to ride (Damon, 2026-10-18) */}
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ color: C.textMuted, fontSize: 13 }}>{logDate(e.createdAtUtc)}</span>
           <button onClick={copyLink} style={small} title="Copy a link to this entry">{copied ? "Copied" : "Link"}</button>
@@ -946,8 +946,8 @@ function StationLog() {
       <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ margin: 0, fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand }}>Station Log</h1>
-            <p style={{ margin: "4px 0 0", color: C.textMuted, fontSize: 15 }}>What's new on the Acro Express, and what we fixed. Comment and react — we read everything.</p>
+            <h1 style={{ margin: 0, fontSize: 40, ...honkTitle }}>Station Log</h1>   {/* Honk, the size of the logo */}
+            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>What's new on the Acro Express, and what we fixed. Comment and react — we read everything.</p>
           </div>
           <BtnSecondary onClick={() => navigate("/")}>← Grand Sky Station</BtnSecondary>
         </div>
