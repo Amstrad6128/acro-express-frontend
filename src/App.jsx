@@ -218,7 +218,10 @@ function applyTheme(key) {
   // as the outline colour, so Honk's inner lines look cut out of the letters (a palette can't use CSS variables,
   // so each button colour gets its own palette, rebuilt here with the palette's real colours)
   const honkOn = (name, fill, bg) => `@font-palette-values ${name} { font-family: 'Honk'; override-colors: ${[bg, bg, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
-  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand),
+  // The big letters in Honk: a lighter outline (Damon, 2026-10-18) — the box colour at 45% (hex alpha "73"),
+  // so it reads as a soft shadow instead of a dark block
+  const bigLetters = `@font-palette-values --acro-big { font-family: 'Honk'; override-colors: ${[t.bgPanel + "73", t.bgPanel + "73", t.brand, t.brand, t.brand, t.brand, t.brand, t.brand].map((c, i) => `${i} ${c}`).join(", ")}; }`;
+  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-letters", t.brand), bigLetters,
     honkOn("--acro-btn", t.onBrand, t.brand),            // main buttons (Submit, Send, + New Sky Train …)
     honkOn("--acro-btn2", t.teal, t.navy2),              // quiet buttons (← Grand Sky Station, My Sky Pass …)
     honkOn("--acro-btn-pm", t.lavender, t.navy2),        // Send in private chat
@@ -355,7 +358,7 @@ function ThemePicker() {
                 <button key={key} onClick={() => { applyLetterFont(key); setLetterFont(key); }}
                   style={{ flex: 1, background: active ? C.navy3 : "transparent", border: `1px solid ${active ? C.teal : C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: big ? 16 : 14, padding: big ? "10px 6px" : "6px 6px" }}>
                   <span style={key === "honk"
-                    ? { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 0, 'MORF' 15" }
+                    ? { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "--acro-big", fontVariationSettings: "'SHLN' 0, 'MORF' 15" }
                     : { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand }}>B T V</span>
                   <div style={{ fontSize: 12, marginTop: 2, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</div>
                 </button>
@@ -3200,7 +3203,7 @@ function Room() {
                 fontSize: `calc(${letterSize} * var(--lf-scale, 1))`,
                 lineHeight: "var(--lf-lh, 1)",
                 color: C.brand,
-                fontPalette: "--acro-letters", fontVariationSettings: "'SHLN' 0, 'MORF' 15",   // only used by Honk; no shadow (Damon: confusing on lighter backgrounds)
+                fontPalette: "--acro-big", fontVariationSettings: "'SHLN' 0, 'MORF' 15",   // only used by Honk; lighter outline (--acro-big); no shadow (Damon: confusing on lighter backgrounds)
                 textShadow: "var(--lf-shadow, var(--c-letterShadow))",   // per palette: softer on the light ones; none with Honk (it has its own)
                 fontWeight: 400
               }}>
