@@ -1828,6 +1828,9 @@ function Lobby() {
   const [winH, setWinH] = useState(() => window.innerHeight);
   useEffect(() => { const on = () => setWinH(window.innerHeight); window.addEventListener("resize", on); return () => window.removeEventListener("resize", on); }, []);
   const fits = !phone && winH >= 720;   // tall enough to show everything without scrolling
+  // Short desktop windows (Fran's 1686×769): the chat gets more room — the welcome bar moves into the header and
+  // Departures shows only the real trains plus the "New Sky Train" row (no empty placeholder rows)
+  const shortWin = !phone && winH < 850;
   // Everyone online, with where they are: the station's list (players) plus the passengers aboard each train
   // (roomList). Someone aboard a train is shown aboard it, not twice.
   const aboard = roomList.flatMap(r => (r.playingNames || []).map(n => ({ name: n, where: `Aboard ${r.name}`, onTrain: true })));
@@ -1840,19 +1843,31 @@ function Lobby() {
   const sendLobby = () => { if (chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } };   // Enter or Send
   const boxTitle = { margin: 0, fontSize: phone ? 24 : 28, ...smallTitle, display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" };   // Honk box titles, all the same size
   const smallBtn = { fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, lineHeight: 1.2, padding: "8px 16px", letterSpacing: 0, display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" };
+  // The greeting and your buttons: in the welcome bar, or in the header on short windows
+  const welcomeParts = auth && (
+    <>
+      <div style={{ fontSize: 16, flex: shortWin ? "none" : 1, minWidth: shortWin ? 0 : 160, whiteSpace: "nowrap" }}>{greeting("")}<b style={{ color: C.teal }}>{auth.username}</b></div>
+      <BtnSecondary onClick={() => navigate("/leaderboard")} style={smallBtn}>🏆 Sky Leaderboard</BtnSecondary>
+      <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)} style={smallBtn}><Icon name="ticket" size={18} /> My Sky Passport</BtnSecondary>
+      <button onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4, whiteSpace: "nowrap" }}>Leave the station</button>
+    </>
+  );
   // Departures: the trains, then free platforms so the board always shows 3 rows — and always at least one
   // free platform, the row where you start a new Sky Train
   const used = new Set(roomList.map(r => r.platform));
-  const freeNumbers = []; for (let n = 1; freeNumbers.length < Math.max(1, 3 - roomList.length); n++) if (!used.has(n)) freeNumbers.push(n);
+  const freeRows = shortWin ? 1 : Math.max(1, 3 - roomList.length);   // short windows: just the New Sky Train row
+  const freeNumbers = []; for (let n = 1; freeNumbers.length < freeRows; n++) if (!used.has(n)) freeNumbers.push(n);
   const boardCols = "76px minmax(0, 2.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) 132px";   // platform · train · aboard · status · button
 
   return (
     <div style={{ height: "100vh", overflowY: fits ? "hidden" : "auto", overflowX: "hidden", color: C.textPrimary, display: "flex", flexDirection: "column" }}>
       {/* Header: the logo, then the menus (on phones the menus go under the logo) */}
-      <div style={{ flexShrink: 0, borderBottom: `1px solid ${C.border}`, padding: phone ? "10px 16px" : "10px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 8, columnGap: 16 }}>
-        <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : 46, fontWeight: 400, margin: 0, lineHeight: 1.05, color: C.teal, fontPalette: "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
+      <div style={{ flexShrink: 0, borderBottom: `1px solid ${C.border}`, padding: phone ? "10px 16px" : "10px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 8, columnGap: shortWin ? 20 : 16 }}>
+        <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : (shortWin ? 40 : 46), fontWeight: 400, margin: 0, lineHeight: 1.05, color: C.teal, fontPalette: "--acro-logo", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
           Acro Express<sup style={{ fontFamily: "'Nunito', sans-serif", fontSize: 12, color: "var(--c-bgText)", marginLeft: 3, verticalAlign: "super" }}>™</sup>
         </h1>
+        {/* Short windows: the greeting and your buttons sit here, next to the logo, instead of in their own bar */}
+        {shortWin && auth && <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginRight: "auto" }}>{welcomeParts}</div>}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <StationLogButton />
           <HowToPlay winScore={roomList[0]?.winScore || 30} />
@@ -1879,13 +1894,10 @@ function Lobby() {
         )}
 
         {/* Welcome bar (one box, Damon): the greeting; your Sky Passport and leaving on the right */}
-        {auth && (
+        {auth && !shortWin && (
           <Panel style={{ flexShrink: 0, padding: "8px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <IconBadge><Icon name="user" /></IconBadge>
-            <div style={{ fontSize: 16, flex: 1, minWidth: 160 }}>{greeting("")}<b style={{ color: C.teal }}>{auth.username}</b></div>
-            <BtnSecondary onClick={() => navigate("/leaderboard")} style={smallBtn}>🏆 Sky Leaderboard</BtnSecondary>   {/* 2026-10-18 */}
-            <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)} style={smallBtn}><Icon name="ticket" size={18} /> My Sky Passport</BtnSecondary>
-            <button onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4 }}>Leave the station</button>
+            {welcomeParts}
           </Panel>
         )}
 
