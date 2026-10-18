@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Acro Express icon (2026-10-18): a cloud with a little Sky Train on it, in Midnight's colours -->
+  <rect width="64" height="64" rx="14" fill="#151D33"/>
+  <!-- the cloud -->
+  <path d="M15 42c-5 0-8-3.4-8-7.6 0-4 3-7.2 7-7.5 1-6 6-10.4 12-10.4 4.6 0 8.6 2.6 10.6 6.4 1-.3 2-.5 3.1-.5 5.2 0 9.4 3.9 9.8 8.9 3.6.6 6.3 3.5 6.3 7 0 4-3.2 6.7-7.4 6.7H15z" fill="#F2E6D8"/>
+  <!-- the train: a coral carriage with teal windows -->
+  <rect x="17" y="33" width="30" height="11" rx="3.5" fill="#FF7A6B"/>
+  <rect x="20.5" y="35.5" width="6" height="4" rx="1" fill="#8FD0DE"/>
+  <rect x="29" y="35.5" width="6" height="4" rx="1" fill="#8FD0DE"/>
+  <rect x="37.5" y="35.5" width="6" height="4" rx="1" fill="#8FD0DE"/>
+  <!-- the rail -->
+  <rect x="12" y="46" width="40" height="2.5" rx="1.25" fill="#8FD0DE"/>
+</svg>
