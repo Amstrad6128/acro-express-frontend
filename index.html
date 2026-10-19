@@ -7,34 +7,72 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#070b14" />
-    <title>Acro Express · We belong in the clouds</title>
+    <!-- The title in search results (2026-10-19): the name plus what it is, the words people search for -->
+    <title>Acro Express – Free Multiplayer Acronym Word Game</title>
     <!-- What search engines show under the title -->
-    <meta name="description" content="A free multiplayer word game in your browser. Board a Sky Train, turn random letters into the funniest phrase, vote, and ride to 30 points." />
+    <meta name="description" content="Acro Express is a free online multiplayer acronym game. Get random letters, write the funniest phrase that fits them, vote for your favourite and race your friends to 30 points. No download." />
     <link rel="canonical" href="https://www.acro.express/" />
     <!-- The card shown when the link is shared (WhatsApp, Facebook, Discord, X …) -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Acro Express" />
     <meta property="og:url" content="https://www.acro.express/" />
-    <meta property="og:title" content="Acro Express · We belong in the clouds" />
-    <meta property="og:description" content="A free multiplayer word game: turn letters into lines, vote for the funniest, ride to 30." />
+    <meta property="og:title" content="Acro Express – Free Multiplayer Acronym Word Game" />
+    <meta property="og:description" content="Turn random letters into the funniest lines, vote for the best, and ride the Sky Train to 30 points. Free, in your browser." />
     <meta property="og:image" content="https://www.acro.express/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Acro Express logo with the letters B T V" />
     <meta name="twitter:card" content="summary_large_image" />
-    <!-- Tells search engines what this site is: a free online game -->
+    <!-- Tells search engines (and AI answer engines) what this site is: a free online game, and answers to common questions -->
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"VideoGame","name":"Acro Express","url":"https://www.acro.express/",
-       "description":"A free multiplayer word game: turn random letters into the funniest phrase, vote, and ride to 30 points.",
-       "genre":["Word game","Party game"],"playMode":"MultiPlayer","gamePlatform":"Web browser","applicationCategory":"Game",
-       "offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}
+      [{"@context":"https://schema.org","@type":"VideoGame","name":"Acro Express","alternateName":["Acro Express game","Acro Express acronym game"],
+        "url":"https://www.acro.express/","image":"https://www.acro.express/og-image.png",
+        "description":"Acro Express is a free online multiplayer acronym word game, inspired by classic acro games like Acrophobia. Players get random letters, write the funniest phrase that fits them, vote for their favourite and race to 30 points.",
+        "genre":["Word game","Party game","Acronym game"],"playMode":"MultiPlayer","gamePlatform":"Web browser","applicationCategory":"Game","inLanguage":"en",
+        "offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}},
+       {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+        {"@type":"Question","name":"What is Acro Express?","acceptedAnswer":{"@type":"Answer","text":"Acro Express is a free online multiplayer word game. Each round you get a few random letters, such as B T V, and write a phrase whose words start with those letters. Everyone votes for their favourite, and the first passenger to reach 30 points wins."}},
+        {"@type":"Question","name":"Is Acro Express free?","acceptedAnswer":{"@type":"Answer","text":"Yes. Acro Express is free to play in your web browser, on a computer or a phone. There is nothing to download."}},
+        {"@type":"Question","name":"Is Acro Express like Acrophobia?","acceptedAnswer":{"@type":"Answer","text":"Yes. Acro Express is inspired by the classic acro games like Acrophobia: make an acronym into a funny sentence and let the players vote. It is an independent game and not linked to any other game or company."}},
+        {"@type":"Question","name":"How many players can play?","acceptedAnswer":{"@type":"Answer","text":"Any number of players can meet at the Grand Sky Station and chat. Each game takes place on a Sky Train with up to 14 passengers."}}]}]
     </script>
     <!-- Fonts: all served from our own site (public/fonts, declared in src/index.css), none from Google —
          Google Fonts would see every player's IP address (2026-10-18) -->
     <link rel="preload" href="/fonts/honk-v6-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
-    <div id="root"></div>
+    <!-- The game draws itself into #root. The text below is what search engines and AI answer engines read
+         (2026-10-19: Google said "there is no game called Acro Express" — the page used to be empty without
+         JavaScript). The game replaces it the moment it starts, so players only see it for an instant. -->
+    <div id="root">
+      <main style="max-width: 760px; margin: 0 auto; padding: 32px 20px; font-family: Nunito, sans-serif; color: #F5F6FA; line-height: 1.6;">
+        <h1>Acro Express – a free multiplayer acronym word game</h1>
+        <p>Acro Express is a free online word game for friends and strangers. Board a Sky Train at the Grand Sky
+          Station, get a few random letters, and turn them into the funniest, cleverest line you can. Then everyone
+          votes, and the first passenger to reach 30 points wins the journey.</p>
+        <h2>How to play</h2>
+        <ol>
+          <li>You get a topic and some letters, for example <b>B T V</b>.</li>
+          <li>Write one word for each letter, in order: "Bring The Volcano".</li>
+          <li>All the entries appear without names. Vote for your favourite.</li>
+          <li>Every vote is a point. The winning line gets a bonus, and so does the fastest one with a vote.</li>
+          <li>The station winner picks the next topic. First to 30 points wins.</li>
+        </ol>
+        <h2>What's on board</h2>
+        <ul>
+          <li>Sky Trains for up to 14 passengers, with their own chat.</li>
+          <li>The Grand Sky Station: see who's online, chat, and start or join a train.</li>
+          <li>A Sky Passport for every passenger, with stats, best acros and stamps.</li>
+          <li>The Sky Leaderboard: champions of the week, the month and all time.</li>
+          <li>Express Colors: pick the look of your screen, from Midnight to Daybreak.</li>
+        </ul>
+        <h2>Inspired by the classic acro games</h2>
+        <p>If you loved Acrophobia and the acro rooms of the early internet, you'll feel at home: the same simple
+          idea of turning an acronym into a funny sentence and letting the players decide. Acro Express is an
+          independent game, free to play in your browser, on a computer or a phone.</p>
+        <p><a href="/" style="color: #FF7A6B;">Play Acro Express now</a></p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

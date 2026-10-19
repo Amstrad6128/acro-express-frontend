@@ -1,0 +1,23 @@
+# Acro Express
+
+> Acro Express is a free online multiplayer acronym word game, played in the web browser at https://www.acro.express/. It is inspired by classic acro games like Acrophobia, and is an independent game.
+
+## How it works
+- Players meet at the Grand Sky Station (the lobby), chat, and board a Sky Train (a game room, up to 14 players).
+- Each round (a "station") shows a topic and 3 to 7 random letters, for example B T V.
+- Each player writes a phrase with one word per letter, in order: "Bring The Volcano".
+- Entries are shown without names and everyone votes for their favourite.
+- Points: 1 per vote received, a bonus for the winning phrase (1 point per letter), +1 for voting for the winner, and a speed bonus.
+- The first player to reach 30 points wins the journey (the game).
+
+## Features
+- Sky Passport: each player's profile with stats, best acros and stamps.
+- Sky Leaderboard: rankings for the week, the month and all time.
+- Express Colors: colour themes named after times of the day.
+- Free, no download, works on computers and phones.
+
+## Links
+- Play: https://www.acro.express/
+- Station Log (news and updates): https://www.acro.express/log
+- House Rules: https://www.acro.express/rules
+- Privacy: https://www.acro.express/privacy

@@ -1101,7 +1101,7 @@ function PaletteStats() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
             <h1 style={{ margin: 0, fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand }}>Palette stats</h1>
-            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>Stations played with each Express Colors palette (one per player per station). Only you see this page.</p>
+            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>Stations played with each Express Colors palette (one per player per station), other players only: your own picks are left out. Only you see this page.</p>
           </div>
           <BtnSecondary onClick={() => navigate("/log")}>← Station Log</BtnSecondary>
         </div>
