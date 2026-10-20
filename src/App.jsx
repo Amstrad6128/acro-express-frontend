@@ -702,9 +702,9 @@ function SoundControl() {
             style={{ marginTop: 10, width: "100%", background: "transparent", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "5px 8px" }}>
             {st.on ? "Mute" : "Unmute"}
           </button>
-          {/* Music while acros are written (Damon, 2026-10-20): the original song or one of the lines made in the
-              browser (src/themes.js). Applies from the next station. */}
-          <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 4px" }}>Song <span style={{ fontSize: 12 }}>(from the next station)</span></div>
+          {/* Music while acros are written (Damon, 2026-10-20): the original song or one of the songs made in the
+              browser (src/themes.js). Switches at once, also in the middle of a station (2026-10-21). */}
+          <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 4px" }}>Song</div>
           {MUSIC_CHOICES.map(m => {
             const on = (st.music || "classic") === m.id;
             return (
@@ -2997,6 +2997,8 @@ function Room() {
   const audio2Ref = useRef(null);     // tune 2 — plays after submission until voting
   const votingAudioRef = useRef(null); // drumroll
   const songTimeoutRef = useRef(null); // delayed start of the writing song (long rounds)
+  const stationEndRef = useRef(0);     // when the writing time ends (ms), so a song chosen mid-station fits the rest
+  const musicNowRef = useRef(null);    // the music playing in this station ("classic" or a theme id)
   const topicRequestedRef = useRef(false);
   // Mirrors `phase` so refreshRoomState (run from a setInterval) always reads the
   // current phase — the interval closure otherwise keeps the phase from first render
@@ -3029,9 +3031,79 @@ function Room() {
   // When the poll last re-joined us (so it doesn't try more than every 5 s)
   const lastRejoinRef = useRef(0);
 
+  // The writing-time music for the seconds that are left: the player's choice in the Music menu. Called when a
+  // station starts and when the player picks another song during the writing time (it replaces the one playing).
+  function startStationMusic(seconds) {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if (songTimeoutRef.current) { clearTimeout(songTimeoutRef.current); songTimeoutRef.current = null; }
+    const music = soundSettings.music || "classic";
+    musicNowRef.current = MUSIC_CHOICES.some(m => m.id === music) ? music : "classic";   // an unknown choice: the song
+    // A theme made in the browser instead of the original song: it fits the seconds left and ends at 0 by itself
+    if (musicNowRef.current !== "classic") {
+      const holder = themeAudio();
+      holder.volume = THEME_LEVEL * soundGain();
+      audioRef.current = holder;
+      if (submittedAcroRef.current) holder.muted = true;
+      playTheme(music, seconds || 60, THEME_LEVEL)   // the holder sets the real volume (also 0 when muted)
+        .then(pl => { if (audioRef.current !== holder) pl?.stop(); else holder.attach(pl); })
+        .catch(() => { });
+      return;
+    }
+
+    const audio = new Audio("/AcroExpress_tunes.m4a");
+    audio.loop = false;
+    audio.volume = THEME_LEVEL * soundGain();   // the player's sound setting, softer for the main theme
+    audioRef.current = audio;
+
+    // The song lasts ~92 seconds and its ending must land on 0: every round
+    // (56–84 s) skips the right amount of its beginning, with a quick fade-in.
+    // (If a round is ever longer than the song, the song starts later instead.)
+    const SONG_SECONDS = 91.9; // extended version (30-second build-up intro + the original song)
+    const skipSeconds = Math.max(0, SONG_SECONDS - (seconds || 0));
+    if (skipSeconds > 0) audio.currentTime = skipSeconds;
+
+    const startSong = () => {
+      // Round already over (or a new one started) — don't play a stale song
+      if (audioRef.current !== audio) return;
+      // Submitted during the quiet lead-in → the song runs silently, as after any submit
+      if (submittedAcroRef.current) audio.muted = true;
+      // Fade in over 1.5 s when not starting from the very beginning
+      if (skipSeconds > 0) {
+        audio.volume = 0;
+        let v = 0;
+        const fade = setInterval(() => {
+          v = Math.min(1, v + 0.1);
+          audio.volume = v * THEME_LEVEL * soundGain();   // fade up to the theme's level, not to full
+          if (v >= 1) clearInterval(fade);
+        }, 150);
+      }
+      audio.play().catch(() => {
+        const unlockAndPlay = () => {
+          audio.play().catch(() => { });
+          window.removeEventListener("click", unlockAndPlay);
+          window.removeEventListener("keydown", unlockAndPlay);
+        };
+        window.addEventListener("click", unlockAndPlay);
+        window.addEventListener("keydown", unlockAndPlay);
+      });
+    };
+
+    // Longer rounds: wait, so the song's ending still lines up with 0
+    const delayMs = Math.max(0, ((seconds || 0) - SONG_SECONDS) * 1000);
+    if (delayMs > 0) songTimeoutRef.current = setTimeout(startSong, delayMs);
+    else startSong();
+  }
+
   // 🔊 / volume changed in the header: apply it to the sounds playing at this moment
   useEffect(() => {
     const onSound = () => {
+      // Another song chosen during the writing time: switch now, for the seconds that are left (Damon, 2026-10-21:
+      // "the music will not switch to a new theme even when I click it" — it used to wait for the next station)
+      const music = soundSettings.music || "classic";
+      if (phaseRef.current === "Submitting" && musicNowRef.current && music !== musicNowRef.current) {
+        const left = (stationEndRef.current - Date.now()) / 1000;
+        if (left > 3) { startStationMusic(left); return; }
+      }
       if (audioRef.current) audioRef.current.volume = THEME_LEVEL * soundGain();   // the main theme stays softer
       for (const a of [audio2Ref.current, votingAudioRef.current])
         if (a) a.volume = soundGain();
@@ -3123,64 +3195,8 @@ function Room() {
       if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
 
-      // A theme made in the browser instead of the original song (the player's Music choice in the Sound menu).
-      // It fits the station's exact length and ends at 0 by itself.
-      const music = soundSettings.music || "classic";
-      if (music !== "classic" && MUSIC_CHOICES.some(m => m.id === music)) {
-        const holder = themeAudio();
-        holder.volume = THEME_LEVEL * soundGain();
-        audioRef.current = holder;
-        if (submittedAcroRef.current) holder.muted = true;
-        playTheme(music, seconds || 60, THEME_LEVEL * soundGain())
-          .then(pl => { if (audioRef.current !== holder) pl?.stop(); else holder.attach(pl); })
-          .catch(() => { });
-        return;
-      }
-
-      const audio = new Audio("/AcroExpress_tunes.m4a");
-      audio.loop = false;
-      audio.volume = THEME_LEVEL * soundGain();   // the player's sound setting, softer for the main theme
-      audioRef.current = audio;
-
-      // The song lasts ~92 seconds and its ending must land on 0: every round
-      // (56–84 s) skips the right amount of its beginning, with a quick fade-in.
-      // (If a round is ever longer than the song, the song starts later instead.)
-      const SONG_SECONDS = 91.9; // extended version (30-second build-up intro + the original song)
-      const skipSeconds = Math.max(0, SONG_SECONDS - (seconds || 0));
-      if (skipSeconds > 0) audio.currentTime = skipSeconds;
-
-      const startSong = () => {
-        // Round already over (or a new one started) — don't play a stale song
-        if (audioRef.current !== audio) return;
-        // Submitted during the quiet lead-in → the song runs silently, as after any submit
-        if (submittedAcroRef.current) audio.muted = true;
-        // Fade in over 1.5 s when not starting from the very beginning
-        if (skipSeconds > 0) {
-          audio.volume = 0;
-          let v = 0;
-          const fade = setInterval(() => {
-            v = Math.min(1, v + 0.1);
-            audio.volume = v * THEME_LEVEL * soundGain();   // fade up to the theme's level, not to full
-            if (v >= 1) clearInterval(fade);
-          }, 150);
-        }
-        audio.play().catch(() => {
-          const unlockAndPlay = () => {
-            audio.play().catch(() => { });
-            window.removeEventListener("click", unlockAndPlay);
-            window.removeEventListener("keydown", unlockAndPlay);
-          };
-          window.addEventListener("click", unlockAndPlay);
-          window.addEventListener("keydown", unlockAndPlay);
-        });
-      };
-
-      // Longer rounds: wait, so the song's ending still lines up with 0
-      const delayMs = Math.max(0, ((seconds || 0) - SONG_SECONDS) * 1000);
-      if (songTimeoutRef.current) clearTimeout(songTimeoutRef.current);
-      songTimeoutRef.current = null;
-      if (delayMs > 0) songTimeoutRef.current = setTimeout(startSong, delayMs);
-      else startSong();
+      stationEndRef.current = Date.now() + (seconds || 60) * 1000;
+      startStationMusic(seconds);
     }, []),
 
     // Restored: this handler was accidentally deleted in the May 22 music fix.

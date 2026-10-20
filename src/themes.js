@@ -1,6 +1,7 @@
 // Writing-time music made in the browser (Damon, 2026-10-20). No audio files: a small step sequencer with Web
-// Audio oscillators and noise. Every theme knows the station's length: the tempo is nudged so a whole number of
-// bars fits, it builds up as the time runs out, and it ends exactly at 0. Melodies are generated from a fixed
+// Audio oscillators and noise. Every theme knows the station's length: it keeps ONE steady tempo all the way (it
+// starts part-way into its first bar so that the last bar ends exactly at 0), builds up as the time runs out
+// without ever playing its beat faster, and ends exactly at 0. Melodies are generated from a fixed
 // seed (so a theme sounds the same every time) and are original — "inspired by" means the style only.
 //
 // Themes: Chiptune (Damon's favourite), 70s Lounge (replaced Lo-fi: "pitchy, the bass sounds cheap"; keeps Lo-fi's
@@ -14,24 +15,17 @@
 //
 // playTheme(id, seconds, level) → Promise of { stop(), setLevel(level), endsAt (ms timestamp) }
 
-let ctx = null, iosOut = null, iosEl = null;
+// One sound engine for all themes, switched on by the player's first click or key press (see unlockAudio).
+// 2026-10-21: the sound goes straight to the speakers again. (From f0badc3 it went through an audio player element,
+// like the Original song; that was not why players heard nothing — the browser waits for a click, and a new choice
+// only started at the next station — and it was one more thing that could go wrong. Nobody plays on an iPhone.)
+let ctx = null;
 function audioCtx() {
-  if (!ctx) {
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
-    // Like the Original song (Damon, 2026-10-20: "do what you did for the original theme"): the music goes out through
-    // an audio player element, for everyone — browsers (and iOS with its silent switch) treat it like the song,
-    // which plays for all players. Browser-made sound sent straight to the speakers stayed silent for players.
-    if (ctx.createMediaStreamDestination) {
-      try { iosOut = ctx.createMediaStreamDestination(); iosEl = new Audio(); iosEl.setAttribute("playsinline", ""); iosEl.srcObject = iosOut.stream; }
-      catch { iosOut = null; iosEl = null; }
-    }
-  }
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
   if (ctx.state === "suspended") ctx.resume().catch(() => { });
-  if (iosEl && iosEl.paused) iosEl.play().catch(() => { });
   return ctx;
 }
-// Where a theme's sound goes: the speakers (or, on iOS, the audio player element); an offline render keeps its own
-const speakers = c => (c === ctx && iosOut ? iosOut : c.destination);
+const speakers = c => c.destination;
 // Browsers only let a page make sound after the player clicked or typed, and the sound engine must be switched on
 // during such a click. A station starts from the server, not from a click, so App.jsx calls this on every click and
 // key press (2026-10-20: the music was silent in a real game because of this; the admin page worked because there
@@ -90,7 +84,7 @@ function kick(c, out, t, vol = 0.5, from = 140) {
 }
 // Noise through filters: hats (high), snares (mid), shakers, crackle. attack > 0 softens the start.
 function hit(c, out, t, { vol = 0.1, dur = 0.05, hp = 7000, lp = null, attack = 0 } = {}) {
-  const s = c.createBufferSource(); s.buffer = noise(c);
+  const s = c.createBufferSource(); s.buffer = noise(c); s.loop = true;   // loops: a long swell outlasts the 1 s of noise
   const f = c.createBiquadFilter(); f.type = "highpass"; f.frequency.value = hp;
   s.connect(f);
   let node = f;
@@ -187,7 +181,8 @@ const THEMES = {
   // Chiptune: square lead, arpeggios, triangle bass, 8-bit drums. I–V–vi–IV in C.
   chiptune: {
     // "Pixel": was "Chiptune" (Damon: "chip and cheap are similar words")
-    name: "Pixel", bpm: 132, gain: 0.9, seed: 7, boost: 3.5,
+    name: "Pixel", bpm: 112,   // was 132 (Damon, 2026-10-21: "too fast")
+    gain: 0.9, seed: 7, boost: 3.5,
     prog: [{ root: 36, tones: [60, 64, 67] }, { root: 43, tones: [59, 62, 67] }, { root: 45, tones: [60, 64, 69] }, { root: 41, tones: [60, 65, 69] }],
     scale: [72, 74, 76, 79, 81, 84],
     step(c, out, s) {
@@ -195,11 +190,14 @@ const THEMES = {
       if (pos % 2 === 0) tone(c, out, t, chord.root + (pos % 4 === 2 ? 12 : 0) + 12, d * 1.7, { type: "triangle", vol: 0.22 });
       if (p > 0.12) tone(c, out, t, chord.tones[pos % 3] + 12, d * 0.9, { type: "square", vol: 0.035 });
       if (p > 0.25) {
-        // final stretch: a kick on every beat from 15 s left, 16th hats; a soft snare roll building in the last 4 s
-        if (pos === 0 || pos === 8 || (p > 0.6 && pos === 10) || (left <= 15 && pos % 4 === 0)) kick(c, out, t, 0.42);
+        // final stretch (2026-10-21: the beat never doubles — 16th hats, a kick on every beat and a snare roll made
+        // it sound faster): from 15 s left the hats get brighter with an open hat on the off-beats, and in the last
+        // 4 s one long noise swell rises into the ending
+        if (pos === 0 || pos === 8 || (p > 0.6 && pos === 10)) kick(c, out, t, 0.42);
         if (pos === 4 || pos === 12) hit(c, out, t, { vol: 0.14, dur: 0.11, hp: 1500, lp: 6500 });
-        if (pos % 2 === 0 || left <= 15) hit(c, out, t, { vol: 0.035, dur: 0.03, hp: 8500 });
-        if (left <= 4) hit(c, out, t, { vol: 0.02 + 0.06 * (1 - left / 4), dur: 0.06, hp: 1500, lp: 6000 });
+        if (pos % 2 === 0) hit(c, out, t, { vol: left <= 15 ? 0.05 : 0.035, dur: 0.03, hp: 8500 });
+        if (left <= 15 && pos % 4 === 2) hit(c, out, t, { vol: 0.03, dur: 0.12, hp: 7000 });
+        if (left <= 4 && left + d > 4) hit(c, out, t, { vol: 0.07, dur: 4, hp: 1500, lp: 7000, attack: 3.8 });
       }
       if (p > 0.4) {
         const mel = melodyBar(this.seed, bar, [0, 2, 3, 6, 8, 10, 12, 14], chord.tones, this.scale);
@@ -263,7 +261,7 @@ const THEMES = {
       // brushes after the intro: a soft swish on every beat, a quiet hat, a gentle kick; hats pick up at the end
       if (!intro) {
         if (pos % 4 === 0) hit(c, out, t, { vol: 0.02, dur: 0.3, hp: 1500, lp: 5000, attack: 0.05 });
-        if (pos === 4 || pos === 12 || (B && pos % 2 === 0) || (left <= 12 && pos % 2 === 0) || (left <= 6)) hit(c, out, t, { vol: left <= 6 ? 0.016 : 0.02, dur: 0.05, hp: 5000, lp: 8000, attack: 0.008 });
+        if (pos === 4 || pos === 12 || (B && pos % 2 === 0) || (left <= 12 && pos % 2 === 0)) hit(c, out, t, { vol: 0.02, dur: 0.05, hp: 5000, lp: 8000, attack: 0.008 });
         if (pos === 0 || pos === 10) kick(c, out, t, 0.14, 80);
       }
       // strings from the lift, swelling in the last seconds
@@ -295,17 +293,19 @@ const THEMES = {
       if (pos % 4 === 0) {                                          // walking bass: root, third, fifth, approach note
         const beat = pos / 4;
         const n = beat === 0 ? chord.root : beat === 1 ? chord.root + 4 : beat === 2 ? chord.root + 7 : next.root + (next.root > chord.root ? -1 : 1);
-        tone(c, out, t, n, d * (left <= 8 ? 1.8 : 3.6), { type: "triangle", vol: 0.3, lowpass: 900 });
+        tone(c, out, t, n, d * 3.6, { type: "triangle", vol: left <= 8 ? 0.34 : 0.3, lowpass: left <= 8 ? 1200 : 900 });
       }
-      // final stretch: from 8 s left the bass doubles up into 8ths (an octave above, in between)
-      if (left <= 8 && pos % 4 === 2) tone(c, out, t, chord.root + 12, d * 1.8, { type: "triangle", vol: 0.2, lowpass: 900 });
+      // (2026-10-21: the bass no longer doubles up into 8ths at the end — it sounded like speeding up; it gets a
+      // little stronger and brighter instead)
       if (p > 0.08 && (pos === 0 || pos === 6 || (p > 0.55 && pos === 14)))   // Charleston-style piano stabs
         chord.tones.forEach(n => tone(c, out, t, n + 12, 0.16, { type: "triangle", vol: 0.04, lowpass: 3200 }));
       if (p > 0.2) {
-        if ([0, 4, 6, 8, 12, 14].includes(pos) || (left <= 15 && pos % 2 === 0)) hit(c, out, t, { vol: pos % 4 === 0 ? 0.045 : 0.03, dur: 0.22, hp: 6000 });   // ride (every 8th from 15 s left)
+        const lift = left <= 15 ? 1.35 : 1;                                                                                // final stretch: the same ride, louder
+        if ([0, 4, 6, 8, 12, 14].includes(pos)) hit(c, out, t, { vol: (pos % 4 === 0 ? 0.045 : 0.03) * lift, dur: 0.22, hp: 6000 });   // ride
         if (pos === 4 || pos === 12) hit(c, out, t, { vol: 0.04, dur: 0.03, hp: 7500 });                                    // hi-hat foot
         if (pos % 4 === 0) kick(c, out, t, 0.14);                                                                           // feathered kick
-        if (left <= 4 ? true : (late && pos % 2 === 0)) hit(c, out, t, { vol: left <= 4 ? 0.03 + 0.05 * (1 - left / 4) : 0.05, dur: 0.08, hp: 1800, lp: 5000 });   // brushes pick up, then build
+        if (late && (pos === 4 || pos === 12)) hit(c, out, t, { vol: 0.05, dur: 0.1, hp: 1800, lp: 5000 });                 // brush on 2 and 4
+        if (left <= 4 && left + d > 4) hit(c, out, t, { vol: 0.06, dur: 4, hp: 4000, attack: 3.6 });                       // cymbal swell into the ending
       }
       if (p > 0.35) {
         const mel = melodyBar(this.seed, bar, [0, 2, 4, 6, 8, 10, 14], chord.tones, this.scale);
@@ -342,16 +342,17 @@ const THEMES = {
       if ((left <= 4 && left + d > 4) || (left <= 2 && left + d > 2)) this.whistle(c, out, t, 0.4);
       // the whistle (reworked: Damon found the first version "unpleasant to the ear"): a warm two-note "whooo",
       // every 16 bars (and at the very start)
-      if (pos === 0 && bar % 16 === 0) this.whistle(c, out, t, d * 12);
+      if ((pos === 0 && bar % 16 === 0) || (s.first && bar === 0)) this.whistle(c, out, t, d * 12);
       // (No steam any more. Damon: "Just lose the steam … It kills the whole song" — the synthesized puffs and then a
       // recorded breath, steady or irregular, all sounded unnatural. The breath_noise samples stay, unused.)
       // clickety-clack: two soft low thumps on the rails, then a lighter pair halfway through the bar; from 15 s left
       // the wheels clack twice as often, harder from 7 s left
-      if (pos === 0 || pos === 2) kick(c, out, t, 0.12, 110);
-      if (pos === 8 || pos === 10) kick(c, out, t, 0.06, 150);
-      if (left <= 15 && (pos === 4 || pos === 6 || pos === 12 || pos === 14)) kick(c, out, t, left <= 7 ? 0.07 : 0.045, 150);
-      // final stretch, boogie piano: soft off-beat chord stabs from 15 s left, steady 8ths from 6 s left
-      if (left <= 15 && (left <= 6 ? pos % 2 === 0 : pos % 4 === 2))
+      // (2026-10-21: the wheels no longer clack twice as often at the end — it sounded like speeding up; louder instead)
+      const clack = left <= 7 ? 1.4 : left <= 15 ? 1.2 : 1;
+      if (pos === 0 || pos === 2) kick(c, out, t, 0.12 * clack, 110);
+      if (pos === 8 || pos === 10) kick(c, out, t, 0.06 * clack, 150);
+      // final stretch, boogie piano: soft off-beat chord stabs from 15 s left
+      if (left <= 15 && pos % 4 === 2)
         chord.tones.slice(1).forEach(n => tone(c, out, t, n + 12, d * 1.2, { type: "triangle", vol: 0.016, attack: 0.006, lowpass: 2400 }));
       // (the breezy pad and the wind swell are gone: their "voooo, voooo" every bar was unpleasant — Damon)
       // a blues harmonica, the classic train-song sound: a short two-note riff every 4 bars, mellow and quiet;
@@ -365,7 +366,6 @@ const THEMES = {
         const steps = [0, 4, 7, 9, 10, 9, 7, 4];
         tone(c, out, t, chord.root + steps[pos / 2], d * 1.8, { type: "triangle", vol: 0.14, attack: 0.01, lowpass: 800 });
       }
-      if (left <= 6 && pos % 4 === 3) tone(c, out, t, chord.root + 12, d * 0.9, { type: "triangle", vol: 0.09, attack: 0.008, lowpass: 900 });   // quick pickups
       // a mellow chiptune-like melody (a soft square with the edges filtered off)
       if (p > 0.33) {
         const mel = melodyBar(this.seed, bar, [0, 3, 6, 8, 11, 14], chord.tones, this.scale, 0.3);
@@ -437,6 +437,26 @@ const THEMES = {
 // offline = kept, playable on the admin page, but not offered to players
 export const THEME_LIST = Object.entries(THEMES).map(([id, th]) => ({ id, name: th.name, offline: !!th.offline }));
 
+// The steady beat (Damon, 2026-10-21: the songs must not speed up or slow down). The tempo is always the theme's
+// own bpm — it used to be nudged so a whole number of bars fitted the station, which made late starts up to 10%
+// faster. Instead the theme starts part-way into its first bar, so its last bar still ends exactly at 0.
+//   d = one 16th, total = 16ths up to the end, first = the first 16th that is played, stopAt = where the ending starts
+function grid(th, seconds) {
+  const d = 60 / th.bpm / 4;
+  const bars = Math.max(1, Math.ceil(seconds / (16 * d)));
+  const total = bars * 16;
+  const first = total - Math.floor(seconds / d);
+  const stopAt = (th.endsEarly ? bars - 1 : bars) * 16;
+  return { d, bars, total, first: Math.min(first, stopAt), stopAt };
+}
+// The note information for 16th number i (see the list above the themes)
+function stepInfo(th, i, g, t) {
+  const pos = i % 16, bar = Math.floor(i / 16), left = (g.total - i) * g.d;
+  return { t, i, bar, pos, d: g.d, p: i / g.total, chord: th.prog[bar % th.prog.length], next: th.prog[(bar + 1) % th.prog.length],
+    late: left <= 10, left, bars: g.bars, first: i === g.first };
+}
+const swingOf = (th, pos, d) => (th.swing && pos % 4 === 2 ? d * th.swing * 2 : 0);
+
 // async: a theme on recorded instruments first loads its samples (once)
 // For measuring loudness (admin checks): schedules a whole theme at once into a given (offline) context, through the
 // same master gain and compressor as playTheme. Render with c.startRendering().
@@ -448,16 +468,9 @@ export async function renderTheme(id, seconds, level, c) {
   const comp = c.createDynamicsCompressor(), makeup = c.createGain(), limiter = makeLimiter(c);
   makeup.gain.value = th.boost || 1;   // per theme, measured to match the Classic song's loudness in the game
   master.connect(comp); comp.connect(makeup); makeup.connect(limiter); limiter.connect(speakers(c));
-  const bars = Math.max(2, Math.round(seconds * th.bpm / 60 / 4));
-  const barDur = seconds / bars, d = barDur / 16, total = bars * 16;
-  const stopAt = (th.endsEarly ? bars - 1 : bars) * 16, t0 = 0.1;
-  for (let i = 0; i < stopAt; i++) {
-    const pos = i % 16, bar = Math.floor(i / 16);
-    const swingDelay = th.swing && pos % 4 === 2 ? d * th.swing * 2 : 0;
-    th.step(c, master, { t: t0 + i * d + swingDelay, i, bar, pos, d, p: i / total, chord: th.prog[bar % th.prog.length],
-      next: th.prog[(bar + 1) % th.prog.length], late: (total - i) * d <= 10, left: (total - i) * d, bars });
-  }
-  th.ending(c, master, t0 + stopAt * d, d);
+  const g = grid(th, seconds), end = 0.1 + seconds, at = i => end - (g.total - i) * g.d;   // 16th i's moment
+  for (let i = g.first; i < g.stopAt; i++) th.step(c, master, stepInfo(th, i, g, at(i) + swingOf(th, i % 16, g.d)));
+  th.ending(c, master, at(g.stopAt), g.d);
 }
 
 export async function playTheme(id, seconds, level) {
@@ -479,34 +492,24 @@ export async function playTheme(id, seconds, level) {
   makeup.gain.value = th.boost || 1;   // per theme, measured to match the Classic song's loudness in the game
   master.connect(comp); comp.connect(makeup); makeup.connect(limiter); limiter.connect(speakers(c));
 
-  // A whole number of bars in the station: the tempo moves a little so the last bar ends at 0
-  const bars = Math.max(2, Math.round(seconds * th.bpm / 60 / 4));
-  const barDur = seconds / bars, d = barDur / 16, total = bars * 16;
-  // endsEarly: the ending plays through the last bar (its last note at 0); otherwise it starts at 0
-  const stopAt = (th.endsEarly ? bars - 1 : bars) * 16;
-  const t0 = c.currentTime + 0.1;
-  let i = 0;
+  // The theme's own steady tempo; the last 16th ends at 0 (endsEarly: the ending plays through the last bar)
+  const g = grid(th, seconds), stopAt = g.stopAt, d = g.d;
+  const end = c.currentTime + 0.1 + seconds, at = i => end - (g.total - i) * d;   // 16th i's moment
+  let i = g.first;
   // Notes are written 2 s ahead (Damon, 2026-10-21: Pixel and Jazz "start normally and speed up"): a tab that isn't
   // in front gets its timers slowed to about once a second, and with only 0.2 s ahead the missed notes were then all
   // played at once, in a rush. A note whose moment has already passed is skipped, never rushed.
   const AHEAD = 2;
   const timer = setInterval(() => {
-    while (i < stopAt && t0 + i * d < c.currentTime + AHEAD) {
-      const pos = i % 16, bar = Math.floor(i / 16);
-      const swingDelay = th.swing && pos % 4 === 2 ? d * th.swing * 2 : 0;
-      if (t0 + i * d + swingDelay < c.currentTime - 0.02) { i++; continue; }   // too late for this note: skip it
-      th.step(c, master, {
-        t: t0 + i * d + swingDelay, i, bar, pos, d, p: i / total,
-        chord: th.prog[bar % th.prog.length], next: th.prog[(bar + 1) % th.prog.length],
-        late: (total - i) * d <= 10,
-        left: (total - i) * d, bars,                                 // seconds left: every theme picks up in its final stretch
-      });
+    while (i < stopAt && at(i) < c.currentTime + AHEAD) {
+      const t = at(i) + swingOf(th, i % 16, d);
+      if (t >= c.currentTime - 0.02) th.step(c, master, stepInfo(th, i, g, t));   // too late for this note: skipped, never rushed
       i++;
     }
     if (i >= stopAt) {
       clearInterval(timer);
-      th.ending(c, master, t0 + stopAt * d, d);
-      setTimeout(() => { try { master.disconnect(); } catch { } }, (seconds - (c.currentTime - t0)) * 1000 + 5000);
+      th.ending(c, master, at(stopAt), d);
+      setTimeout(() => { try { master.disconnect(); } catch { } }, (end - c.currentTime) * 1000 + 5000);
     }
   }, 25);
   return {
