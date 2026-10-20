@@ -4,6 +4,7 @@ import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, ge
 import { useSignalR } from "./hooks/useSignalR";
 import { useLobbyHub } from "./hooks/useLobbyHub";
 import { usePm, openPm, closePm, sendPm, setPmDraft, dismissPmToast, setPmChime } from "./pm";
+import { playTheme, THEME_LIST } from "./themes";
 
 // ── Design tokens ──────────────────────────────────────────────
 // ── Colour schemes ─────────────────────────────────────────────
@@ -309,17 +310,35 @@ function loadSound() {
   try {
     const s = JSON.parse(localStorage.getItem("acro.sound") || "null");
     // buttons (2026-10-20): hover and click sounds on buttons; on unless the player switched them off
-    if (s && typeof s.on === "boolean" && typeof s.volume === "number") return { buttons: true, ...s };
+    if (s && typeof s.on === "boolean" && typeof s.volume === "number") return { buttons: true, music: "classic", ...s };
   } catch { /* ignore */ }
-  return { on: true, volume: 1, buttons: true };   // default: sound on, full volume (as before), button sounds on
+  return { on: true, volume: 1, buttons: true, music: "classic" };   // default: sound on, full volume, button sounds on, the original song
 }
 let soundSettings = loadSound();
 // The factor every game sound is multiplied by (0 = silent)
 function soundGain() { return soundSettings.on ? soundSettings.volume : 0; }
+// Music choices for the writing time: the original song, then the themes made in the browser that are offered to
+// players (themes.js marks the kept-back ones offline)
+const MUSIC_CHOICES = [{ id: "classic", name: "Classic Line" }, ...THEME_LIST.filter(th => !th.offline).map(th => ({ id: th.id, name: th.name }))];
+// Stands in for the song's Audio element: the game only pauses it, mutes it (after you submit) and sets its volume
+function themeAudio() {
+  let player = null, muted = false, volume = 1, stopped = false;
+  const apply = () => player?.setLevel(muted ? 0 : volume);
+  return {
+    attach(p) { player = p; if (stopped) p?.stop(); else apply(); },
+    pause() { stopped = true; player?.stop(); },
+    get muted() { return muted; }, set muted(m) { muted = m; apply(); },
+    get volume() { return volume; }, set volume(v) { volume = v; apply(); },
+  };
+}
+// The main theme while acros are written plays softer than the rest (Damon, 2026-10-20: "not so loud"; the newer
+// sounds are more discreet): 55% of the player's volume
+const THEME_LEVEL = 0.55;
 
 // ── Final Stop celebration (Damon, 2026-10-20) ────────────────
 // A short, bright fanfare made in the browser (no audio file): an arpeggio up, a chord, a little "ta-da".
-// Not loud (20% before the player's own volume; was 12%, Damon: "a bit louder"), silent when Sound is off.
+// Not loud (14% before the player's own volume: 12% was too quiet, 20% too loud), silent when Sound is off. No high
+// "sparkle" notes on top any more (Damon: "a bit too pitchy").
 function playFanfare() {
   const g = soundGain();
   const AC = window.AudioContext || window.webkitAudioContext;
@@ -327,7 +346,7 @@ function playFanfare() {
   try {
     const ctx = new AC();
     const master = ctx.createGain();
-    master.gain.value = 0.2 * g;
+    master.gain.value = 0.14 * g;   // 20% was "a bit more loud than I would like" (Damon, 2026-10-20)
     master.connect(ctx.destination);
     const note = (at, freq, dur, type = "triangle", vol = 1) => {
       const o = ctx.createOscillator(), e = ctx.createGain();
@@ -338,11 +357,10 @@ function playFanfare() {
       e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       o.connect(e); e.connect(master); o.start(t); o.stop(t + dur + 0.05);
     };
-    const C5 = 523.25, E5 = 659.25, G5 = 783.99, C6 = 1046.5, E6 = 1318.5;
+    const C5 = 523.25, E5 = 659.25, G5 = 783.99, C6 = 1046.5;
     [[0, C5], [0.11, E5], [0.22, G5]].forEach(([at, f]) => note(at, f, 0.18));          // arpeggio up
     [C5, E5, G5, C6].forEach(f => note(0.34, f, 0.7, "triangle", 0.6));                 // the chord
     note(0.95, G5, 0.16); note(1.1, C6, 0.9);                                           // ta-da
-    [[0.36, C6 * 2], [0.5, E6 * 2], [1.12, C6 * 2]].forEach(([at, f]) => note(at, f, 0.5, "sine", 0.25));   // sparkles
     setTimeout(() => ctx.close().catch(() => { }), 3000);
   } catch { /* no sound is fine */ }
 }
@@ -450,6 +468,60 @@ function FinalStopPanel({ names, message, children }) {
       <p style={{ margin: "0 0 8px", fontSize: 19, ...halo, fontStyle: "italic", fontWeight: 600 }}>{message}</p>
       <p style={{ margin: 0, fontSize: 15, ...halo }}>{children}</p>
     </div>
+  );
+}
+
+// Admin only (Damon, 2026-10-20): listen to the three new writing themes (src/themes.js) before players get a
+// choice. Plays a whole station on this screen only, at the level the game uses for its theme, with a countdown.
+function ThemeListening() {
+  const [secs, setSecs] = useState(60);
+  const [playing, setPlaying] = useState(null);   // { id, name, endsAt }
+  const [left, setLeft] = useState(0);
+  const playerRef = useRef(null);
+  useEffect(() => () => playerRef.current?.stop(), []);
+  useEffect(() => {
+    if (!playing || playing.loading) return;
+    const iv = setInterval(() => {
+      const l = Math.max(0, Math.ceil((playing.endsAt - Date.now()) / 1000));
+      setLeft(l);
+      if (l <= 0) { clearInterval(iv); setTimeout(() => setPlaying(null), 2500); }
+    }, 200);
+    return () => clearInterval(iv);
+  }, [playing]);
+  // A theme on recorded instruments loads its samples first ("Loading…"); a newer click wins
+  const playToken = useRef(0);
+  const play = async th => {
+    playerRef.current?.stop(); playerRef.current = null;
+    const token = ++playToken.current;
+    setPlaying({ ...th, loading: true }); setLeft(secs);
+    let pl = null;
+    try { pl = await playTheme(th.id, secs, THEME_LEVEL * soundGain()); } catch (e) { console.error(e); }
+    if (token !== playToken.current) { pl?.stop(); return; }
+    playerRef.current = pl;
+    setPlaying(pl ? { ...th, endsAt: pl.endsAt } : null);
+  };
+  const stop = () => { playerRef.current?.stop(); playerRef.current = null; setPlaying(null); };
+  return (
+    <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div>
+        <div style={{ fontWeight: 800, fontSize: 17 }}>Listen to the new writing themes</div>
+        <div style={{ fontSize: 14, color: C.textMuted }}>A whole station of music, on your screen only, at the game's music level. It builds up as the time runs out and ends exactly at 0.{soundGain() <= 0 ? " Your Sound is off: turn it on to listen." : ""}</div>
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span style={{ fontSize: 14, color: C.textSecond }}>Station length</span>
+        {[30, 60, 90].map(n => (
+          <button key={n} onClick={() => setSecs(n)}
+            style={{ background: n === secs ? C.brand : C.bgPanel2, color: n === secs ? C.onBrand : C.textPrimary, border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 12px", fontFamily: "inherit", fontSize: 14, cursor: "pointer" }}>{n} s</button>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {THEME_LIST.map(th => <Btn key={th.id} onClick={() => play(th)}>▶ {th.name}{th.offline ? " (kept back)" : ""}</Btn>)}
+        {playing && <BtnSecondary onClick={stop}>Stop</BtnSecondary>}
+      </div>
+      {playing && (playing.loading
+        ? <div style={{ fontSize: 15, color: C.textMuted }}>Loading <b>{playing.name}</b>…</div>
+        : <div style={{ fontSize: 15 }}>Playing <b>{playing.name}</b> · <span style={{ fontVariantNumeric: "tabular-nums", color: C.teal, fontWeight: 700 }}>{left} s</span> left</div>)}
+    </Panel>
   );
 }
 
@@ -598,6 +670,19 @@ function SoundControl() {
             style={{ marginTop: 10, width: "100%", background: "transparent", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "5px 8px" }}>
             {st.on ? "Mute" : "Unmute"}
           </button>
+          {/* Music while acros are written (Damon, 2026-10-20): the original song or one of the lines made in the
+              browser (src/themes.js). Applies from the next station. */}
+          <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 4px" }}>Music <span style={{ fontSize: 12 }}>(from the next station)</span></div>
+          {MUSIC_CHOICES.map(m => {
+            const on = (st.music || "classic") === m.id;
+            return (
+              <button key={m.id} onClick={() => change({ ...st, music: m.id })} aria-pressed={on}
+                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", background: on ? C.navy3 : "transparent", border: "none", borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "5px 8px", textAlign: "left" }}>
+                <span style={{ flex: 1, fontWeight: on ? 700 : 400 }}>{m.name}</span>
+                {on && <span style={{ color: C.teal }}>✓</span>}
+              </button>
+            );
+          })}
           {/* Button sounds on their own switch: some players want the music without the clicks */}
           <button onClick={() => change({ ...st, buttons: st.buttons === false })} aria-pressed={st.buttons !== false}
             style={{ marginTop: 6, width: "100%", background: "transparent", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "5px 8px" }}>
@@ -717,33 +802,61 @@ function playPmChime() {
 }
 setPmChime(playPmChime);
 
-// ── Button sounds (Damon, 2026-10-20: "game-y and elegant", like the fanfare and the message chime) ──
-// Hover: a tiny, airy tick. Click: a soft two-step "pop" upwards. Both made in the browser (no files), much
-// quieter than the chime, silent when Sound is off. Hover only with a real mouse (not on phones), at most one
-// tick every 60 ms, and only when the pointer enters a new button. Every <button> and every clickable name
-// (role="button") gets them; disabled buttons stay silent. The browser allows sound only after the first click,
-// so hovers before that are silent.
-function uiTone(steps, vol) {
-  const gain = soundSettings.buttons === false ? 0 : soundGain();   // the player can switch button sounds off
+// ── Button sounds (Damon, 2026-10-20) ─────────────────────────
+// Made in the browser (no files), silent when Sound or Button sounds is off. Hover only with a real mouse (not on
+// phones), at most one every 60 ms, and only when the pointer enters a new button. Every <button> and every
+// clickable name (role="button") gets them; disabled buttons stay silent. The browser allows sound only after the
+// first click, so hovers before that are silent. (Tried and dropped: bright "tick/pop" tones — "like a bell ring";
+// filtered-noise taps — "crisp, like autumn leaves"; smooth sine styles Velvet/Bubble/Hum — "not even close"; then
+// Damon tuned the hover himself on an admin mixer.)
+// A pure sine tone that fades in gently (no hard start) and out again; notes = [from, to] pitches in Hz.
+function uiSoft(notes, attack, dur, vol) {
+  const gain = soundSettings.buttons === false ? 0 : soundGain();
   if (gain <= 0) return;
   try {
     pmAudioCtx = pmAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
     const ctx = pmAudioCtx;
     if (ctx.state === "suspended") ctx.resume().catch(() => { });
     const t = ctx.currentTime;
-    for (const [at, freq, dur, type] of steps) {
+    for (const [from, to] of notes) {
       const o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = type; o.frequency.value = freq;
+      o.type = "sine";
+      o.frequency.setValueAtTime(from, t);
+      if (to !== from) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol * gain, t + attack);   // fades in: nothing crisp
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t + dur + 0.02);
+    }
+  } catch { /* no sound available */ }
+}
+// The two-step triangle "pop" for clicks (the first version, which Damon liked best once it was quieter)
+function uiPop(steps, vol) {
+  const gain = soundSettings.buttons === false ? 0 : soundGain();
+  if (gain <= 0) return;
+  try {
+    pmAudioCtx = pmAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = pmAudioCtx;
+    if (ctx.state === "suspended") ctx.resume().catch(() => { });
+    const t = ctx.currentTime;
+    for (const [at, freq, dur] of steps) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "triangle"; o.frequency.value = freq;
       g.gain.setValueAtTime(0.0001, t + at);
       g.gain.exponentialRampToValueAtTime(vol * gain, t + at + 0.006);
       g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
-      o.connect(g).connect(ctx.destination);
+      o.connect(g); g.connect(ctx.destination);
       o.start(t + at); o.stop(t + at + dur + 0.02);
     }
   } catch { /* no sound available */ }
 }
-const playHoverTick = () => uiTone([[0, 2350, 0.045, "sine"]], 0.035);
-const playClickPop = () => uiTone([[0, 620, 0.07, "triangle"], [0.035, 930, 0.09, "triangle"]], 0.12);
+// Final choice (Damon, 2026-10-20): the click = the first version's pop ("I really like the sound of click … on
+// production. Just less loud": 0.12 → 0.06); the hover = what he tuned on the admin mixer (150 Hz, 40 ms fade-in,
+// 80 ms, volume 0.032 → hover = 90% pitch, 80% length, 40% volume): a very low, soft hum.
+const playClickPop = () => uiPop([[0, 620, 0.07], [0.035, 930, 0.09]], 0.025);   // then lower again: "at least X2 lower" (0.06 → 0.025)
+const playHoverTick = () => uiSoft([[135, 132]], 0.04, 0.064, 0.0128);
+
 (function installButtonSounds() {
   if (typeof document === "undefined") return;
   const target = e => {
@@ -1342,6 +1455,7 @@ function PaletteStats() {
         {err && <p style={{ color: C.brand }}>{err}</p>}
         {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
         {data && <FinalStopPreview />}
+        {data && <ThemeListening />}
         {data && (
           <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
             {rows.map(t => {
@@ -2883,7 +2997,8 @@ function Room() {
   // 🔊 / volume changed in the header: apply it to the sounds playing at this moment
   useEffect(() => {
     const onSound = () => {
-      for (const a of [audioRef.current, audio2Ref.current, votingAudioRef.current])
+      if (audioRef.current) audioRef.current.volume = THEME_LEVEL * soundGain();   // the main theme stays softer
+      for (const a of [audio2Ref.current, votingAudioRef.current])
         if (a) a.volume = soundGain();
     };
     window.addEventListener("acro-sound-change", onSound);
@@ -2973,9 +3088,23 @@ function Room() {
       if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
 
+      // A theme made in the browser instead of the original song (the player's Music choice in the Sound menu).
+      // It fits the station's exact length and ends at 0 by itself.
+      const music = soundSettings.music || "classic";
+      if (music !== "classic" && MUSIC_CHOICES.some(m => m.id === music)) {
+        const holder = themeAudio();
+        holder.volume = THEME_LEVEL * soundGain();
+        audioRef.current = holder;
+        if (submittedAcroRef.current) holder.muted = true;
+        playTheme(music, seconds || 60, THEME_LEVEL * soundGain())
+          .then(pl => { if (audioRef.current !== holder) pl?.stop(); else holder.attach(pl); })
+          .catch(() => { });
+        return;
+      }
+
       const audio = new Audio("/AcroExpress_tunes.m4a");
       audio.loop = false;
-      audio.volume = soundGain();   // the player's sound setting (🔊 and slider in the header)
+      audio.volume = THEME_LEVEL * soundGain();   // the player's sound setting, softer for the main theme
       audioRef.current = audio;
 
       // The song lasts ~92 seconds and its ending must land on 0: every round
@@ -2996,7 +3125,7 @@ function Room() {
           let v = 0;
           const fade = setInterval(() => {
             v = Math.min(1, v + 0.1);
-            audio.volume = v * soundGain();   // fade up to the player's volume, not to full
+            audio.volume = v * THEME_LEVEL * soundGain();   // fade up to the theme's level, not to full
             if (v >= 1) clearInterval(fade);
           }, 150);
         }

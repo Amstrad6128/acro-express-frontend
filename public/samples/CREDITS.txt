@@ -1,0 +1,18 @@
+Instrument samples used by the writing-time music themes (src/themes.js)
+
+Source: FluidR3 General MIDI SoundFont by Frank Wen, released under the MIT licence.
+Per-note MP3 rendering: midi-js-soundfonts by Benjamin Gleitzman
+(https://github.com/gleitz/midi-js-soundfonts), FluidR3_GM set, labelled Creative Commons Attribution 3.0.
+
+Downloaded 2026-10-20 (one note every three semitones; the game shifts each by up to a semitone):
+- acoustic_guitar_nylon: C3 Eb3 Gb3 A3 C4 Eb4 Gb4 A4
+- flute: A4 C5 Eb5 Gb5 A5 C6
+- acoustic_bass: C2 Eb2 Gb2 A2 C3
+
+Added 2026-10-20 (same source and licences):
+- electric_piano_1: C3 Eb3 Gb3 A3 C4 Eb4 Gb4 A4 C5 Eb5 Gb5 A5
+- vibraphone: A4 C5 Eb5 Gb5 A5 C6
+- string_ensemble_1: C4 Eb4 Gb4 A4 C5 Eb5
+- electric_bass_finger: C2 Eb2 Gb2 A2 C3
+- acoustic_grand_piano: C2 Eb2 Gb2 A2 C3 Eb3 Gb3 A3 C4 Eb4 Gb4 A4 C5 Eb5 Gb5 A5 C6
+- breath_noise: C3 C4 (used, pitched down, as steam chuffs in Steam Express)
