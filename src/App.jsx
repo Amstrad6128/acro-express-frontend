@@ -294,8 +294,8 @@ function applyLetterFont(key) {
     root.setProperty("--lf-shadow", "none");
     root.setProperty("--tf-family", "'Honk', " + NUM_FONT);
     root.setProperty("--tf-weight", "400");   // Honk has one weight; bold would be faked and smudgy
-    root.setProperty("--lf-scale", "1.4");    // Honk's capitals are smaller: 1.4× to look as big as Bowlby's
-    root.setProperty("--lf-lh", "0.72");      // …in the same height (1 ÷ 1.4), so nothing below moves
+    root.setProperty("--lf-scale", "1.55");   // Honk's capitals are smaller: 1.4× matched Bowlby; 1.55× = "a bit bigger" (Damon, 2026-10-20)
+    root.setProperty("--lf-lh", "0.645");     // …in the same height (1 ÷ 1.55), so nothing below moves
   } else {   // Bowlby: the original look (the variables are removed, so every style uses its own fallback)
     for (const v of ["--lf-family", "--lf-shadow", "--tf-family", "--tf-weight", "--lf-scale", "--lf-lh"]) root.removeProperty(v);
   }
@@ -319,7 +319,7 @@ let soundSettings = loadSound();
 function soundGain() { return soundSettings.on ? soundSettings.volume : 0; }
 // Music choices for the writing time: the original song, then the themes made in the browser that are offered to
 // players (themes.js marks the kept-back ones offline)
-const MUSIC_CHOICES = [{ id: "classic", name: "Classic Line" }, ...THEME_LIST.filter(th => !th.offline).map(th => ({ id: th.id, name: th.name }))];
+const MUSIC_CHOICES = [{ id: "classic", name: "Original" }, ...THEME_LIST.filter(th => !th.offline).map(th => ({ id: th.id, name: th.name }))];
 // Stands in for the song's Audio element: the game only pauses it, mutes it (after you submit) and sets its volume
 function themeAudio() {
   let player = null, muted = false, volume = 1, stopped = false;
@@ -605,12 +605,12 @@ function HeaderMenu({ label, children, width = 230 }) {
   );
 }
 
-// "Express Colors: Midnight ▾" — pick a palette; the page recolours at once (Damon: no settings page)
+// "Colors: Midnight ▾" (was "Express Colors", renamed by Damon 2026-10-20) — pick a palette; the page recolours at once (Damon: no settings page)
 function ThemePicker() {
   const [current, setCurrent] = useState(loadThemeKey);
   const [letterFont, setLetterFont] = useState(loadLetterFont);   // "bowlby" or "honk"
   return (
-    <HeaderMenu label={<>Express Colors: <span style={{ color: C.teal, fontWeight: 600 }}>{THEMES[current].name}</span></>}>
+    <HeaderMenu label={<>Colors: <span style={{ color: C.teal, fontWeight: 600 }}>{THEMES[current].name}</span></>}>
       {(close, big) => (
         <>
           <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>Pick a look for your screen. Only you see it.</div>
@@ -650,13 +650,13 @@ function ThemePicker() {
   );
 }
 
-// "Sound: 70% ▾" (or "Sound: Off") — volume slider and a Mute / Unmute button for all game sounds
+// "Music: 70% ▾" (or "Music: Off"; was "Sound", renamed by Damon 2026-10-20) — music choice, volume slider and a Mute / Unmute button for all game sounds
 function SoundControl() {
   const [st, setSt] = useState(soundSettings);
   const change = (next) => { setSoundSettings(next); setSt(next); };
   const pct = Math.round(st.volume * 100);
   return (
-    <HeaderMenu width={210} label={<>Sound: <span style={{ color: C.teal, fontWeight: 600 }}>{st.on ? `${pct}%` : "Off"}</span></>}>
+    <HeaderMenu width={210} label={<>Music: <span style={{ color: C.teal, fontWeight: 600 }}>{st.on ? `${pct}%` : "Off"}</span></>}>
       {() => (
         <>
           <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>Music and sound effects</div>
@@ -672,7 +672,7 @@ function SoundControl() {
           </button>
           {/* Music while acros are written (Damon, 2026-10-20): the original song or one of the lines made in the
               browser (src/themes.js). Applies from the next station. */}
-          <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 4px" }}>Music <span style={{ fontSize: 12 }}>(from the next station)</span></div>
+          <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 4px" }}>Song <span style={{ fontSize: 12 }}>(from the next station)</span></div>
           {MUSIC_CHOICES.map(m => {
             const on = (st.music || "classic") === m.id;
             return (
@@ -1210,7 +1210,7 @@ function HowToPlay({ winScore = 30 }) {
                 When someone reaches {winScore}, the highest score wins the journey. After a 30-second break the next journey starts by itself.
               </RulesSection>
               <RulesSection icon="💬" title="Tips">
-                Click a name to send a private message. To vote someone off a train, type <b style={{ color: C.textPrimary }}>/kick name</b> in Sky Train Chat. Change your colours under Express Colors, and your sound under Sound.
+                Click a name to send a private message. To vote someone off a train, type <b style={{ color: C.textPrimary }}>/kick name</b> in Sky Train Chat. Change your colours under Colors, and your music and sound under Music.
               </RulesSection>
             </div>
             <div style={{ padding: "12px 20px", borderTop: `1px solid ${C.border}`, textAlign: "right" }}>

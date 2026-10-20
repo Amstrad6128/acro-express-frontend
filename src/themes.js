@@ -128,6 +128,13 @@ function sample(c, out, t, key, midi, dur, { vol = 0.3, attack = 0.004, release 
   src.start(t, offset); src.stop(t + dur + release + 0.05);   // offset: start from a later point in the recording
 }
 
+// A limiter after the loudness boost: catches the peaks just under the ceiling (no distortion), like a mastered track
+function makeLimiter(c) {
+  const l = c.createDynamicsCompressor();
+  l.threshold.value = -4; l.knee.value = 0; l.ratio.value = 20; l.attack.value = 0.002; l.release.value = 0.12;
+  return l;
+}
+
 // A small seeded random generator, so a theme's melody is the same every time
 function seeded(seed) {
   return () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let x = Math.imul(seed ^ (seed >>> 15), 1 | seed); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
@@ -155,7 +162,8 @@ function melodyBar(seed, barIndex, positions, chord, scale, rest = 0.22) {
 const THEMES = {
   // Chiptune: square lead, arpeggios, triangle bass, 8-bit drums. I–V–vi–IV in C.
   chiptune: {
-    name: "Pixel Line", bpm: 132,   // was "Chiptune" (Damon: "chip and cheap are similar words") gain: 0.9, seed: 7,
+    // "Pixel": was "Chiptune" (Damon: "chip and cheap are similar words")
+    name: "Pixel", bpm: 132, gain: 0.9, seed: 7, boost: 3.5,
     prog: [{ root: 36, tones: [60, 64, 67] }, { root: 43, tones: [59, 62, 67] }, { root: 45, tones: [60, 64, 69] }, { root: 41, tones: [60, 65, 69] }],
     scale: [72, 74, 76, 79, 81, 84],
     step(c, out, s) {
@@ -193,7 +201,7 @@ const THEMES = {
   // Rhodes) just before the lift.
   lounge: {
     // offline: kept back (Damon unsure; its brushes sound "like a blip, like the needle of the pickup is broken")
-    name: "70s Lounge", offline: true, bpm: 92, gain: 1.0, seed: 70, swing: 0.15, instruments: ["epiano", "vibes", "strings", "fbass"],
+    name: "70s Lounge", offline: true, bpm: 92, gain: 1.0, boost: 7.65, seed: 70, swing: 0.15, instruments: ["epiano", "vibes", "strings", "fbass"],
     prog: [{ root: 36, tones: [55, 59, 62, 64] }, { root: 45, tones: [55, 59, 60, 64] }, { root: 38, tones: [53, 57, 60, 64] }, { root: 43, tones: [53, 59, 64] },
            { root: 40, tones: [55, 59, 62, 64] }, { root: 45, tones: [55, 58, 61, 64] }, { root: 38, tones: [53, 57, 60, 64] }, { root: 43, tones: [53, 59, 64] },
            { root: 41, tones: [53, 57, 60, 64] }, { root: 41, tones: [53, 56, 60, 63] }, { root: 40, tones: [55, 59, 62, 64] }, { root: 45, tones: [55, 58, 61, 64] },
@@ -254,7 +262,7 @@ const THEMES = {
   // Jazzy shuffle: walking bass, ride cymbal, piano stabs, swung riffs. C6–A7–Dm7–G7. Ends with a short descending
   // run into a warm C6/9 chord and a soft cymbal swell (the "shave and a haircut" tag was too funny — Damon).
   jazzy: {
-    name: "Jazz Line", bpm: 148, gain: 0.95, seed: 33, swing: 0.33, endsEarly: true,
+    name: "Jazz", bpm: 148, gain: 0.95, boost: 5.25, seed: 33, swing: 0.33, endsEarly: true,
     prog: [{ root: 36, tones: [52, 55, 57, 60] }, { root: 45, tones: [55, 57, 61, 64] }, { root: 38, tones: [53, 57, 60, 62] }, { root: 43, tones: [53, 55, 59, 62] }],
     scale: [72, 74, 75, 76, 79, 81, 84],
     step(c, out, s) {
@@ -299,7 +307,7 @@ const THEMES = {
   // whistle (two notes sliding up) every 16 bars; a blues harmonica riff every 4 bars.
   // A walking boogie bass and a mellow chiptune-like melody (from a third of the way in). Ends on a long whistle.
   steam: {
-    name: "Steam Line", bpm: 118, gain: 1.35, seed: 1825, swing: 0.3,   // louder (Damon: "maybe too low in volume")
+    name: "Steam", bpm: 118, gain: 1.35, boost: 5.3, seed: 1825, swing: 0.3,   // louder (Damon: "maybe too low in volume")
     prog: [{ root: 43, tones: [55, 59, 62, 65] }, { root: 43, tones: [55, 59, 62, 65] }, { root: 43, tones: [55, 59, 62, 65] }, { root: 43, tones: [55, 59, 62, 65] },
            { root: 48, tones: [55, 58, 60, 64] }, { root: 48, tones: [55, 58, 60, 64] }, { root: 43, tones: [55, 59, 62, 65] }, { root: 43, tones: [55, 59, 62, 65] },
            { root: 50, tones: [54, 57, 60, 62] }, { root: 48, tones: [55, 58, 60, 64] }, { root: 43, tones: [55, 59, 62, 65] }, { root: 50, tones: [54, 57, 60, 62] }],
@@ -406,6 +414,28 @@ const THEMES = {
 export const THEME_LIST = Object.entries(THEMES).map(([id, th]) => ({ id, name: th.name, offline: !!th.offline }));
 
 // async: a theme on recorded instruments first loads its samples (once)
+// For measuring loudness (admin checks): schedules a whole theme at once into a given (offline) context, through the
+// same master gain and compressor as playTheme. Render with c.startRendering().
+export async function renderTheme(id, seconds, level, c) {
+  const th = THEMES[id];
+  if (th.instruments) await Promise.all(th.instruments.map(k => loadInstrument(c, k)));
+  const master = c.createGain();
+  master.gain.value = level * th.gain * 0.5;
+  const comp = c.createDynamicsCompressor(), makeup = c.createGain(), limiter = makeLimiter(c);
+  makeup.gain.value = th.boost || 1;   // per theme, measured to match the Classic song's loudness in the game
+  master.connect(comp); comp.connect(makeup); makeup.connect(limiter); limiter.connect(c.destination);
+  const bars = Math.max(2, Math.round(seconds * th.bpm / 60 / 4));
+  const barDur = seconds / bars, d = barDur / 16, total = bars * 16;
+  const stopAt = (th.endsEarly ? bars - 1 : bars) * 16, t0 = 0.1;
+  for (let i = 0; i < stopAt; i++) {
+    const pos = i % 16, bar = Math.floor(i / 16);
+    const swingDelay = th.swing && pos % 4 === 2 ? d * th.swing * 2 : 0;
+    th.step(c, master, { t: t0 + i * d + swingDelay, i, bar, pos, d, p: i / total, chord: th.prog[bar % th.prog.length],
+      next: th.prog[(bar + 1) % th.prog.length], late: (total - i) * d <= 10, left: (total - i) * d, bars });
+  }
+  th.ending(c, master, t0 + stopAt * d, d);
+}
+
 export async function playTheme(id, seconds, level) {
   const th = THEMES[id];
   if (!th || level <= 0) return null;
@@ -413,8 +443,9 @@ export async function playTheme(id, seconds, level) {
   if (th.instruments) await Promise.all(th.instruments.map(k => loadInstrument(c, k)));
   const master = c.createGain();
   master.gain.value = level * th.gain * 0.5;
-  const comp = c.createDynamicsCompressor();
-  master.connect(comp); comp.connect(c.destination);
+  const comp = c.createDynamicsCompressor(), makeup = c.createGain(), limiter = makeLimiter(c);
+  makeup.gain.value = th.boost || 1;   // per theme, measured to match the Classic song's loudness in the game
+  master.connect(comp); comp.connect(makeup); makeup.connect(limiter); limiter.connect(c.destination);
 
   // A whole number of bars in the station: the tempo moves a little so the last bar ends at 0
   const bars = Math.max(2, Math.round(seconds * th.bpm / 60 / 4));
