@@ -50,6 +50,8 @@ export function useSignalR(roomId, handlers = {}) {
     // Vote to kick: each vote (everyone sees it), and the passenger who was voted off
     connection.on("KickVote", (...args) => handlersRef.current.onKickVote?.(...args));
     connection.on("PlayerKicked", (...args) => handlersRef.current.onPlayerKicked?.(...args));
+    // Late-arrival penalty: who lost points (the page posts the line)
+    connection.on("LatePenalty", (...args) => handlersRef.current.onLatePenalty?.(...args));
 
     // ── Chat events ──────────────────────────────────────
     connection.on("ReceiveRoomMessage", (...args) => handlersRef.current.onRoomMessage?.(...args));

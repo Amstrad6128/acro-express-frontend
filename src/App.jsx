@@ -246,6 +246,11 @@ function applyTheme(key) {
   root.style.setProperty("--c-bgText", t.bgText || t.textMuted);
   // Gold for golden names (afool): bright on the dark palettes, darker on the light one so it stays readable
   root.style.setProperty("--c-gold", t.gold || "#FFD24A");
+  // Metallic gold for golden names (Damon, 2026-10-20, option B): light at the top, darker in the middle, like a
+  // coin. The light palette (a "gold" of its own) gets a darker metal so the name stays readable.
+  root.style.setProperty("--c-goldMetal", t.gold
+    ? "linear-gradient(180deg, #B8860B 0%, #8C6400 48%, #6B4A00 56%, #A87A10 100%)"
+    : "linear-gradient(180deg, #FFF3B0 0%, #F5C542 45%, #C8961E 56%, #F7D774 100%)");
   // Honk's colours. Honk is a colour font with 8 colours of its own: 0 = drop shadow, 1 = outline and inner lines,
   // 2–7 = the fill from top to bottom. We repaint them in the palette's colours. Each Express Colors palette has
   // its OWN Honk palettes (named "--acro-logo-<key>" …), chosen through CSS variables (--fp-logo …): switching
@@ -310,6 +315,83 @@ function loadSound() {
 let soundSettings = loadSound();
 // The factor every game sound is multiplied by (0 = silent)
 function soundGain() { return soundSettings.on ? soundSettings.volume : 0; }
+
+// ── Final Stop celebration (Damon, 2026-10-20) ────────────────
+// A short, bright fanfare made in the browser (no audio file): an arpeggio up, a chord, a little "ta-da".
+// Quiet on purpose (12% before the player's own volume), silent when Sound is off.
+function playFanfare() {
+  const g = soundGain();
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!g || !AC) return;
+  try {
+    const ctx = new AC();
+    const master = ctx.createGain();
+    master.gain.value = 0.12 * g;
+    master.connect(ctx.destination);
+    const note = (at, freq, dur, type = "triangle", vol = 1) => {
+      const o = ctx.createOscillator(), e = ctx.createGain();
+      o.type = type; o.frequency.value = freq;
+      const t = ctx.currentTime + at;
+      e.gain.setValueAtTime(0.0001, t);
+      e.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+      e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(e); e.connect(master); o.start(t); o.stop(t + dur + 0.05);
+    };
+    const C5 = 523.25, E5 = 659.25, G5 = 783.99, C6 = 1046.5, E6 = 1318.5;
+    [[0, C5], [0.11, E5], [0.22, G5]].forEach(([at, f]) => note(at, f, 0.18));          // arpeggio up
+    [C5, E5, G5, C6].forEach(f => note(0.34, f, 0.7, "triangle", 0.6));                 // the chord
+    note(0.95, G5, 0.16); note(1.1, C6, 0.9);                                           // ta-da
+    [[0.36, C6 * 2], [0.5, E6 * 2], [1.12, C6 * 2]].forEach(([at, f]) => note(at, f, 0.5, "sine", 0.25));   // sparkles
+    setTimeout(() => ctx.close().catch(() => { }), 3000);
+  } catch { /* no sound is fine */ }
+}
+
+// Confetti over the whole page for about 6 seconds: a burst from the middle, then paper drifting down, in the
+// palette's own colours. Skipped when the device asks for reduced motion.
+function Confetti() {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const cv = ref.current; if (!cv) return;
+    const ctx = cv.getContext("2d");
+    const css = getComputedStyle(document.documentElement);
+    const colors = ["--c-brand", "--c-teal", "--c-gold", "--c-lavender", "--c-ivory", "--c-success"]
+      .map(v => css.getPropertyValue(v).trim()).filter(Boolean);
+    const resize = () => { cv.width = window.innerWidth; cv.height = window.innerHeight; };
+    resize(); window.addEventListener("resize", resize);
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const piece = (x, y, vx, vy) => ({ x, y, vx, vy, w: rnd(6, 11), h: rnd(9, 16), a: rnd(0, 6.3), va: rnd(-0.2, 0.2), sway: rnd(0, 6.3), c: colors[Math.floor(Math.random() * colors.length)] });
+    const W = cv.width, H = cv.height;
+    const parts = [
+      ...Array.from({ length: 90 }, () => piece(W / 2 + rnd(-40, 40), H * 0.42, rnd(-7, 7), rnd(-11, -3))),   // the burst
+      ...Array.from({ length: 140 }, () => piece(rnd(0, W), rnd(-H * 0.8, -10), rnd(-1, 1), rnd(1.5, 3.5))),  // paper rain
+    ];
+    const start = performance.now();
+    let raf;
+    const step = now => {
+      const t = now - start;
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.globalAlpha = t > 4800 ? Math.max(0, 1 - (t - 4800) / 1200) : 1;   // fade out at the end
+      for (const p of parts) {
+        p.vy = Math.min(p.vy + 0.12, 4.2);
+        p.vx *= 0.985;
+        p.x += p.vx + Math.sin(t / 350 + p.sway) * 0.7;
+        p.y += p.vy;
+        p.a += p.va;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.scale(1, Math.cos(p.a * 1.7));
+        ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      }
+      if (t < 6000) raf = requestAnimationFrame(step); else ctx.clearRect(0, 0, cv.width, cv.height);
+    };
+    raf = requestAnimationFrame(step);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, []);
+  return <canvas ref={ref} aria-hidden="true" style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 75 }} />;
+}
+
+// "A", "A and B", "A, B and C"
+const listNames = names => names.length < 2 ? (names[0] || "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 // Saves new settings and tells the room to update the sounds that are playing now
 function setSoundSettings(next) {
   soundSettings = next;
@@ -700,7 +782,12 @@ function RestartBanner() {
 // --c-gold is set per palette (a darker gold on the light First Light). goldName(name) = the extra style, or {}.
 const GOLDEN_NAMES = ["afool"];
 const isGolden = name => GOLDEN_NAMES.includes(String(name || "").toLowerCase());
-const goldName = name => (isGolden(name) ? { color: "var(--c-gold)", fontWeight: 700 } : {});
+// Metallic: the gold gradient painted inside the letters (--c-goldMetal); --c-gold stays the plain colour for
+// places that can't take a gradient (the Sky Pass title's colour font)
+const goldName = name => (isGolden(name) ? {
+  backgroundImage: "var(--c-goldMetal)", WebkitBackgroundClip: "text", backgroundClip: "text",
+  color: "var(--c-gold)", WebkitTextFillColor: "transparent", fontWeight: 700,
+} : {});
 
 // A player's name you can click. One rule everywhere (Damon asked for it clear, 2026-10-18; like Discord, Slack
 // and Twitch): a click opens the player's Sky Passport card, whose main button is Message. Kicking is never a
@@ -1283,17 +1370,17 @@ const pctText = v => `${Math.round(v * 100)}%`;
 // points count, not just votes; the journey win % matters most, then stations played. Percentages need enough
 // journeys / stations in the period (data.minJourneys / data.minStations).
 const LB_BOARDS = [
-  { id: "champions", icon: "🏆", name: "Champions", sub: "Journey win %", unit: "of journeys won",
+  { id: "champions", icon: "🏆", name: "Champions", sub: "Journey win %", unit: "of journeys won", motto: "Same rails. Different legends.",
     value: p => pct(p.journeysWon, p.journeys) + p.journeysWon / 1e4, show: p => pctText(pct(p.journeysWon, p.journeys)), ok: (p, d) => p.journeys >= d.minJourneys },
-  { id: "riders", icon: "🚉", name: "Frequent Riders", sub: "Stations played", unit: "stations",
+  { id: "riders", icon: "🚉", name: "Frequent Riders", sub: "Stations played", unit: "stations", motto: "Always on board.",
     value: p => p.stations + p.points / 1e6, show: p => p.stations, ok: p => p.stations > 0 },
-  { id: "scorers", icon: "⭐", name: "Top Scorers", sub: "Total points", unit: "points",
+  { id: "scorers", icon: "⭐", name: "Top Scorers", sub: "Total points", unit: "points", motto: "Every point counts.",
     value: p => p.points + p.stations / 1e6, show: p => p.points, ok: p => p.points > 0 },
-  { id: "average", icon: "🎯", name: "Sharpshooters", sub: "Points per station", unit: "points per station",
+  { id: "average", icon: "🎯", name: "Sharpshooters", sub: "Points per station", unit: "points per station", motto: "Few words, many points.",
     value: p => pct(p.points, p.stations), show: p => pct(p.points, p.stations).toFixed(1), ok: (p, d) => p.stations >= d.minStations },
-  { id: "masters", icon: "🥇", name: "Station Masters", sub: "Station win %", unit: "of stations won",
+  { id: "masters", icon: "🥇", name: "Station Masters", sub: "Station win %", unit: "of stations won", motto: "First at every platform.",
     value: p => pct(p.stationsWon, p.stations), show: p => pctText(pct(p.stationsWon, p.stations)), ok: (p, d) => p.stations >= d.minStations },
-  { id: "express", icon: "⚡", name: "Express Riders", sub: "Speed bonuses", unit: "speed bonuses",
+  { id: "express", icon: "⚡", name: "Express Riders", sub: "Speed bonuses", unit: "speed bonuses", motto: "Fast hands, sharp minds.",
     value: p => p.speedBonuses + p.stations / 1e6, show: p => p.speedBonuses, ok: p => p.speedBonuses > 0 },
 ];
 
@@ -1319,6 +1406,12 @@ function SkyLeaderboard() {
   const myRank = ranked.findIndex(p => p.name.toLowerCase() === me);
   const podium = ranked.slice(0, 3);
   const medal = [C.ivory, C.textSecond, C.brand];     // 1st, 2nd, 3rd: the palette's warm, silver-ish and accent colours
+  // Podium polish (Damon liked GPT's version, 2026-10-20): each place has its metal for tints, borders and badges
+  const metal = ["var(--c-gold)", "#C3CAD6", "#C98A4B"];
+  const tint = (i, pc) => `color-mix(in srgb, ${metal[i]} ${pc}%, transparent)`;
+  const badge = (i, size) => (
+    <div style={{ width: size, height: size, borderRadius: "50%", background: metal[i], color: "#1B1A17", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: size * 0.5, fontVariantNumeric: "tabular-nums", boxShadow: "0 2px 6px rgba(0,0,0,0.3)" }}>{ranks[i]}</div>
+  );
   const nameBtn = (name, style) => (
     <button onClick={() => openProfile(name)} title={`${name}: Sky Passport and Message`}
       style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", ...style, ...goldName(name) }}>{name}</button>
@@ -1368,6 +1461,14 @@ function SkyLeaderboard() {
                 </p>
               ) : (
                 <>
+                  {/* The board's name and motto */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "2px 14px", padding: "12px 14px 0" }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                      <span style={{ fontSize: 30, ...honkTitle }}>{board.icon} {board.name}</span>
+                      <span style={{ fontSize: 14, color: C.textMuted }}>{board.sub}</span>
+                    </div>
+                    <span style={{ fontSize: 15, fontStyle: "italic", color: C.teal }}>{board.motto}</span>
+                  </div>
                   {/* Podium: the top three, the winner in the middle and highest */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1.15fr 1fr", gap: 10, alignItems: "end", padding: "14px 14px 0" }}>
                     {[1, 0, 2].map(i => {
@@ -1375,9 +1476,12 @@ function SkyLeaderboard() {
                       if (!p) return <div key={i} />;
                       return (
                         <div key={i} style={{ textAlign: "center", minWidth: 0 }}>
-                          <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}><AvatarSquare name={p.name} size={i === 0 ? 64 : 52} /></div>
-                          <div style={{ borderRadius: "12px 12px 0 0", padding: "10px 8px 12px", background: C.bgPanel2, border: `1px solid ${i === 0 ? medal[0] : C.border}`, borderBottom: "none", minHeight: [150, 122, 108][i], boxSizing: "border-box" }}>
-                            <div style={{ ...honkTitle, fontSize: i === 0 ? 40 : 32, color: medal[i] }}>{ranks[i]}</div>
+                          {i === 0 && <div aria-hidden="true" style={{ fontSize: 22, lineHeight: 1, marginBottom: 2 }}>👑</div>}
+                          <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}><AvatarSquare name={p.name} size={i === 0 ? 64 : 52} /></div>
+                          <div style={{ position: "relative", borderRadius: "12px 12px 0 0", padding: "22px 8px 12px", background: `linear-gradient(180deg, ${tint(i, 26)}, ${tint(i, 6)}), ${C.bgPanel2}`, border: `${i === 0 ? 2 : 1}px solid ${metal[i]}`, borderBottom: "none", minHeight: [150, 122, 108][i], boxSizing: "border-box" }}>
+                            <div style={{ position: "absolute", top: -17, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                              {badge(i, i === 0 ? 34 : 30)}
+                            </div>
                             <div style={{ fontWeight: 800, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nameBtn(p.name)}</div>
                             <div style={{ fontSize: 12, color: C.textMuted }}>{p.level}</div>
                             <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{board.show(p)} <span style={{ fontSize: 12, fontWeight: 400, color: C.textMuted }}>{board.unit}</span></div>
@@ -1390,15 +1494,15 @@ function SkyLeaderboard() {
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 560 }}>
                       <thead><tr>
-                        <th style={th}>#</th><th style={th}>Passenger</th><th style={{ ...th, ...num }}>{board.sub}</th>
+                        <th style={th}>#</th><th style={th}>Passenger</th><th style={{ ...th, ...num }}>{board.sub} ▼</th>
                         <th style={{ ...th, ...num }}>Journeys won</th><th style={{ ...th, ...num }}>Stations</th><th style={{ ...th, ...num }}>Points</th><th style={{ ...th, ...num }}>Points / station</th>
                       </tr></thead>
                       <tbody>
                         {ranked.map((p, i) => {
                           const isMe = p.name.toLowerCase() === me;
                           return (
-                            <tr key={p.name} style={{ background: isMe ? C.navy2 : "transparent" }}>
-                              <td style={{ ...td, width: 40, fontWeight: 800, fontSize: 16, color: i < 3 ? medal[i] : (isMe ? C.teal : C.textPrimary) }}>{ranks[i]}</td>
+                            <tr key={p.name} style={{ background: isMe ? C.navy2 : ranks[i] <= 3 ? tint(ranks[i] - 1, 14) : "transparent", boxShadow: ranks[i] === 1 ? `inset 0 0 0 2px ${metal[0]}` : "none" }}>
+                              <td style={{ ...td, width: 40 }}>{ranks[i] <= 3 ? badge(ranks[i] - 1, 26) : <span style={{ fontWeight: 800, fontSize: 16, color: isMe ? C.teal : C.textPrimary, paddingLeft: 8 }}>{ranks[i]}</span>}</td>
                               <td style={td}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><AvatarSquare name={p.name} size={26} />{nameBtn(p.name, { fontWeight: 600 })}</span></td>
                               <td style={{ ...td, ...num, fontWeight: 800, color: C.teal }}>{board.show(p)}</td>
                               <td style={{ ...td, ...num }}>{p.journeysWon}/{p.journeys}{p.journeys > 0 && <span style={{ color: C.textMuted }}> · {pctText(pct(p.journeysWon, p.journeys))}</span>}</td>
@@ -2834,7 +2938,9 @@ function Room() {
       }, 4180);
     }, [auth]),
 
-    onGameOver: useCallback((winner) => {
+    // winners (2nd argument, new 2026-10-20): everyone tied at the top. One name = one winner; more = co-winners.
+    onGameOver: useCallback((winner, winners) => {
+      const names = Array.isArray(winners) && winners.length > 0 ? winners : [winner];
       // Stop all audio
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
@@ -2858,11 +2964,27 @@ function Room() {
         `🎟️ One ticket to glory, stamped and claimed by ${winner}.`
       ];
 
+      // A tie at the top: they share the win (Damon: still celebrate, show both names, a smart line)
+      const all = listNames(names);
+      const tieMsgs = [
+        `📸 A photo finish: ${all} share the winner's platform.`,
+        `🚉 Two trains, one platform: ${all} pull in side by side.`,
+        `⚖️ The judges checked the tape twice. ${all} are joint champions.`,
+        `🎟️ One ticket to glory, split ${names.length} ways: ${all}.`,
+        `🔔 Attention passengers: we have a tie. ${all} share the crown.`,
+        `👑 Not enough crowns to go round, so ${all} will have to share.`,
+        `🤝 Same score, same glory: ${all} win together.`,
+      ];
+      const pool = names.length > 1 ? tieMsgs : msgs;
+
       // Show winner inline — players stay in the room
       setGameWinner({
         name: winner,
-        message: msgs[Math.floor(Math.random() * msgs.length)]
+        names,
+        message: pool[Math.floor(Math.random() * pool.length)],
+        at: Date.now(),                 // a new celebration each time (the confetti restarts)
       });
+      playFanfare();
       // Hide the last round's letters and countdown on the game over screen
       setLetters([]);
       setTimer(null);
@@ -2924,6 +3046,12 @@ function Room() {
       postSystemMessage(`"${m.target}" was removed from the train by a passenger vote.`);
       refreshRoomState();
     }, [auth]),
+
+    // Late-arrival penalty (Damon, 2026-10-20): no mention of who else is in on the joke
+    onLatePenalty: useCallback((m) => {
+      postSystemMessage(`${m.name} was late to arrive: ${m.points} points deducted.`);
+      refreshRoomState();
+    }, []),
 
     onPlayerJoined: useCallback((playerId) => {
       refreshRoomState();
@@ -3331,7 +3459,8 @@ function Room() {
   const letterSize = isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters
   const stageHeight = `calc(2 * ${stagePad} + ${timerSize} + ${timerGap} + ${letterSize} + ${ACRO_BOX}px)`;
   // Results showing: the stage may grow to fit all passengers (option C, Damon 2026-10-16)
-  const resultsGrow = phase === "Results" && !resultsClosed && !topicRequested;
+  // The stage grows for the results, and for the Final Stop celebration (the winner panel is taller than the letters)
+  const resultsGrow = (phase === "Results" && !resultsClosed && !topicRequested) || (phase === "GameOver" && !!gameWinner);
   // Topic: label and topic on one line (compact header)
   const topicBlock = (align) => (
     // marginTop: a little space under the Grand Sky Station button (Damon, 2026-10-18: too close)
@@ -3491,18 +3620,27 @@ function Room() {
 
 
       {/* Game over — shown inline where letters normally appear */}
+      {phase === "GameOver" && gameWinner && <Confetti key={gameWinner.at} />}
       {phase === "GameOver" && gameWinner && (
-        <Panel style={{ padding: 32, marginBottom: 16, textAlign: "center", borderColor: C.teal }}>
+        <Panel style={{ padding: "18px 24px", marginBottom: 12, textAlign: "center", borderColor: C.teal }}>
           <p style={{ margin: "0 0 8px", fontSize: 13, color: C.teal, textTransform: "uppercase", letterSpacing: "0.12em" }}>
             Final Stop
           </p>
-          <h2 style={{ margin: "0 0 16px", fontFamily: "Fredoka, sans-serif", fontSize: 48, color: C.ivory, lineHeight: 1 }}>
-            👑 {gameWinner.name}
+          {/* The winner's name in Honk (Damon, 2026-10-20); co-winners side by side; a golden name in gold */}
+          <div aria-hidden="true" style={{ fontSize: 34, lineHeight: 1 }}>👑</div>
+          <h2 style={{ margin: "2px 0 10px", display: "flex", justifyContent: "center", alignItems: "baseline", flexWrap: "wrap", gap: "0 18px" }}>
+            {(gameWinner.names || [gameWinner.name]).map((n, i, arr) => (
+              <span key={n} style={{ display: "inline-flex", alignItems: "baseline", gap: 18 }}>
+                <span style={{ ...honkTitle, fontSize: arr.length > 1 ? 52 : 68, lineHeight: 1.05, overflowWrap: "anywhere",
+                  ...(isGolden(n) ? { color: "var(--c-gold)", fontPalette: "var(--fp-gold)" } : {}) }}>{n}</span>
+                {i < arr.length - 1 && <span style={{ fontSize: 30, color: C.textMuted }}>&amp;</span>}
+              </span>
+            ))}
           </h2>
-          <p style={{ margin: "0 0 24px", fontSize: 18, color: C.textSecond, fontStyle: "italic" }}>
+          <p style={{ margin: "0 0 12px", fontSize: 18, color: C.textSecond, fontStyle: "italic" }}>
             {gameWinner.message}
           </p>
-          <p style={{ margin: "0 0 24px", fontSize: 15, color: C.textMuted }}>
+          <p style={{ margin: 0, fontSize: 15, color: C.textMuted }}>
             {/* Countdown during the break; "Departing…" while the server starts it; the old hint if it didn't */}
             {nextGameIn > 0 ? `The next journey starts in ${nextGameIn}s`
               : nextGameIn !== null && nextGameIn > -10 ? "Departing…"
