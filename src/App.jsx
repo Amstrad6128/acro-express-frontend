@@ -283,7 +283,8 @@ applyTheme(loadThemeKey());   // before the first render, so the page never flas
 //   --lf-family  font of the big letters      --lf-shadow  their shadow (Honk has its own, so none)
 //   --tf-family  font of the timer            --tf-weight  its weight
 //   --lf-scale / --lf-lh  size factor and line height of the big letters (Honk's capitals are smaller)
-const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk" };   // key → name shown in the menu
+// Pixel = Press Start 2P, an 8-bit arcade font (2026-10-21, matches the Pixel song).
+const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", pixel: "Pixel" };   // key → name shown in the menu
 function loadLetterFont() {
   try { const k = localStorage.getItem("acro.letterFont"); return LETTER_FONTS[k] ? k : "bowlby"; } catch { return "bowlby"; }
 }
@@ -296,6 +297,13 @@ function applyLetterFont(key) {
     root.setProperty("--tf-weight", "400");   // Honk has one weight; bold would be faked and smudgy
     root.setProperty("--lf-scale", "1.55");   // Honk's capitals are smaller: 1.4× matched Bowlby; 1.55× = "a bit bigger" (Damon, 2026-10-20)
     root.setProperty("--lf-lh", "0.645");     // …in the same height (1 ÷ 1.55), so nothing below moves
+  } else if (key === "pixel") {
+    root.setProperty("--lf-family", "'Press Start 2P', 'Bowlby One SC', monospace");
+    root.setProperty("--lf-shadow", "var(--c-letterShadow)");   // the palette's shadow, as with Bowlby
+    root.setProperty("--tf-family", "'Press Start 2P', " + NUM_FONT);
+    root.setProperty("--tf-weight", "400");   // one weight only; bold would be faked
+    root.setProperty("--lf-scale", "0.8");    // its capitals fill the whole size: 0.8× = Bowlby's height
+    root.setProperty("--lf-lh", "1.25");      // …in the same line height (1 ÷ 0.8), so nothing below moves
   } else {   // Bowlby: the original look (the variables are removed, so every style uses its own fallback)
     for (const v of ["--lf-family", "--lf-shadow", "--tf-family", "--tf-weight", "--lf-scale", "--lf-lh"]) root.removeProperty(v);
   }
@@ -650,7 +658,7 @@ function ThemePicker() {
               </button>
             );
           })}
-          {/* The big letters' font (and the timer's): Bowlby or Honk. Each button shows "B T V" in its own font */}
+          {/* The big letters' font (and the timer's): Bowlby, Honk or Pixel. Each button shows "B T V" in its own font */}
           <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 6px", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>Big letters</div>
           <div style={{ display: "flex", gap: 8 }}>
             {Object.entries(LETTER_FONTS).map(([key, name]) => {
@@ -661,6 +669,7 @@ function ThemePicker() {
                   <span style={{
                     honk: { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "var(--fp-big)", fontVariationSettings: "'SHLN' 0, 'MORF' 15" },
                     bowlby: { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand },
+                    pixel: { fontFamily: "'Press Start 2P', monospace", fontSize: 13, color: C.brand },
                   }[key]}>B T V</span>
                   <div style={{ fontSize: 12, marginTop: 2, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</div>
                 </button>
