@@ -308,9 +308,10 @@ function applyLetterFont(key) {
 function loadSound() {
   try {
     const s = JSON.parse(localStorage.getItem("acro.sound") || "null");
-    if (s && typeof s.on === "boolean" && typeof s.volume === "number") return s;
+    // buttons (2026-10-20): hover and click sounds on buttons; on unless the player switched them off
+    if (s && typeof s.on === "boolean" && typeof s.volume === "number") return { buttons: true, ...s };
   } catch { /* ignore */ }
-  return { on: true, volume: 1 };   // default: sound on, full volume (as before)
+  return { on: true, volume: 1, buttons: true };   // default: sound on, full volume (as before), button sounds on
 }
 let soundSettings = loadSound();
 // The factor every game sound is multiplied by (0 = silent)
@@ -318,7 +319,7 @@ function soundGain() { return soundSettings.on ? soundSettings.volume : 0; }
 
 // ── Final Stop celebration (Damon, 2026-10-20) ────────────────
 // A short, bright fanfare made in the browser (no audio file): an arpeggio up, a chord, a little "ta-da".
-// Quiet on purpose (12% before the player's own volume), silent when Sound is off.
+// Not loud (20% before the player's own volume; was 12%, Damon: "a bit louder"), silent when Sound is off.
 function playFanfare() {
   const g = soundGain();
   const AC = window.AudioContext || window.webkitAudioContext;
@@ -326,7 +327,7 @@ function playFanfare() {
   try {
     const ctx = new AC();
     const master = ctx.createGain();
-    master.gain.value = 0.12 * g;
+    master.gain.value = 0.2 * g;
     master.connect(ctx.destination);
     const note = (at, freq, dur, type = "triangle", vol = 1) => {
       const o = ctx.createOscillator(), e = ctx.createGain();
@@ -425,27 +426,30 @@ function finalStopMessage(names) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-// The Final Stop panel: the winner's name in Honk (Damon, 2026-10-20), co-winners side by side, a golden name in
-// gold, the winner line, and a last line (the countdown on a train; a note in the admin preview)
+// The Final Stop: the winner's name like the logo of the palette (Damon, 2026-10-20: Honk in the logo's colours),
+// co-winners side by side, the winner line, and a last line (the countdown on a train; a note in the admin preview).
+// No box around it (Damon): it sits on the page background, so all text uses the colours made for that
+// background: the logo's for the names; the main text colour with a halo in the background colour for the rest.
 function FinalStopPanel({ names, message, children }) {
+  // A soft halo in the palette's background colour keeps the lines readable over a sky gradient (Daybreak)
+  const halo = { color: C.textPrimary, textShadow: "0 0 6px var(--c-bgApp), 0 0 12px var(--c-bgApp), 0 1px 2px var(--c-bgApp)" };
   return (
-    <Panel style={{ padding: "18px 24px", marginBottom: 12, textAlign: "center", borderColor: C.teal }}>
-      <p style={{ margin: "0 0 8px", fontSize: 13, color: C.teal, textTransform: "uppercase", letterSpacing: "0.12em" }}>
+    <div style={{ padding: "6px 16px 14px", textAlign: "center" }}>
+      <p style={{ margin: "0 0 6px", fontSize: 13, ...halo, textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 700 }}>
         Final Stop
       </p>
       <div aria-hidden="true" style={{ fontSize: 34, lineHeight: 1 }}>👑</div>
-      <h2 style={{ margin: "2px 0 10px", display: "flex", justifyContent: "center", alignItems: "baseline", flexWrap: "wrap", gap: "0 18px" }}>
+      <h2 style={{ margin: "2px 0 8px", display: "flex", justifyContent: "center", alignItems: "baseline", flexWrap: "wrap", gap: "0 18px", fontWeight: 400 }}>
         {names.map((n, i, arr) => (
           <span key={n} style={{ display: "inline-flex", alignItems: "baseline", gap: 18 }}>
-            <span style={{ ...honkTitle, fontSize: arr.length > 1 ? 52 : 68, lineHeight: 1.05, overflowWrap: "anywhere",
-              ...(isGolden(n) ? { color: "var(--c-gold)", fontPalette: "var(--fp-gold)" } : {}) }}>{n}</span>
-            {i < arr.length - 1 && <span style={{ fontSize: 30, color: C.textMuted }}>&amp;</span>}
+            <span style={{ ...honkTitle, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontSize: arr.length > 1 ? 56 : 76, lineHeight: 1.05, overflowWrap: "anywhere" }}>{n}</span>
+            {i < arr.length - 1 && <span style={{ fontSize: 30, ...halo }}>&amp;</span>}
           </span>
         ))}
       </h2>
-      <p style={{ margin: "0 0 12px", fontSize: 18, color: C.textSecond, fontStyle: "italic" }}>{message}</p>
-      <p style={{ margin: 0, fontSize: 15, color: C.textMuted }}>{children}</p>
-    </Panel>
+      <p style={{ margin: "0 0 8px", fontSize: 19, ...halo, fontStyle: "italic", fontWeight: 600 }}>{message}</p>
+      <p style={{ margin: 0, fontSize: 15, ...halo }}>{children}</p>
+    </div>
   );
 }
 
@@ -457,6 +461,7 @@ function FinalStopPreview() {
   const others = ["Sandy", "Frantique", "thedebbied_1", "TylerDurden"];
   const pick = () => others[Math.floor(Math.random() * others.length)];
   return (
+    <>
     <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
       <div>
         <div style={{ fontWeight: 800, fontSize: 17 }}>Preview the Final Stop</div>
@@ -464,13 +469,14 @@ function FinalStopPreview() {
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <Btn onClick={() => play([pick()])}>One winner</Btn>
-        <BtnSecondary onClick={() => play(["afool"])}>afool wins (gold)</BtnSecondary>
         <BtnSecondary onClick={() => play(["Sandy", "Frantique"])}>A tie</BtnSecondary>
         {show && <BtnSecondary onClick={() => setShow(null)}>Close</BtnSecondary>}
       </div>
-      {show && <Confetti key={show.at} />}
-      {show && <FinalStopPanel names={show.names} message={show.message}>Preview: only you see this.</FinalStopPanel>}
     </Panel>
+    {/* On the page background, like on a train (no box around it) */}
+    {show && <Confetti key={show.at} />}
+    {show && <FinalStopPanel names={show.names} message={show.message}>Preview: only you see this.</FinalStopPanel>}
+    </>
   );
 }
 // Saves new settings and tells the room to update the sounds that are playing now
@@ -584,13 +590,18 @@ function SoundControl() {
           <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>Music and sound effects</div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <input type="range" min="0" max="100" step="5" value={pct} aria-label="Volume"
-              onChange={e => change({ on: true, volume: Number(e.target.value) / 100 })}
+              onChange={e => change({ ...st, on: true, volume: Number(e.target.value) / 100 })}
               style={{ flex: 1, accentColor: "var(--c-teal)" }} />
             <span style={{ color: C.textSecond, fontSize: 13, width: 36, textAlign: "right" }}>{pct}%</span>
           </div>
           <button onClick={() => change({ ...st, on: !st.on })}
             style={{ marginTop: 10, width: "100%", background: "transparent", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "5px 8px" }}>
             {st.on ? "Mute" : "Unmute"}
+          </button>
+          {/* Button sounds on their own switch: some players want the music without the clicks */}
+          <button onClick={() => change({ ...st, buttons: st.buttons === false })} aria-pressed={st.buttons !== false}
+            style={{ marginTop: 6, width: "100%", background: "transparent", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "5px 8px" }}>
+            Button sounds: <b style={{ color: st.buttons === false ? C.textMuted : C.teal }}>{st.buttons === false ? "Off" : "On"}</b>
           </button>
         </>
       )}
@@ -705,6 +716,52 @@ function playPmChime() {
   } catch { /* no sound available */ }
 }
 setPmChime(playPmChime);
+
+// ── Button sounds (Damon, 2026-10-20: "game-y and elegant", like the fanfare and the message chime) ──
+// Hover: a tiny, airy tick. Click: a soft two-step "pop" upwards. Both made in the browser (no files), much
+// quieter than the chime, silent when Sound is off. Hover only with a real mouse (not on phones), at most one
+// tick every 60 ms, and only when the pointer enters a new button. Every <button> and every clickable name
+// (role="button") gets them; disabled buttons stay silent. The browser allows sound only after the first click,
+// so hovers before that are silent.
+function uiTone(steps, vol) {
+  const gain = soundSettings.buttons === false ? 0 : soundGain();   // the player can switch button sounds off
+  if (gain <= 0) return;
+  try {
+    pmAudioCtx = pmAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = pmAudioCtx;
+    if (ctx.state === "suspended") ctx.resume().catch(() => { });
+    const t = ctx.currentTime;
+    for (const [at, freq, dur, type] of steps) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t + at);
+      g.gain.exponentialRampToValueAtTime(vol * gain, t + at + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
+      o.connect(g).connect(ctx.destination);
+      o.start(t + at); o.stop(t + at + dur + 0.02);
+    }
+  } catch { /* no sound available */ }
+}
+const playHoverTick = () => uiTone([[0, 2350, 0.045, "sine"]], 0.035);
+const playClickPop = () => uiTone([[0, 620, 0.07, "triangle"], [0.035, 930, 0.09, "triangle"]], 0.12);
+(function installButtonSounds() {
+  if (typeof document === "undefined") return;
+  const target = e => {
+    const el = e.target instanceof Element ? e.target.closest('button, [role="button"]') : null;
+    return el && !el.disabled && el.getAttribute("aria-disabled") !== "true" ? el : null;
+  };
+  const canHover = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
+  let last = 0;
+  if (canHover) document.addEventListener("mouseover", e => {
+    const el = target(e);
+    if (!el || (e.relatedTarget instanceof Node && el.contains(e.relatedTarget))) return;   // still inside the same button
+    const now = performance.now();
+    if (now - last < 60) return;
+    last = now;
+    playHoverTick();
+  }, true);
+  document.addEventListener("pointerdown", e => { if (e.button === 0 && target(e)) playClickPop(); }, true);
+})();
 
 // The private chat: one tab per person you're talking with (Damon). Switching tabs keeps every
 // conversation and anything half-typed; ✕ closes a tab but the conversation comes back when reopened.
@@ -859,7 +916,7 @@ function RestartBanner() {
   );
 }
 
-// Golden names (Damon, 2026-10-18): afool joked his name should be gold, so it is — everywhere names are shown.
+// Golden names (Damon, 2026-10-18): afool joked his name should be gold. Since 2026-10-20: in chat lines only.
 // --c-gold is set per palette (a darker gold on the light First Light). goldName(name) = the extra style, or {}.
 const GOLDEN_NAMES = ["afool"];
 const isGolden = name => GOLDEN_NAMES.includes(String(name || "").toLowerCase());
@@ -873,14 +930,14 @@ const goldName = name => (isGolden(name) ? {
 // A player's name you can click. One rule everywhere (Damon asked for it clear, 2026-10-18; like Discord, Slack
 // and Twitch): a click opens the player's Sky Passport card, whose main button is Message. Kicking is never a
 // click: only "/kick name" in Sky Train Chat. ("profile" is kept for older calls; it no longer changes anything.)
-function NameLink({ name, style }) {
+function NameLink({ name, style, gold = false }) {   // gold: golden names in gold (chat lines only)
   if (!name) return <span style={style}>{name}</span>;
   const go = () => openProfile(name);
   return (
     <span role="button" tabIndex={0} title={`${name}: Sky Passport and Message`}
       onClick={e => { e.stopPropagation(); go(); }}
       onKeyDown={e => { if (e.key === "Enter") go(); }}
-      style={{ cursor: "pointer", ...style, ...goldName(name) }}>{name}</span>
+      style={{ cursor: "pointer", ...style, ...(gold ? goldName(name) : {}) }}>{name}</span>
   );
 }
 
@@ -1496,7 +1553,7 @@ function SkyLeaderboard() {
   );
   const nameBtn = (name, style) => (
     <button onClick={() => openProfile(name)} title={`${name}: Sky Passport and Message`}
-      style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", ...style, ...goldName(name) }}>{name}</button>
+      style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", ...style }}>{name}</button>
   );
   const th = { textAlign: "left", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: C.teal, fontWeight: 700, padding: "8px 10px", borderBottom: `1px solid ${C.border}` };
   const td = { padding: "8px 10px", borderBottom: `1px solid ${C.border}` };
@@ -1639,14 +1696,31 @@ function SkyLeaderboard() {
                   </>
                 )}
               </Panel>
-              <Panel style={{ padding: 14 }}>
+              {/* Stretches to the bottom of the board (Damon, 2026-10-20): the winning acro bigger, the runners-up under it */}
+              <Panel style={{ padding: 14, flex: 1, display: "flex", flexDirection: "column" }}>
                 <div style={{ fontSize: 22, ...honkTitle }}>{period === "all" ? "Acro of All Time" : period === "week" ? "Acro of the Week" : "Acro of the Month"}</div>
                 {data.acroOfPeriod ? (
                   <>
-                    <div style={{ fontSize: 18, marginTop: 6 }}>“{data.acroOfPeriod.sentence}”</div>
-                    <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+                    <div style={{ fontSize: 22, lineHeight: 1.3, marginTop: 8 }}>“{data.acroOfPeriod.sentence}”</div>
+                    <div style={{ fontSize: 13, color: C.textMuted, marginTop: 6 }}>
                       {data.acroOfPeriod.letters.split("").join(" ")} · {data.acroOfPeriod.topic} · <b style={{ color: C.teal }}>{data.acroOfPeriod.points} points</b> · {data.acroOfPeriod.votes} vote{data.acroOfPeriod.votes === 1 ? "" : "s"} · by {nameBtn(data.acroOfPeriod.by, { color: C.teal })}
                     </div>
+                    {(data.runnersUp || []).length > 0 && (
+                      <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", color: C.teal, fontWeight: 700, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>Runners-up</div>
+                        {data.runnersUp.map((a, i) => (
+                          <div key={i} style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+                            <span style={{ fontWeight: 800, color: [C.textSecond, C.brand][i], fontVariantNumeric: "tabular-nums" }}>{i + 2}</span>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 16 }}>“{a.sentence}”</div>
+                              <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
+                                {a.letters.split("").join(" ")} · {a.topic} · <b style={{ color: C.teal }}>{a.points} points</b> · by {nameBtn(a.by, { color: C.teal })}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </>
                 ) : <div style={{ fontSize: 14, color: C.textMuted, marginTop: 6 }}>No points yet {periodName.toLowerCase()}.</div>}
               </Panel>
@@ -1714,7 +1788,7 @@ function PassHeader({ p, big }) {
   return (
     <div>
       {/* The name in Honk, in the letters colour (Damon, 2026-10-18) */}
-      <div style={{ ...honkTitle, fontSize: big ? 46 : 36, color: isGolden(p.name) ? "var(--c-gold)" : C.brand, fontPalette: isGolden(p.name) ? "var(--fp-gold)" : "var(--fp-letters)", lineHeight: 1.05, overflowWrap: "anywhere" }}>{p.name}</div>
+      <div style={{ ...honkTitle, fontSize: big ? 46 : 36, color: C.brand, fontPalette: "var(--fp-letters)", lineHeight: 1.05, overflowWrap: "anywhere" }}>{p.name}</div>
       <div style={{ color: C.textSecond, fontSize: 15, marginTop: 2 }}>
         <b style={{ color: C.teal }}>{p.level}</b> · on board since {monthYear(p.memberSince)}
       </div>
@@ -2069,7 +2143,9 @@ function Lobby() {
           <StationLogButton />
           <HowToPlay winScore={roomList[0]?.winScore || 30} />
           <ThemePicker />
-          {status && <span style={{ color: status === "ok" ? C.success : C.brand, fontSize: 14, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>}
+          {/* Sound at the station too (2026-10-20): button sounds and the message chime play here */}
+          <SoundControl />
+          {status &&<span style={{ color: status === "ok" ? C.success : C.brand, fontSize: 14, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>}
         </div>
       </div>
 
@@ -2126,7 +2202,7 @@ function Lobby() {
                         <AvatarSquare name={o.name} size={32} />
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            <span style={goldName(o.name)}>{o.name}</span>
+                            <span>{o.name}</span>
                           </div>
                           <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Online · {o.where}</div>
                         </div>
@@ -2152,7 +2228,7 @@ function Lobby() {
                   // A message on one line (Damon: no avatar, not two lines): time · name: text — long text wraps
                   <div key={i} style={{ fontSize: 15, lineHeight: 1.4, overflowWrap: "anywhere" }}>
                     <span style={{ color: C.textMuted, fontSize: 12, marginRight: 8, fontVariantNumeric: "tabular-nums" }}>{lobbyTime(m.time)}</span>
-                    <NameLink profile name={m.username} style={{ color: C.teal, fontWeight: 700 }} /><span style={{ color: C.teal, fontWeight: 700 }}>: </span>
+                    <NameLink profile gold name={m.username} style={{ color: C.teal, fontWeight: 700 }} /><span style={{ color: C.teal, fontWeight: 700 }}>: </span>
                     <span style={{ color: C.textPrimary }}>{m.message}</span>
                   </div>
                 ))}
@@ -3861,7 +3937,7 @@ function Room() {
                   </span>
                   {/* Submitted this round (while writing): name in teal */}
                   <span style={{ color: p.isConnected === false ? C.textMuted : (phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? C.teal : C.textSecond), fontWeight: phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? 700 : 400, opacity: p.isConnected === false ? 0.6 : 1 }}>
-                    <span style={goldName(p.nickname)}>{p.nickname}</span>
+                    <span>{p.nickname}</span>
                     {/* Window closed / connection lost — removed after about 10 seconds */}
                     {p.isConnected === false && <span style={{ marginLeft: 4, fontStyle: "italic" }}>(away)</span>}
                     {(pm.unread[p.nickname] || 0) > 0 && (
@@ -3899,7 +3975,7 @@ function Room() {
                   <div key={i} style={{ fontSize: isShort ? 13 : 14, lineHeight: 1.35, color: C.textMuted, fontStyle: "italic", textAlign: "center", padding: "1px 0" }}>{m.message}</div>
                 ) : (
                   <div key={i} style={{ fontSize: isShort ? 14 : 15, lineHeight: 1.35 }}>
-                    <NameLink name={m.nickname} style={{ color: C.teal, fontWeight: 600 }} /><span style={{ color: C.teal, fontWeight: 600 }}>: </span>
+                    <NameLink gold name={m.nickname} style={{ color: C.teal, fontWeight: 600 }} /><span style={{ color: C.teal, fontWeight: 600 }}>: </span>
                     <span style={{ color: C.textSecond }}>{m.message}</span>
                   </div>
                 )
