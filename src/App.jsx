@@ -392,6 +392,87 @@ function Confetti() {
 
 // "A", "A and B", "A, B and C"
 const listNames = names => names.length < 2 ? (names[0] || "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+
+// A random winner line for the Final Stop; a tie at the top gets its own lines (Damon: still celebrate, a smart line)
+function finalStopMessage(names) {
+  const winner = names[0], all = listNames(names);
+  const one = [
+    `⚡ ${winner}'s supernatural acro skills leave the whole station in awe.`,
+    `🏆 Final stop: victory. ${winner} arrives first at glory.`,
+    `🚂 ${winner} pulls into the winner's platform in style.`,
+    `🎖️ Next station: triumph. ${winner} has arrived.`,
+    `🚉 The signals are clear — ${winner} wins the game.`,
+    `✨ ${winner} leaves the rest of the field behind and claims the line.`,
+    `🌟 ${winner} takes the express route straight to victory.`,
+    `🎉 Attention passengers: ${winner} is today's champion.`,
+    `🔔 Please mind the gap between ${winner} and everyone else.`,
+    `👑 ${winner} has officially taken command of the rails.`,
+    `📣 Service update: ${winner} has arrived at greatness.`,
+    `🚄 No delays, no doubt — ${winner} wins.`,
+    `🥇 ${winner} makes a flawless arrival at the platform of champions.`,
+    `🎟️ One ticket to glory, stamped and claimed by ${winner}.`,
+  ];
+  const tie = [
+    `📸 A photo finish: ${all} share the winner's platform.`,
+    `🚉 Two trains, one platform: ${all} pull in side by side.`,
+    `⚖️ The judges checked the tape twice. ${all} are joint champions.`,
+    `🎟️ One ticket to glory, split ${names.length} ways: ${all}.`,
+    `🔔 Attention passengers: we have a tie. ${all} share the crown.`,
+    `👑 Not enough crowns to go round, so ${all} will have to share.`,
+    `🤝 Same score, same glory: ${all} win together.`,
+  ];
+  const pool = names.length > 1 ? tie : one;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// The Final Stop panel: the winner's name in Honk (Damon, 2026-10-20), co-winners side by side, a golden name in
+// gold, the winner line, and a last line (the countdown on a train; a note in the admin preview)
+function FinalStopPanel({ names, message, children }) {
+  return (
+    <Panel style={{ padding: "18px 24px", marginBottom: 12, textAlign: "center", borderColor: C.teal }}>
+      <p style={{ margin: "0 0 8px", fontSize: 13, color: C.teal, textTransform: "uppercase", letterSpacing: "0.12em" }}>
+        Final Stop
+      </p>
+      <div aria-hidden="true" style={{ fontSize: 34, lineHeight: 1 }}>👑</div>
+      <h2 style={{ margin: "2px 0 10px", display: "flex", justifyContent: "center", alignItems: "baseline", flexWrap: "wrap", gap: "0 18px" }}>
+        {names.map((n, i, arr) => (
+          <span key={n} style={{ display: "inline-flex", alignItems: "baseline", gap: 18 }}>
+            <span style={{ ...honkTitle, fontSize: arr.length > 1 ? 52 : 68, lineHeight: 1.05, overflowWrap: "anywhere",
+              ...(isGolden(n) ? { color: "var(--c-gold)", fontPalette: "var(--fp-gold)" } : {}) }}>{n}</span>
+            {i < arr.length - 1 && <span style={{ fontSize: 30, color: C.textMuted }}>&amp;</span>}
+          </span>
+        ))}
+      </h2>
+      <p style={{ margin: "0 0 12px", fontSize: 18, color: C.textSecond, fontStyle: "italic" }}>{message}</p>
+      <p style={{ margin: 0, fontSize: 15, color: C.textMuted }}>{children}</p>
+    </Panel>
+  );
+}
+
+// Admin only (Damon, 2026-10-20: "I can't check" the Final Stop without a whole journey): plays the celebration —
+// confetti, fanfare, the panel — on this screen only. Nothing is sent to anyone.
+function FinalStopPreview() {
+  const [show, setShow] = useState(null);   // { names, message, at }
+  const play = names => { setShow({ names, message: finalStopMessage(names), at: Date.now() }); playFanfare(); };
+  const others = ["Sandy", "Frantique", "thedebbied_1", "TylerDurden"];
+  const pick = () => others[Math.floor(Math.random() * others.length)];
+  return (
+    <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div>
+        <div style={{ fontWeight: 800, fontSize: 17 }}>Preview the Final Stop</div>
+        <div style={{ fontSize: 14, color: C.textMuted }}>Plays the winner celebration on your screen only. The fanfare follows your Sound setting.</div>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Btn onClick={() => play([pick()])}>One winner</Btn>
+        <BtnSecondary onClick={() => play(["afool"])}>afool wins (gold)</BtnSecondary>
+        <BtnSecondary onClick={() => play(["Sandy", "Frantique"])}>A tie</BtnSecondary>
+        {show && <BtnSecondary onClick={() => setShow(null)}>Close</BtnSecondary>}
+      </div>
+      {show && <Confetti key={show.at} />}
+      {show && <FinalStopPanel names={show.names} message={show.message}>Preview: only you see this.</FinalStopPanel>}
+    </Panel>
+  );
+}
 // Saves new settings and tells the room to update the sounds that are playing now
 function setSoundSettings(next) {
   soundSettings = next;
@@ -1203,6 +1284,7 @@ function PaletteStats() {
         </div>
         {err && <p style={{ color: C.brand }}>{err}</p>}
         {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
+        {data && <FinalStopPreview />}
         {data && (
           <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
             {rows.map(t => {
@@ -2946,42 +3028,11 @@ function Room() {
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
       if (votingAudioRef.current) { votingAudioRef.current.pause(); votingAudioRef.current = null; }
 
-      // Pick a random station-themed winner message
-      const msgs = [
-        `⚡ ${winner}'s supernatural acro skills leave the whole station in awe.`,
-        `🏆 Final stop: victory. ${winner} arrives first at glory.`,
-        `🚂 ${winner} pulls into the winner's platform in style.`,
-        `🎖️ Next station: triumph. ${winner} has arrived.`,
-        `🚉 The signals are clear — ${winner} wins the game.`,
-        `✨ ${winner} leaves the rest of the field behind and claims the line.`,
-        `🌟 ${winner} takes the express route straight to victory.`,
-        `🎉 Attention passengers: ${winner} is today's champion.`,
-        `🔔 Please mind the gap between ${winner} and everyone else.`,
-        `👑 ${winner} has officially taken command of the rails.`,
-        `📣 Service update: ${winner} has arrived at greatness.`,
-        `🚄 No delays, no doubt — ${winner} wins.`,
-        `🥇 ${winner} makes a flawless arrival at the platform of champions.`,
-        `🎟️ One ticket to glory, stamped and claimed by ${winner}.`
-      ];
-
-      // A tie at the top: they share the win (Damon: still celebrate, show both names, a smart line)
-      const all = listNames(names);
-      const tieMsgs = [
-        `📸 A photo finish: ${all} share the winner's platform.`,
-        `🚉 Two trains, one platform: ${all} pull in side by side.`,
-        `⚖️ The judges checked the tape twice. ${all} are joint champions.`,
-        `🎟️ One ticket to glory, split ${names.length} ways: ${all}.`,
-        `🔔 Attention passengers: we have a tie. ${all} share the crown.`,
-        `👑 Not enough crowns to go round, so ${all} will have to share.`,
-        `🤝 Same score, same glory: ${all} win together.`,
-      ];
-      const pool = names.length > 1 ? tieMsgs : msgs;
-
       // Show winner inline — players stay in the room
       setGameWinner({
         name: winner,
         names,
-        message: pool[Math.floor(Math.random() * pool.length)],
+        message: finalStopMessage(names),
         at: Date.now(),                 // a new celebration each time (the confetti restarts)
       });
       playFanfare();
@@ -3622,31 +3673,12 @@ function Room() {
       {/* Game over — shown inline where letters normally appear */}
       {phase === "GameOver" && gameWinner && <Confetti key={gameWinner.at} />}
       {phase === "GameOver" && gameWinner && (
-        <Panel style={{ padding: "18px 24px", marginBottom: 12, textAlign: "center", borderColor: C.teal }}>
-          <p style={{ margin: "0 0 8px", fontSize: 13, color: C.teal, textTransform: "uppercase", letterSpacing: "0.12em" }}>
-            Final Stop
-          </p>
-          {/* The winner's name in Honk (Damon, 2026-10-20); co-winners side by side; a golden name in gold */}
-          <div aria-hidden="true" style={{ fontSize: 34, lineHeight: 1 }}>👑</div>
-          <h2 style={{ margin: "2px 0 10px", display: "flex", justifyContent: "center", alignItems: "baseline", flexWrap: "wrap", gap: "0 18px" }}>
-            {(gameWinner.names || [gameWinner.name]).map((n, i, arr) => (
-              <span key={n} style={{ display: "inline-flex", alignItems: "baseline", gap: 18 }}>
-                <span style={{ ...honkTitle, fontSize: arr.length > 1 ? 52 : 68, lineHeight: 1.05, overflowWrap: "anywhere",
-                  ...(isGolden(n) ? { color: "var(--c-gold)", fontPalette: "var(--fp-gold)" } : {}) }}>{n}</span>
-                {i < arr.length - 1 && <span style={{ fontSize: 30, color: C.textMuted }}>&amp;</span>}
-              </span>
-            ))}
-          </h2>
-          <p style={{ margin: "0 0 12px", fontSize: 18, color: C.textSecond, fontStyle: "italic" }}>
-            {gameWinner.message}
-          </p>
-          <p style={{ margin: 0, fontSize: 15, color: C.textMuted }}>
-            {/* Countdown during the break; "Departing…" while the server starts it; the old hint if it didn't */}
-            {nextGameIn > 0 ? `The next journey starts in ${nextGameIn}s`
-              : nextGameIn !== null && nextGameIn > -10 ? "Departing…"
-              : "Choose a topic below to start the next journey."}
-          </p>
-        </Panel>
+        <FinalStopPanel names={gameWinner.names || [gameWinner.name]} message={gameWinner.message}>
+          {/* Countdown during the break; "Departing…" while the server starts it; the old hint if it didn't */}
+          {nextGameIn > 0 ? `The next journey starts in ${nextGameIn}s`
+            : nextGameIn !== null && nextGameIn > -10 ? "Departing…"
+            : "Choose a topic below to start the next journey."}
+        </FinalStopPanel>
       )}
 
       {/* The first topic starts the journey — no Start button (Damon, 2026-10-16) */}
