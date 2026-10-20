@@ -4,7 +4,7 @@ import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, ge
 import { useSignalR } from "./hooks/useSignalR";
 import { useLobbyHub } from "./hooks/useLobbyHub";
 import { usePm, openPm, closePm, sendPm, setPmDraft, dismissPmToast, setPmChime } from "./pm";
-import { playTheme, THEME_LIST } from "./themes";
+import { playTheme, THEME_LIST, unlockAudio } from "./themes";
 
 // ── Design tokens ──────────────────────────────────────────────
 // ── Colour schemes ─────────────────────────────────────────────
@@ -897,6 +897,9 @@ const playHoverTick = () => uiSoft([[135, 132]], 0.04, 0.064, 0.0128);
     playHoverTick();
   }, true);
   document.addEventListener("pointerdown", e => { if (e.button === 0 && target(e)) playClickPop(); }, true);
+  // Switch the music engine on at any click or key press (see unlockAudio in themes.js)
+  document.addEventListener("pointerdown", unlockAudio, true);
+  document.addEventListener("keydown", unlockAudio, true);
 })();
 
 // The private chat: one tab per person you're talking with (Damon). Switching tabs keeps every

@@ -20,6 +20,11 @@ function audioCtx() {
   if (ctx.state === "suspended") ctx.resume().catch(() => { });
   return ctx;
 }
+// Browsers only let a page make sound after the player clicked or typed, and the sound engine must be switched on
+// during such a click. A station starts from the server, not from a click, so App.jsx calls this on every click and
+// key press (2026-10-20: the music was silent in a real game because of this; the admin page worked because there
+// every song started with a click).
+export function unlockAudio() { try { audioCtx(); } catch { /* no sound available */ } }
 const hz = midi => 440 * Math.pow(2, (midi - 69) / 12);
 
 // One second of white noise, reused for every drum hit
