@@ -486,10 +486,15 @@ export async function playTheme(id, seconds, level) {
   const stopAt = (th.endsEarly ? bars - 1 : bars) * 16;
   const t0 = c.currentTime + 0.1;
   let i = 0;
+  // Notes are written 2 s ahead (Damon, 2026-10-21: Pixel and Jazz "start normally and speed up"): a tab that isn't
+  // in front gets its timers slowed to about once a second, and with only 0.2 s ahead the missed notes were then all
+  // played at once, in a rush. A note whose moment has already passed is skipped, never rushed.
+  const AHEAD = 2;
   const timer = setInterval(() => {
-    while (i < stopAt && t0 + i * d < c.currentTime + 0.2) {
+    while (i < stopAt && t0 + i * d < c.currentTime + AHEAD) {
       const pos = i % 16, bar = Math.floor(i / 16);
       const swingDelay = th.swing && pos % 4 === 2 ? d * th.swing * 2 : 0;
+      if (t0 + i * d + swingDelay < c.currentTime - 0.02) { i++; continue; }   // too late for this note: skip it
       th.step(c, master, {
         t: t0 + i * d + swingDelay, i, bar, pos, d, p: i / total,
         chord: th.prog[bar % th.prog.length], next: th.prog[(bar + 1) % th.prog.length],
