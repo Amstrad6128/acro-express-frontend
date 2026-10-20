@@ -300,6 +300,12 @@ function applyLetterFont(key) {
     for (const v of ["--lf-family", "--lf-shadow", "--tf-family", "--tf-weight", "--lf-scale", "--lf-lh"]) root.removeProperty(v);
   }
   try { localStorage.setItem("acro.letterFont", key); } catch { /* private mode: just not remembered */ }
+  window.dispatchEvent(new CustomEvent("acro-letterfont", { detail: key }));   // the Colors menu shows the new choice
+}
+// Clicking the big letters switches to the next font (Damon, 2026-10-20: "a faster way to switch fonts")
+function cycleLetterFont() {
+  const keys = Object.keys(LETTER_FONTS), cur = loadLetterFont();
+  applyLetterFont(keys[(keys.indexOf(cur) + 1) % keys.length]);
 }
 
 // ── Sound settings ─────────────────────────────────────────────
@@ -471,6 +477,17 @@ function FinalStopPanel({ names, message, children }) {
   );
 }
 
+// The original song as a station plays it (to compare loudness on the admin page, Damon 2026-10-20): the game's level
+// (THEME_LEVEL × the Music volume), starting at the point that makes its ending land on 0
+function playOriginal(secs) {
+  const a = new Audio("/AcroExpress_tunes.m4a");
+  a.volume = Math.min(1, THEME_LEVEL * soundGain());
+  const SONG_SECONDS = 91.9;
+  a.currentTime = Math.max(0, SONG_SECONDS - secs);
+  a.play().catch(() => { });
+  return { endsAt: Date.now() + secs * 1000, stop() { a.pause(); } };
+}
+
 // Admin only (Damon, 2026-10-20): listen to the three new writing themes (src/themes.js) before players get a
 // choice. Plays a whole station on this screen only, at the level the game uses for its theme, with a countdown.
 function ThemeListening() {
@@ -495,7 +512,7 @@ function ThemeListening() {
     const token = ++playToken.current;
     setPlaying({ ...th, loading: true }); setLeft(secs);
     let pl = null;
-    try { pl = await playTheme(th.id, secs, THEME_LEVEL * soundGain()); } catch (e) { console.error(e); }
+    try { pl = th.id === "original" ? playOriginal(secs) : await playTheme(th.id, secs, THEME_LEVEL * soundGain()); } catch (e) { console.error(e); }
     if (token !== playToken.current) { pl?.stop(); return; }
     playerRef.current = pl;
     setPlaying(pl ? { ...th, endsAt: pl.endsAt } : null);
@@ -515,6 +532,7 @@ function ThemeListening() {
         ))}
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Btn onClick={() => play({ id: "original", name: "Original" })}>▶ Original</Btn>
         {THEME_LIST.map(th => <Btn key={th.id} onClick={() => play(th)}>▶ {th.name}{th.offline ? " (kept back)" : ""}</Btn>)}
         {playing && <BtnSecondary onClick={stop}>Stop</BtnSecondary>}
       </div>
@@ -609,6 +627,11 @@ function HeaderMenu({ label, children, width = 230 }) {
 function ThemePicker() {
   const [current, setCurrent] = useState(loadThemeKey);
   const [letterFont, setLetterFont] = useState(loadLetterFont);   // "bowlby" or "honk"
+  useEffect(() => {
+    const on = e => setLetterFont(e.detail);
+    window.addEventListener("acro-letterfont", on);
+    return () => window.removeEventListener("acro-letterfont", on);
+  }, []);
   return (
     <HeaderMenu label={<>Colors: <span style={{ color: C.teal, fontWeight: 600 }}>{THEMES[current].name}</span></>}>
       {(close, big) => (
@@ -3936,7 +3959,9 @@ function Room() {
             {/* "0" keeps the line one number tall while it is hidden */}
             {timer !== null && timer > 0 ? timer : 0}
           </div>
-          <div ref={lettersRef} style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+          <div ref={lettersRef} title="Click to change the letters' font"
+            onClick={() => { cycleLetterFont(); document.getElementById("acroInput")?.focus(); }}
+            style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", cursor: "pointer", userSelect: "none" }}>
             {letters.map((l, i) => (
               <span key={i} style={{
                 fontFamily: "var(--lf-family, 'Bowlby One SC', serif)",   // the player's choice: Bowlby (default) or Honk
