@@ -283,6 +283,9 @@ applyTheme(loadThemeKey());   // before the first render, so the page never flas
 //   --lf-family  font of the big letters      --lf-shadow  their shadow (Honk has its own, so none)
 //   --tf-family  font of the timer            --tf-weight  its weight
 //   --lf-scale / --lf-lh  size factor and line height of the big letters (Honk's capitals are smaller)
+//   --tf-scale / --tf-lh  the same for the timer: its numbers as tall as the original timer's (Segoe UI bold), measured
+//                         2026-10-21 (Damon: "Honk seems too small … Pixel is too big"): digits at 100px are 72px
+//                         tall in Segoe UI, 59 in Honk (×1.22), 87 in Press Start 2P (×0.8, a touch under: it is wide)
 // Pixel = Press Start 2P, an 8-bit arcade font (2026-10-21, matches the Pixel song).
 const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", pixel: "Pixel" };   // key → name shown in the menu
 function loadLetterFont() {
@@ -295,6 +298,8 @@ function applyLetterFont(key) {
     root.setProperty("--lf-shadow", "none");
     root.setProperty("--tf-family", "'Honk', " + NUM_FONT);
     root.setProperty("--tf-weight", "400");   // Honk has one weight; bold would be faked and smudgy
+    root.setProperty("--tf-scale", "1.22");
+    root.setProperty("--tf-lh", "0.82");      // 1 ÷ 1.22: the timer line keeps its height, nothing below moves
     root.setProperty("--lf-scale", "1.55");   // Honk's capitals are smaller: 1.4× matched Bowlby; 1.55× = "a bit bigger" (Damon, 2026-10-20)
     root.setProperty("--lf-lh", "0.645");     // …in the same height (1 ÷ 1.55), so nothing below moves
   } else if (key === "pixel") {
@@ -302,10 +307,12 @@ function applyLetterFont(key) {
     root.setProperty("--lf-shadow", "var(--c-letterShadow)");   // the palette's shadow, as with Bowlby
     root.setProperty("--tf-family", "'Press Start 2P', " + NUM_FONT);
     root.setProperty("--tf-weight", "400");   // one weight only; bold would be faked
+    root.setProperty("--tf-scale", "0.8");
+    root.setProperty("--tf-lh", "1.25");      // 1 ÷ 0.8
     root.setProperty("--lf-scale", "0.8");    // its capitals fill the whole size: 0.8× = Bowlby's height
     root.setProperty("--lf-lh", "1.25");      // …in the same line height (1 ÷ 0.8), so nothing below moves
   } else {   // Bowlby: the original look (the variables are removed, so every style uses its own fallback)
-    for (const v of ["--lf-family", "--lf-shadow", "--tf-family", "--tf-weight", "--lf-scale", "--lf-lh"]) root.removeProperty(v);
+    for (const v of ["--lf-family", "--lf-shadow", "--tf-family", "--tf-weight", "--lf-scale", "--lf-lh", "--tf-scale", "--tf-lh"]) root.removeProperty(v);
   }
   try { localStorage.setItem("acro.letterFont", key); } catch { /* private mode: just not remembered */ }
   window.dispatchEvent(new CustomEvent("acro-letterfont", { detail: key }));   // the Colors menu shows the new choice
@@ -3985,7 +3992,7 @@ function Room() {
               letters below keep their place (before, they jumped up when the timer ended). */}
           {/* Font: the player's big-letters choice (--tf-family: Honk, or the plain number font). In Honk the
               colour comes from its palette: accent normally, letters colour in the last 10 seconds */}
-          <div style={{ fontSize: timerSize, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: 1, marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
+          <div style={{ fontSize: `calc(${timerSize} * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: "var(--tf-lh, 1)", marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
             {/* "0" keeps the line one number tall while it is hidden */}
             {timer !== null && timer > 0 ? timer : 0}
           </div>
