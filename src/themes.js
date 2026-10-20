@@ -14,17 +14,36 @@
 //
 // playTheme(id, seconds, level) → Promise of { stop(), setLevel(level), endsAt (ms timestamp) }
 
-let ctx = null;
+let ctx = null, iosOut = null, iosEl = null;
 function audioCtx() {
-  ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+  if (!ctx) {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Like the Original song (Damon, 2026-10-20: "do what you did for the original theme"): the music goes out through
+    // an audio player element, for everyone — browsers (and iOS with its silent switch) treat it like the song,
+    // which plays for all players. Browser-made sound sent straight to the speakers stayed silent for players.
+    if (ctx.createMediaStreamDestination) {
+      try { iosOut = ctx.createMediaStreamDestination(); iosEl = new Audio(); iosEl.setAttribute("playsinline", ""); iosEl.srcObject = iosOut.stream; }
+      catch { iosOut = null; iosEl = null; }
+    }
+  }
   if (ctx.state === "suspended") ctx.resume().catch(() => { });
+  if (iosEl && iosEl.paused) iosEl.play().catch(() => { });
   return ctx;
 }
+// Where a theme's sound goes: the speakers (or, on iOS, the audio player element); an offline render keeps its own
+const speakers = c => (c === ctx && iosOut ? iosOut : c.destination);
 // Browsers only let a page make sound after the player clicked or typed, and the sound engine must be switched on
 // during such a click. A station starts from the server, not from a click, so App.jsx calls this on every click and
 // key press (2026-10-20: the music was silent in a real game because of this; the admin page worked because there
 // every song started with a click).
-export function unlockAudio() { try { audioCtx(); } catch { /* no sound available */ } }
+// Safari only switches the engine on if a sound actually starts during the tap, so a tiny silent one is played.
+export function unlockAudio() {
+  try {
+    const c = audioCtx();
+    const b = c.createBuffer(1, 1, 22050), src = c.createBufferSource();
+    src.buffer = b; src.connect(speakers(c)); src.start(0);
+  } catch { /* no sound available */ }
+}
 const hz = midi => 440 * Math.pow(2, (midi - 69) / 12);
 
 // One second of white noise, reused for every drum hit
@@ -428,7 +447,7 @@ export async function renderTheme(id, seconds, level, c) {
   master.gain.value = level * th.gain * 0.5;
   const comp = c.createDynamicsCompressor(), makeup = c.createGain(), limiter = makeLimiter(c);
   makeup.gain.value = th.boost || 1;   // per theme, measured to match the Classic song's loudness in the game
-  master.connect(comp); comp.connect(makeup); makeup.connect(limiter); limiter.connect(c.destination);
+  master.connect(comp); comp.connect(makeup); makeup.connect(limiter); limiter.connect(speakers(c));
   const bars = Math.max(2, Math.round(seconds * th.bpm / 60 / 4));
   const barDur = seconds / bars, d = barDur / 16, total = bars * 16;
   const stopAt = (th.endsEarly ? bars - 1 : bars) * 16, t0 = 0.1;
@@ -445,12 +464,20 @@ export async function playTheme(id, seconds, level) {
   const th = THEMES[id];
   if (!th || level <= 0) return null;
   const c = audioCtx();
+  // Not allowed to play yet (no click or key press on this page since it loaded, e.g. right after a refresh): wait
+  // until the player's first click or key press switches the engine on, then fit the theme to the seconds left
+  if (c.state !== "running") {
+    const deadline = Date.now() + seconds * 1000;
+    await new Promise(res => { const check = () => (c.state === "running" || Date.now() > deadline ? res() : setTimeout(check, 100)); check(); });
+    seconds = (deadline - Date.now()) / 1000;
+    if (seconds < 3) return null;
+  }
   if (th.instruments) await Promise.all(th.instruments.map(k => loadInstrument(c, k)));
   const master = c.createGain();
   master.gain.value = level * th.gain * 0.5;
   const comp = c.createDynamicsCompressor(), makeup = c.createGain(), limiter = makeLimiter(c);
   makeup.gain.value = th.boost || 1;   // per theme, measured to match the Classic song's loudness in the game
-  master.connect(comp); comp.connect(makeup); makeup.connect(limiter); limiter.connect(c.destination);
+  master.connect(comp); comp.connect(makeup); makeup.connect(limiter); limiter.connect(speakers(c));
 
   // A whole number of bars in the station: the tempo moves a little so the last bar ends at 0
   const bars = Math.max(2, Math.round(seconds * th.bpm / 60 / 4));
