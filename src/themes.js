@@ -13,7 +13,8 @@
 // ("music to fall asleep to … not game material").
 // Recorded samples (INSTRUMENTS, public/samples) are loaded only by themes that list "instruments"; none do now.
 //
-// playTheme(id, seconds, level) → Promise of { stop(), setLevel(level), endsAt (ms timestamp) }
+// playTheme(id, seconds, level, length) → Promise of { stop(), setLevel(level), endsAt (ms timestamp) }
+//   seconds = seconds left in the station, length = the whole station (the theme comes in where it would be by now)
 
 // One sound engine for all themes, switched on by the player's first click or key press (see unlockAudio).
 // 2026-10-21: the sound goes straight to the speakers again. (From f0badc3 it went through an audio player element,
@@ -473,17 +474,16 @@ export async function renderTheme(id, seconds, level, c) {
   th.ending(c, master, at(g.stopAt), g.d);
 }
 
-export async function playTheme(id, seconds, level) {
+export async function playTheme(id, seconds, level, length = seconds) {
   const th = THEMES[id];
   if (!th || level <= 0) return null;
   const c = audioCtx();
+  const endMs = Date.now() + seconds * 1000;   // the end of the station, fixed, whatever the waiting below takes
   // Not allowed to play yet (no click or key press on this page since it loaded, e.g. right after a refresh): wait
-  // until the player's first click or key press switches the engine on, then fit the theme to the seconds left
+  // until the player's first click or key press switches the engine on; the theme then comes in where it would be
   if (c.state !== "running") {
-    const deadline = Date.now() + seconds * 1000;
-    await new Promise(res => { const check = () => (c.state === "running" || Date.now() > deadline ? res() : setTimeout(check, 100)); check(); });
-    seconds = (deadline - Date.now()) / 1000;
-    if (seconds < 3) return null;
+    await new Promise(res => { const check = () => (c.state === "running" || Date.now() > endMs ? res() : setTimeout(check, 100)); check(); });
+    if (endMs - Date.now() < 3000) return null;
   }
   if (th.instruments) await Promise.all(th.instruments.map(k => loadInstrument(c, k)));
   const master = c.createGain();
@@ -492,10 +492,13 @@ export async function playTheme(id, seconds, level) {
   makeup.gain.value = th.boost || 1;   // per theme, measured to match the Classic song's loudness in the game
   master.connect(comp); comp.connect(makeup); makeup.connect(limiter); limiter.connect(speakers(c));
 
-  // The theme's own steady tempo; the last 16th ends at 0 (endsEarly: the ending plays through the last bar)
-  const g = grid(th, seconds), stopAt = g.stopAt, d = g.d;
-  const end = c.currentTime + 0.1 + seconds, at = i => end - (g.total - i) * d;   // 16th i's moment
-  let i = g.first;
+  // The theme's own steady tempo; the last 16th ends at 0 (endsEarly: the ending plays through the last bar).
+  // Laid out over the WHOLE station, as if it had been playing since the start (Damon, 2026-10-21: a song chosen
+  // mid-station should "resume from the same point in time", like the Original song): it comes in at the 16th it
+  // would be on now, in the right part of the theme (intro, middle or final stretch).
+  const g = grid(th, Math.max(length, seconds)), stopAt = g.stopAt, d = g.d;
+  const end = c.currentTime + (endMs - Date.now()) / 1000, at = i => end - (g.total - i) * d;   // 16th i's moment
+  let i = Math.max(g.first, Math.ceil(g.total - (end - c.currentTime - 0.05) / d));   // the first 16th still to come
   // Notes are written 2 s ahead (Damon, 2026-10-21: Pixel and Jazz "start normally and speed up"): a tab that isn't
   // in front gets its timers slowed to about once a second, and with only 0.2 s ahead the missed notes were then all
   // played at once, in a rush. A note whose moment has already passed is skipped, never rushed.
@@ -513,7 +516,7 @@ export async function playTheme(id, seconds, level) {
     }
   }, 25);
   return {
-    endsAt: Date.now() + (seconds + 0.1) * 1000,
+    endsAt: endMs,
     setLevel(v) { master.gain.setTargetAtTime(v * th.gain * 0.5, c.currentTime, 0.1); },
     stop() {
       clearInterval(timer);

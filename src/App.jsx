@@ -2999,6 +2999,7 @@ function Room() {
   const songTimeoutRef = useRef(null); // delayed start of the writing song (long rounds)
   const stationEndRef = useRef(0);     // when the writing time ends (ms), so a song chosen mid-station fits the rest
   const musicNowRef = useRef(null);    // the music playing in this station ("classic" or a theme id)
+  const stationLenRef = useRef(60);    // the whole writing time (s): a song chosen mid-station comes in where it would be
   const topicRequestedRef = useRef(false);
   // Mirrors `phase` so refreshRoomState (run from a setInterval) always reads the
   // current phase — the interval closure otherwise keeps the phase from first render
@@ -3044,7 +3045,7 @@ function Room() {
       holder.volume = THEME_LEVEL * soundGain();
       audioRef.current = holder;
       if (submittedAcroRef.current) holder.muted = true;
-      playTheme(music, seconds || 60, THEME_LEVEL)   // the holder sets the real volume (also 0 when muted)
+      playTheme(music, seconds || 60, THEME_LEVEL, stationLenRef.current)   // the holder sets the real volume (also 0 when muted)
         .then(pl => { if (audioRef.current !== holder) pl?.stop(); else holder.attach(pl); })
         .catch(() => { });
       return;
@@ -3196,6 +3197,7 @@ function Room() {
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
 
       stationEndRef.current = Date.now() + (seconds || 60) * 1000;
+      stationLenRef.current = seconds || 60;
       startStationMusic(seconds);
     }, []),
 
