@@ -830,7 +830,10 @@ const THEMES = {
 const FILE_SONGS = {
   cloudhopper: { name: "Cloud Hopper", url: "/music/song01.mp3", gain: 1.26, loop: [16.9, 23.134], tail: 3.6 },   // 79.6 s, 77 bpm
   joyride: { name: "Joyride", url: "/music/song02.mp3", gain: 1.22, tail: 2.5 },                                   // the last 100 s
-  clearskies: { name: "Clear Skies", url: "/music/song03.mp3", gain: 1.08, loop: [28.8, 38.4], tail: 3 },        // 63.1 s, 100 bpm
+  clearskies: { name: "Clear Skies", url: "/music/song03.mp3", gain: 1.08, loop: [28.8, 38.4], tail: 3 },
+  // TURBO (Damon added it the same evening; by Alex Morgan on Pixabay): 146.9 s, only the last 100 s kept (4.7 → 3.2 MB);
+  // much louder than the others (−12.4), so 0.57; it stops abruptly about 1 s before the file ends
+  turbo: { name: "Turbo", url: "/music/song04.mp3", gain: 0.57, tail: 0.8 },        // 63.1 s, 100 bpm
 };
 const fileBuffers = {};
 function loadFileSong(c, id) {
