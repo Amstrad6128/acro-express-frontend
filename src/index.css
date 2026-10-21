@@ -94,8 +94,12 @@
 }
 
 html {
-  /* auto (was scroll): no empty scrollbar track when a page fits the window (Damon, 2026-10-18) */
-  overflow-y: auto;
+  /* scroll again (2026-10-21; auto since 2026-10-18): the scrollbar's lane is always kept. Damon: on the Sky
+     Leaderboard "everything slightly shifts to the left and right" when switching boards — a short board had no
+     scrollbar, a long one did, and the page width jumped by 6px. The track is transparent (see "Styled scrollbars"
+     below) and there is no thumb when nothing scrolls, so no empty track is seen (Damon's 2026-10-18 complaint).
+     (scrollbar-gutter: stable was tried first: Chrome ignored it here.) */
+  overflow-y: scroll;
   overflow-x: hidden;
 }
 
