@@ -197,7 +197,156 @@ function melodyBar(seed, barIndex, positions, chord, scale, rest = 0.22) {
 // left). Every theme has an audible final stretch (Damon: "the songs are supposed to help the passenger feel the
 // passing of time without having to look at the clock"): busier from ~15 s left, building in the last ~5 s.
 // ending(c, out, t, d): t = the end of the station (or, with endsEarly, the start of the last bar)
+// ── Arranged songs (2026-10-21) ─────────────────────────────────
+// Damon: "start from something from video games music and remix it or upgrade it for Express". Famous game tunes
+// are copyrighted, so these are OLD PUBLIC-DOMAIN melodies, in our own simple arrangement (Damon: the hybrid was "too
+// complex"): one melody, a bass, light drums, the train's rails and whistle (the Express's signature, Steam's
+// sound Damon loved). Korobeiniki (the Russian folk song that became the Tetris theme), Funiculì, Funiculà (Denza,
+// 1880: a song about a railway climbing up the mountain), The Entertainer (Joplin, 1902) and Gymnopédie No. 1
+// (Satie, 1888). The tempo never changes. The song is laid out from the END of the station: its last phrase (the
+// "final" bars, lifted a step for most) always lands on the last seconds, announced by the whistle; before it the
+// song's sections repeat ("cycle"). Toots at 4 and 2 s, a soft swell, and the song's last chord at 0.
+// A bar: { ch: chord, ch2: chord for its second half (optional), m: [[16th step, MIDI note, length in 16ths]…],
+//   dbl: the bass voice doubles the tune an octave down, calm: drums lighter }. A chord: [bass root, [chord tones]].
+function songTheme(cfg) {
+  const steps = cfg.barSteps || 16;                                          // 16ths per bar (12 for 3/4 and 6/8)
+  const half = steps / 2;
+  return {
+    name: cfg.name, offline: true, bpm: cfg.bpm, gain: cfg.gain, boost: cfg.boost, swing: cfg.swing || 0, seed: 1,
+    instruments: cfg.instruments,
+    prog: [{ root: 0, tones: [] }],                                          // (not used: the bars carry their chords)
+    step(c, out, s) {
+      const { t, d, left } = s;
+      // where we are, counted back from the end of the station
+      const back = s.bars * 16 - s.i - 1;                                   // 16ths before the last one
+      const pos = steps - 1 - (back % steps), fromEnd = Math.floor(back / steps);
+      const fin = cfg.final, cyc = cfg.cycle;
+      const isFinal = fromEnd < fin.length;
+      const bar = isFinal ? fin[fin.length - 1 - fromEnd] : cyc[cyc.length - 1 - ((fromEnd - fin.length) % cyc.length)];
+      const lift = isFinal ? (cfg.lift || 0) : 0;
+      const chord = bar.ch2 && pos >= half ? bar.ch2 : bar.ch;
+      const root = chord[0] + lift, tones = chord[1].map(n => n + lift);
+      const intro = s.i < 2 * steps && !isFinal;                             // the first couple of bars: no tune yet
+      // the whistle: at the start, announcing the final phrase, and two toots at 4 and 2 s left
+      if (s.first || (isFinal && fromEnd === fin.length - 1 && pos === 0)) THEMES.steam.whistle(c, out, t, d * 10);
+      if ((left <= 4 && left + d > 4) || (left <= 2 && left + d > 2)) THEMES.steam.whistle(c, out, t, 0.35);
+      // the rails: two soft thumps on each beat-group
+      const beat2 = steps === 12 ? 6 : 8, clack = isFinal ? 1.25 : 1;
+      if (pos === 0 || pos === 2) kick(c, out, t, 0.1 * clack, 110);
+      if (pos === beat2 || pos === beat2 + 2) kick(c, out, t, 0.055 * clack, 150);
+      // the bass and the chords
+      const tri = (n, len, vol) => tone(c, out, t, n, d * len, { type: "triangle", vol, attack: 0.01, lowpass: 900 });
+      const stab = (len, vol) => tones.forEach(n => tone(c, out, t, n, d * len, { type: "triangle", vol, attack: 0.006, lowpass: 2200 }));
+      const felt = (n, len, vol) => sample(c, out, t, "piano", n, d * len, { vol, attack: 0.012, release: 0.4, lowpass: 1800, human: true });
+      if (cfg.bass === "octaves") {                                           // Korobeiniki: the octave bass in eighths
+        if (bar.calm) { if (pos % 8 === 0) tri(root, 7, 0.16); }
+        else if (pos % 2 === 0) tri(root + (pos % 4 === 2 ? 12 : 0), 1.8, 0.15);
+        if (pos % 8 === 4 && !intro) stab(2, bar.calm ? 0.018 : 0.024);
+      } else if (cfg.bass === "stride") {                                     // The Entertainer: oom-pah
+        if (pos === 0 || pos === 8) tri(root - (pos === 8 ? 5 : 0), 3, 0.17);
+        if (pos === 4 || pos === 12) stab(2.5, 0.03);
+      } else if (cfg.bass === "tarantella") {                                 // Funiculì (6/8): bass, chord, chord
+        if (pos === 0 || pos === 6) tri(root + (pos === 6 ? 7 : 0), 3.5, 0.16);
+        if (pos === 2 || pos === 4 || pos === 8 || pos === 10) stab(1.5, 0.022);
+      } else if (cfg.bass === "gymno") {                                      // Gymnopédie (3/4): low note, then the chord
+        if (pos === 0) felt(root, 11, 0.3);
+        if (pos === 4) tones.forEach(n => felt(n, 8, 0.13));
+      }
+      if (intro) return;
+      // light drums
+      const dr = cfg.drums;
+      if (dr === "march") {
+        if (pos === 0 || (!bar.calm && pos === 8)) kick(c, out, t, 0.11, 120);
+        if (!bar.calm && (pos === 4 || pos === 12)) hit(c, out, t, { vol: 0.07, dur: 0.1, hp: 1500, lp: 6000 });
+        if (pos % 2 === 0) hit(c, out, t, { vol: bar.calm ? 0.012 : 0.022, dur: 0.03, hp: 8500 });
+      } else if (dr === "rag") {
+        if (pos === 4 || pos === 12) hit(c, out, t, { vol: 0.05, dur: 0.08, hp: 1800, lp: 6000 });
+        if (pos % 2 === 0) hit(c, out, t, { vol: 0.018, dur: 0.03, hp: 8500 });
+      } else if (dr === "six") {
+        if (pos % 2 === 0) hit(c, out, t, { vol: pos % 6 === 0 ? 0.03 : 0.016, dur: 0.04, hp: 7500 });   // a tambourine-like shake
+      }
+      if (left <= 4 && left + d > 4) hit(c, out, t, { vol: 0.045, dur: 4, hp: 2500, lp: 9000, attack: 3.8 });
+      // the tune
+      for (const [at, n, len] of bar.m) {
+        if (at !== pos) continue;
+        const note = n + lift;
+        if (cfg.lead === "vibes") sample(c, out, t, "vibes", note, d * len, { vol: 0.3, release: 0.6, human: true });
+        else tone(c, out, t, note, d * (len <= 2 ? len * 0.7 : len * 0.95), { type: "square", vol: 0.05, attack: 0.006, lowpass: cfg.leadLP || 3200, vibrato: len >= 6 ? 8 : 0 });
+        if (bar.dbl || isFinal) tone(c, out, t, note - 12, d * len * 0.9, { type: "triangle", vol: 0.05, attack: 0.008, lowpass: 2000 });
+      }
+    },
+    ending(c, out, t) {
+      const [r, tns] = cfg.end;
+      THEMES.steam.whistle(c, out, t, 1.6);
+      tone(c, out, t, r, 2, { type: "triangle", vol: 0.2, attack: 0.02 });
+      tns.forEach(n => cfg.lead === "vibes" ? sample(c, out, t, "vibes", n, 2, { vol: 0.2, release: 1 })
+        : tone(c, out, t, n, 1.8, { type: "square", vol: 0.022, attack: 0.02, lowpass: 2600 }));
+    },
+  };
+}
+// Chords used below: [bass root, tones]
+const Am = [45, [57, 60, 64]], E7 = [40, [56, 62, 64]], Ech = [40, [56, 59, 64]], Dm = [38, [57, 62, 65]], Cmaj = [36, [55, 60, 64]];
+// Korobeiniki (the Tetris tune), A minor. A = the famous 8 bars; B = the slow middle in half notes.
+const KORO_A = [
+  { ch: Am, m: [[0, 76, 4], [4, 71, 2], [6, 72, 2], [8, 74, 4], [12, 72, 2], [14, 71, 2]] },
+  { ch: Am, m: [[0, 69, 4], [4, 69, 2], [6, 72, 2], [8, 76, 4], [12, 74, 2], [14, 72, 2]] },
+  { ch: Ech, m: [[0, 71, 6], [6, 72, 2], [8, 74, 4], [12, 76, 4]] },
+  { ch: Am, m: [[0, 72, 4], [4, 69, 4], [8, 69, 8]] },
+  { ch: Dm, m: [[2, 74, 4], [6, 77, 2], [8, 81, 4], [12, 79, 2], [14, 77, 2]] },
+  { ch: Cmaj, m: [[0, 76, 6], [6, 72, 2], [8, 76, 4], [12, 74, 2], [14, 72, 2]] },
+  { ch: Ech, m: [[0, 71, 4], [4, 71, 2], [6, 72, 2], [8, 74, 4], [12, 76, 4]] },
+  { ch: Am, m: [[0, 72, 4], [4, 69, 4], [8, 69, 4]] },
+];
+const KORO_B = [
+  { ch: Am, calm: true, m: [[0, 76, 8], [8, 72, 8]] }, { ch: E7, calm: true, m: [[0, 74, 8], [8, 71, 8]] },
+  { ch: Am, calm: true, m: [[0, 72, 8], [8, 69, 8]] }, { ch: Ech, calm: true, m: [[0, 68, 8], [8, 71, 8]] },
+  { ch: Am, calm: true, m: [[0, 76, 8], [8, 72, 8]] }, { ch: E7, calm: true, m: [[0, 74, 8], [8, 71, 8]] },
+  { ch: Am, calm: true, m: [[0, 72, 4], [4, 76, 4], [8, 81, 8]] }, { ch: Ech, calm: true, m: [[0, 80, 16]] },
+];
+// Funiculì, Funiculà — the chorus, F major, 6/8 (12 sixteenths a bar). From an ABC transcription on
+// abcnotation.com ("Funiculi Funicula (1)").
+const F_ = [41, [60, 65, 69]], C7 = [36, [58, 64, 67]], A7 = [45, [61, 64, 67]], Dmi = [38, [62, 65, 69]], Bb = [46, [62, 65, 70]];
+const FUN = [
+  { ch: C7, m: [[0, 76, 6], [6, 74, 2]] }, { ch: C7, m: [[0, 76, 6], [6, 74, 2]] },
+  { ch: C7, m: [[0, 77, 4], [4, 76, 2], [6, 74, 4], [10, 77, 2]] }, { ch: F_, m: [[0, 76, 6], [6, 76, 2]] },
+  { ch: C7, m: [[0, 76, 6], [6, 74, 2]] }, { ch: C7, m: [[0, 76, 6], [6, 74, 2]] },
+  { ch: C7, m: [[0, 77, 4], [4, 76, 2], [6, 74, 4], [10, 77, 2]] }, { ch: F_, m: [[0, 72, 4], [4, 69, 2], [6, 69, 4], [10, 69, 2]] },
+  { ch: F_, m: [[0, 69, 4], [4, 69, 2], [6, 69, 4], [10, 69, 2]] }, { ch: F_, m: [[0, 69, 4], [4, 69, 2], [6, 69, 4], [10, 69, 2]] },
+  { ch: A7, m: [[0, 69, 4], [4, 69, 2], [6, 69, 4], [10, 69, 2]] }, { ch: Dmi, m: [[0, 77, 12]] },
+  { ch: Bb, m: [[0, 79, 4], [4, 77, 2], [6, 74, 4], [10, 77, 2]] }, { ch: Dmi, m: [[0, 74, 4], [4, 69, 2], [6, 69, 4], [10, 70, 2]] },
+  { ch: C7, m: [[0, 72, 4], [4, 70, 2], [6, 69, 4], [10, 67, 2]] }, { ch: F_, m: [[0, 65, 8]] },
+];
+// The Entertainer — the main strain, C major; each of our bars holds two 2/4 bars (the chord may change halfway)
+const C_ = [36, [60, 64, 67]], G7 = [43, [59, 65, 67]], D7 = [38, [60, 66, 69]];
+const ENT = [
+  { ch: C_, m: [[0, 76, 1], [1, 84, 2], [3, 76, 1], [4, 84, 2], [6, 76, 1], [7, 84, 5], [12, 84, 1], [13, 86, 1], [14, 87, 1], [15, 88, 1]] },
+  { ch: G7, ch2: C_, m: [[0, 84, 1], [1, 86, 1], [2, 88, 2], [4, 83, 1], [5, 86, 3], [8, 84, 4], [14, 74, 1], [15, 75, 1]] },
+  { ch: C_, ch2: D7, m: [[0, 76, 1], [1, 84, 2], [3, 76, 1], [4, 84, 2], [6, 76, 1], [7, 84, 5], [12, 81, 1], [13, 79, 1], [14, 78, 1], [15, 81, 1]] },
+  { ch: D7, ch2: G7, m: [[0, 84, 1], [1, 88, 2], [3, 86, 1], [4, 84, 1], [5, 81, 1], [6, 86, 2], [8, 86, 4], [14, 74, 1], [15, 75, 1]] },
+];
+// Gymnopédie No. 1 — 3/4 (12 sixteenths a bar), the chords swinging between Gmaj7 and Dmaj7
+const Gm7 = [43, [59, 62, 66]], Dm7 = [38, [57, 61, 66]];
+const GYM = [
+  { ch: Gm7, m: [[4, 78, 4], [8, 81, 4]] }, { ch: Dm7, m: [[0, 79, 4], [4, 78, 4], [8, 73, 4]] },
+  { ch: Gm7, m: [[0, 71, 4], [4, 73, 4], [8, 74, 4]] }, { ch: Dm7, m: [[0, 69, 12]] },
+  { ch: Gm7, m: [[0, 66, 12]] }, { ch: Dm7, m: [] },
+  { ch: Gm7, m: [[4, 78, 4], [8, 81, 4]] }, { ch: Dm7, m: [[0, 79, 4], [4, 78, 4], [8, 73, 4]] },
+  { ch: Gm7, m: [[0, 71, 4], [4, 73, 4], [8, 74, 4]] }, { ch: Dm7, m: [[0, 69, 12]] },
+  { ch: Gm7, m: [[0, 73, 12]] }, { ch: Dm7, m: [[0, 78, 12]] }, { ch: Gm7, m: [[0, 76, 12]] }, { ch: Dm7, m: [] },
+];
+const SONGS = {
+  korobeiniki: songTheme({ name: "Korobeiniki", bpm: 112, gain: 1.25, boost: 4.5, bass: "octaves", drums: "march",
+    cycle: [...KORO_A, ...KORO_A.map(b => ({ ...b, dbl: true })), ...KORO_B], final: KORO_A, lift: 2, end: [47, [71, 74, 78, 83]] }),
+  funiculi: songTheme({ name: "Funiculì", bpm: 126, barSteps: 12, gain: 1.45, boost: 4.5, bass: "tarantella", drums: "six",
+    cycle: [...FUN, ...FUN.map(b => ({ ...b, dbl: true }))], final: FUN.slice(8), lift: 2, end: [43, [67, 71, 74, 79]] }),
+  entertainer: songTheme({ name: "Entertainer", bpm: 92, gain: 1.66, boost: 4.5, bass: "stride", drums: "rag", leadLP: 3600,
+    cycle: [...ENT, ENT[0], ENT[1], ...ENT.map(b => ({ ...b, dbl: true })), ENT[0], ENT[1]], final: [ENT[2], ENT[3], ENT[0], ENT[1]], lift: 2, end: [38, [74, 78, 81, 86]] }),
+  gymnopedie: songTheme({ name: "Gymnopédie", bpm: 88, barSteps: 12, gain: 2.6, boost: 4.5, bass: "gymno", drums: "none", lead: "vibes",
+    instruments: ["piano", "vibes"], cycle: GYM, final: GYM.slice(6, 14), lift: 0, end: [43, [71, 74, 78, 83]] }),
+};
+
 const THEMES = {
+  ...SONGS,   // the arranged public-domain songs above (offline until Damon picks)
   // Chiptune: square lead, arpeggios, triangle bass, 8-bit drums. I–V–vi–IV in C.
   chiptune: {
     // "Pixel": was "Chiptune" (Damon: "chip and cheap are similar words")
