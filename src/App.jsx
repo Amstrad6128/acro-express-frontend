@@ -893,8 +893,10 @@ function uiPop(steps, vol) {
 // Final choice (Damon, 2026-10-20): the click = the first version's pop ("I really like the sound of click … on
 // production. Just less loud": 0.12 → 0.06); the hover = what he tuned on the admin mixer (150 Hz, 40 ms fade-in,
 // 80 ms, volume 0.032 → hover = 90% pitch, 80% length, 40% volume): a very low, soft hum.
-const playClickPop = () => uiPop([[0, 620, 0.07], [0.035, 930, 0.09]], 0.025);   // then lower again: "at least X2 lower" (0.06 → 0.025)
-const playHoverTick = () => uiSoft([[135, 132]], 0.04, 0.064, 0.0128);
+// Then lower again ("at least X2 lower": 0.06 → 0.025, hover 0.0128), then up a bit (2026-10-21, Damon: "barely
+// heard right now"): about +4 dB each, still under the 0.06 that was too loud
+const playClickPop = () => uiPop([[0, 620, 0.07], [0.035, 930, 0.09]], 0.04);
+const playHoverTick = () => uiSoft([[135, 132]], 0.04, 0.064, 0.02);
 
 (function installButtonSounds() {
   if (typeof document === "undefined") return;
@@ -1645,6 +1647,25 @@ function NumbersPage() {
               <Bars values={data.weekdays} labels={WEEKDAY_NAMES} />
               <div style={{ color: C.textMuted, fontSize: 13 }}>Player visits: one player playing in that hour (or on that day) counts once per day.</div>
             </Panel>
+            {/* Where they play from: the time zone of their computer's clock (recorded from 21 Oct 2026) */}
+            <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+              <h2 style={{ margin: 0, fontSize: 16, color: C.teal }}>Where they play from</h2>
+              {data.zones?.length ? data.zones.map(z => {
+                const parts = z.timeZone.split("/");                        // "Europe/London" → London (Europe)
+                const place = parts.length > 1 ? `${parts[parts.length - 1].replace(/_/g, " ")} (${parts[0]})` : z.timeZone;
+                const max = data.zones[0].players;
+                return (
+                  <div key={z.timeZone} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14 }}>
+                    <span style={{ width: 200, flexShrink: 0 }}>{place}</span>
+                    <div style={{ flex: 1, height: 8, borderRadius: 4, background: C.bgApp }}>
+                      <div style={{ width: `${z.players / max * 100}%`, height: "100%", borderRadius: 4, background: C.teal }} />
+                    </div>
+                    <span style={{ width: 80, textAlign: "right", color: C.textSecond }}>{z.players} {z.players === 1 ? "player" : "players"}</span>
+                  </div>
+                );
+              }) : <div style={{ color: C.textMuted, fontSize: 14 }}>Nothing yet: recorded from 21 Oct 2026, as players play stations.</div>}
+              <div style={{ color: C.textMuted, fontSize: 13 }}>The time zone each player's computer clock is set to (the city that names the zone, not where they are), the latest one per player in the period.</div>
+            </Panel>
           </>
         )}
       </div>
@@ -1656,7 +1677,7 @@ function NumbersPage() {
 // Written in train words so the game stays playful. Not legal advice: Damon may have the texts checked.
 // Contact = a private message to the admin in the game (no email address yet).
 const ADMIN_NAME = "TylerDurden";   // who players write to
-const LEGAL_UPDATED = "18 October 2026";   // change when the texts below change
+const LEGAL_UPDATED = "21 October 2026";   // change when the texts below change
 
 // "© 2026 Acro Express™ · House Rules · Privacy" — a plain line (no frame, Damon 2026-10-18) at the bottom of
 // the station, the Station Log and these pages. compact = less space around it (the station fills the window).
@@ -1739,7 +1760,7 @@ function Privacy() {
       <RulesSection icon="🧳" title="What we keep">
         <ul style={rulesList}>
           <li><b style={{ color: C.textPrimary }}>Your Sky Passport:</b> your passenger name and your password, stored scrambled (hashed) so nobody can read it, not even us.</li>
-          <li><b style={{ color: C.textPrimary }}>Your game:</b> your acros, votes, points and stations, for your Sky Passport stats; acros that weren't accepted, to improve the rules; which colours you play with.</li>
+          <li><b style={{ color: C.textPrimary }}>Your game:</b> your acros, votes, points and stations, for your Sky Passport stats; acros that weren't accepted, to improve the rules; which colours you play with; the time zone your computer's clock is set to (like "Europe/London", never your exact location), to plan game nights at good times.</li>
           <li><b style={{ color: C.textPrimary }}>Your messages:</b> see "Chats" below; Station Log comments and reactions.</li>
           <li><b style={{ color: C.textPrimary }}>Your login:</b> a login code (stored scrambled) that keeps you signed in for 30 days.</li>
         </ul>

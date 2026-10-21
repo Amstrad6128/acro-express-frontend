@@ -183,7 +183,7 @@ const THEMES = {
   chiptune: {
     // "Pixel": was "Chiptune" (Damon: "chip and cheap are similar words")
     name: "Pixel", bpm: 112,   // was 132 (Damon, 2026-10-21: "too fast")
-    gain: 0.9, seed: 7, boost: 3.5,
+    gain: 0.9, seed: 7, boost: 4.6,   // 3.5 → 4.6 (2026-10-21: after the slowdown it measured 1.8 LU under the Original; now level with it)
     prog: [{ root: 36, tones: [60, 64, 67] }, { root: 43, tones: [59, 62, 67] }, { root: 45, tones: [60, 64, 69] }, { root: 41, tones: [60, 65, 69] }],
     scale: [72, 74, 76, 79, 81, 84],
     step(c, out, s) {

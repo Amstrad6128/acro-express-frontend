@@ -71,6 +71,10 @@ export function useSignalR(roomId, handlers = {}) {
       let theme = "midnight";                                               // the default palette
       try { theme = localStorage.getItem("acro.theme") || "midnight"; } catch { /* private mode */ }
       connection.invoke("SetTheme", theme).catch(() => { });               // never stops the game if it fails
+      // ...and the computer's time zone (e.g. "Europe/London"), for the admin's Numbers page (2026-10-21)
+      let zone = "";
+      try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { /* very old browser */ }
+      if (zone) connection.invoke("SetTimeZone", zone).catch(() => { });
     };
     const onThemeChange = () => { if (connection.state === signalR.HubConnectionState.Connected) sendTheme(); };
     window.addEventListener("acro-theme", onThemeChange);
