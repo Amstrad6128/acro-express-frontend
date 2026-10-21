@@ -453,7 +453,8 @@ const THEMES = {
   // Jazzy shuffle: walking bass, ride cymbal, piano stabs, swung riffs. C6–A7–Dm7–G7. Ends with a short descending
   // run into a warm C6/9 chord and a soft cymbal swell (the "shave and a haircut" tag was too funny — Damon).
   jazzy: {
-    name: "Jazz", bpm: 148, gain: 0.95, boost: 5.25, seed: 33, swing: 0.33, endsEarly: true,
+    name: "Jazz", offline: true, bpm: 148,   // offline 2026-10-21 (Damon's new line-up)
+    gain: 0.95, boost: 5.25, seed: 33, swing: 0.33, endsEarly: true,
     prog: [{ root: 36, tones: [52, 55, 57, 60] }, { root: 45, tones: [55, 57, 61, 64] }, { root: 38, tones: [53, 57, 60, 62] }, { root: 43, tones: [53, 55, 59, 62] }],
     scale: [72, 74, 75, 76, 79, 81, 84],
     step(c, out, s) {
@@ -500,7 +501,8 @@ const THEMES = {
   // whistle (two notes sliding up) every 16 bars; a blues harmonica riff every 4 bars.
   // A walking boogie bass and a mellow chiptune-like melody (from a third of the way in). Ends on a long whistle.
   steam: {
-    name: "Steam", bpm: 118, gain: 1.35, boost: 5.3, seed: 1825, swing: 0.3,   // louder (Damon: "maybe too low in volume")
+    name: "Steam", bpm: 118, gain: 1.35, boost: 6.2,   // 5.3 → 6.2 (2026-10-21: quieter rails and bass, level with the Original again)
+    seed: 1825, swing: 0.3,   // louder (Damon: "maybe too low in volume")
     prog: [{ root: 43, tones: [55, 59, 62, 65] }, { root: 43, tones: [55, 59, 62, 65] }, { root: 43, tones: [55, 59, 62, 65] }, { root: 43, tones: [55, 59, 62, 65] },
            { root: 48, tones: [55, 58, 60, 64] }, { root: 48, tones: [55, 58, 60, 64] }, { root: 43, tones: [55, 59, 62, 65] }, { root: 43, tones: [55, 59, 62, 65] },
            { root: 50, tones: [54, 57, 60, 62] }, { root: 48, tones: [55, 58, 60, 64] }, { root: 43, tones: [55, 59, 62, 65] }, { root: 50, tones: [54, 57, 60, 62] }],
@@ -517,9 +519,11 @@ const THEMES = {
       // clickety-clack: two soft low thumps on the rails, then a lighter pair halfway through the bar; from 15 s left
       // the wheels clack twice as often, harder from 7 s left
       // (2026-10-21: the wheels no longer clack twice as often at the end — it sounded like speeding up; louder instead)
+      // (2026-10-21, Damon: "it has too much rhythm … give it more melody or blinking", "don't make it a circus":
+      // the rails and the bass a step back, the tune in from the start and fuller, a few soft glints)
       const clack = left <= 7 ? 1.4 : left <= 15 ? 1.2 : 1;
-      if (pos === 0 || pos === 2) kick(c, out, t, 0.12 * clack, 110);
-      if (pos === 8 || pos === 10) kick(c, out, t, 0.06 * clack, 150);
+      if (pos === 0 || pos === 2) kick(c, out, t, 0.085 * clack, 110);
+      if (pos === 8 || pos === 10) kick(c, out, t, 0.04 * clack, 150);
       // final stretch, boogie piano: soft off-beat chord stabs from 15 s left
       if (left <= 15 && pos % 4 === 2)
         chord.tones.slice(1).forEach(n => tone(c, out, t, n + 12, d * 1.2, { type: "triangle", vol: 0.016, attack: 0.006, lowpass: 2400 }));
@@ -533,13 +537,17 @@ const THEMES = {
       // walking boogie bass in swung 8ths: root, 3rd, 5th, 6th, b7, 6th, 5th, 3rd
       if (pos % 2 === 0) {                     // from the start too (the first seconds felt empty after the whistle)
         const steps = [0, 4, 7, 9, 10, 9, 7, 4];
-        tone(c, out, t, chord.root + steps[pos / 2], d * 1.8, { type: "triangle", vol: 0.14, attack: 0.01, lowpass: 800 });
+        tone(c, out, t, chord.root + steps[pos / 2], d * 1.8, { type: "triangle", vol: 0.115, attack: 0.01, lowpass: 800 });
       }
-      // a mellow chiptune-like melody (a soft square with the edges filtered off)
-      if (p > 0.33) {
+      // a mellow chiptune-like melody (a soft square with the edges filtered off): from the first seconds now (was
+      // a third of the way in), a little louder and more legato, so the tune leads and the rhythm follows
+      if (p > 0.06) {
         const mel = melodyBar(this.seed, bar, [0, 3, 6, 8, 11, 14], chord.tones, this.scale, 0.3);
-        if (mel[pos] != null) tone(c, out, t, mel[pos] + (late ? 12 : 0), d * 2, { type: "square", vol: 0.022, attack: 0.012, lowpass: 2000 });
+        if (mel[pos] != null) tone(c, out, t, mel[pos] + (late ? 12 : 0), d * 2.6, { type: "square", vol: 0.032, attack: 0.012, lowpass: 2200, vibrato: 6 });
       }
+      // blinking: every other bar a soft high glint on the chord, two notes, like lights passing the window
+      if (p > 0.12 && pos === 10 && bar % 2 === 1)
+        [chord.tones[2], chord.tones[1]].forEach((n, k) => tone(c, out, t + k * d * 1.5, n + 24, d * 3, { type: "sine", vol: 0.02, attack: 0.004 }));
     },
     // A warm "whooo": two notes a sixth apart (G4 and E5), mellow triangle tones with the brightness filtered off,
     // sliding gently up from a tone below, with a slight wobble
@@ -808,7 +816,87 @@ const THEMES = {
   },
 };
 // offline = kept, playable on the admin page, but not offered to players
-export const THEME_LIST = Object.entries(THEMES).map(([id, th]) => ({ id, name: th.name, offline: !!th.offline }));
+// ── Recorded songs (2026-10-21) ─────────────────────────────────
+// Three tracks Damon picked on Pixabay (by maksymmalko; Pixabay Content License: free to use in a game, no credit
+// required, the files may not be sold or shared on their own). Played from the file so that the song's own ending
+// lands at 0, like the Original. A song shorter than the station gets a stretch from its middle played twice (a
+// loop exactly a whole number of bars long, where the sound at both ends matches: found by comparing the spectrum
+// at every candidate pair); a longer one starts part-way in with a quick fade-in. song02 is only the last 100 s of
+// the 4-minute original (cut at the MP3 frame level, 7.7 → 3.2 MB). Measured against the Original (LUFS-style at the
+// game level): gain = the lift that makes them level with it. The last 10 seconds get a soft clock tick on every
+// second, exactly when the game's timer changes (Damon: "something like clock ticking like World of Warships when
+// the time runs out"). tail = seconds of the file after its final chord minus 1: the final chord lands 1 s before 0
+// and rings into the end (measured from each file's last loud hit).
+const FILE_SONGS = {
+  cloudhopper: { name: "Cloud Hopper", url: "/music/song01.mp3", gain: 1.26, loop: [16.9, 23.134], tail: 3.6 },   // 79.6 s, 77 bpm
+  joyride: { name: "Joyride", url: "/music/song02.mp3", gain: 1.22, tail: 2.5 },                                   // the last 100 s
+  clearskies: { name: "Clear Skies", url: "/music/song03.mp3", gain: 1.08, loop: [28.8, 38.4], tail: 3 },        // 63.1 s, 100 bpm
+};
+const fileBuffers = {};
+function loadFileSong(c, id) {
+  if (!fileBuffers[id]) fileBuffers[id] = fetch(FILE_SONGS[id].url).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+    .then(a => c.decodeAudioData(a)).catch(e => { delete fileBuffers[id]; throw e; });
+  return fileBuffers[id];
+}
+// A clock tick: a short wooden click, "tick" and "tock" in turn
+function clockTick(c, out, t, vol, tock) {
+  tone(c, out, t, tock ? 89 : 94, 0.035, { type: "sine", vol, attack: 0.001 });
+  hit(c, out, t, { vol: vol * 0.6, dur: 0.02, hp: 3000, lp: 9000 });
+}
+async function playFileSong(id, seconds, level) {
+  const song = FILE_SONGS[id];
+  const c = audioCtx();
+  const endMs = Date.now() + seconds * 1000;                                // the end of the station, fixed
+  if (c.state !== "running") {
+    await new Promise(res => { const check = () => (c.state === "running" || Date.now() > endMs ? res() : setTimeout(check, 100)); check(); });
+  }
+  let buf;
+  try { buf = await loadFileSong(c, id); } catch { return null; }
+  const left = (endMs - Date.now()) / 1000;
+  if (left < 3) return null;
+  const out = c.createGain(); out.gain.value = level * song.gain;
+  const lim = makeLimiter(c); out.connect(lim); lim.connect(speakers(c));
+  const now = c.currentTime, stationEnd = now + left, end = stationEnd + (song.tail || 0);   // the file ends tail s after 0
+  // the song's pieces in order: [0, loop end] + the loop again as often as needed + [loop end, the end]
+  const D = buf.duration;
+  let pieces = [[0, D]];
+  const need = left + (song.tail || 0) + 0.5;
+  if (song.loop && D < need) {
+    const [ls, le] = song.loop, n = Math.ceil((need - D) / (le - ls));
+    pieces = [[0, le], ...Array(n).fill([ls, le]), [le, D]];
+  }
+  const total = pieces.reduce((sum, [a, b]) => sum + b - a, 0);
+  let at = end - total;                                                     // where the song would have started
+  const XF = 0.015, sources = [];
+  for (const [a, b] of pieces) {
+    const st = at, en = at + (b - a); at = en;
+    if (en <= now + 0.05) continue;                                         // already over
+    const from = Math.max(st, now + 0.05), off = a + (from - st);
+    const src = c.createBufferSource(), g = c.createGain();
+    src.buffer = buf; src.connect(g); g.connect(out);
+    const fadeIn = from > st + 0.001 ? 1.2 : XF;                            // a quick fade-in when starting part-way
+    g.gain.setValueAtTime(0.0001, from); g.gain.linearRampToValueAtTime(1, from + fadeIn);
+    if (b < D) { g.gain.setValueAtTime(1, en); g.gain.linearRampToValueAtTime(0.0001, en + XF); }   // a tiny crossfade at a join
+    src.start(from, off, en - from + XF); sources.push(src);
+  }
+  // the clock: a tick on each of the last 10 seconds, a little louder towards 0
+  for (let k = 10; k >= 1; k--) { const t = stationEnd - k; if (t > now + 0.05) clockTick(c, out, t, 0.05 + 0.05 * (1 - k / 10), k % 2 === 0); }
+  return {
+    endsAt: endMs,
+    setLevel(v) { out.gain.setTargetAtTime(Math.max(0.0001, v * song.gain), c.currentTime, 0.1); },
+    stop() {
+      out.gain.setTargetAtTime(0.0001, c.currentTime, 0.08);
+      sources.forEach(sr => { try { sr.stop(c.currentTime + 0.4); } catch { /* already stopped */ } });
+      setTimeout(() => { try { out.disconnect(); } catch { /* gone */ } }, 600);
+    },
+  };
+}
+
+// The music list: the themes made here, then the recorded songs (offline = kept, playable on the admin page only)
+export const THEME_LIST = [
+  ...Object.entries(THEMES).map(([id, th]) => ({ id, name: th.name, offline: !!th.offline })),
+  ...Object.entries(FILE_SONGS).map(([id, sg]) => ({ id, name: sg.name, offline: false })),
+];
 
 // The steady beat (Damon, 2026-10-21: the songs must not speed up or slow down). The tempo is always the theme's
 // own bpm — it used to be nudged so a whole number of bars fitted the station, which made late starts up to 10%
@@ -848,6 +936,7 @@ export async function renderTheme(id, seconds, level, c) {
 }
 
 export async function playTheme(id, seconds, level, length = seconds) {
+  if (FILE_SONGS[id]) return level > 0 ? playFileSong(id, seconds, level) : null;   // a recorded song
   const th = THEMES[id];
   if (!th || level <= 0) return null;
   const c = audioCtx();
