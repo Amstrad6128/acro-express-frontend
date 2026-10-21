@@ -398,58 +398,98 @@ const THEMES = {
     },
   },
 
-  // Remix (2026-10-21, Damon: "a tune based on the original theme, with a mix of PIXEL or STEAM"). Built on what
-  // the Original recording measured as: G major, 86 bpm (felt as 172), the chords G–D–Em–C one bar each, and
-  // its melody as far as it could be picked out of the mix (eighth notes, see MELODY). Pixel's sound carries the
-  // tune (square lead, chip arpeggios); Steam's train runs underneath (the clickety-clack, the boogie bass, the
-  // whistle at the start and the two toots before the end). Every other 4-bar phrase the tune moves down an octave
-  // to Steam's mellow harmonica voice, so it answers itself; from 8 s left it's up an octave. Straight, no swing,
-  // like the Original. Offline until Damon has heard it.
+  // Remix v2 (2026-10-21, Damon: "a tune based on the original theme, with a mix of PIXEL or STEAM"; v1 was "a nice
+  // try but not yet there" — a non-stop stream of eighth notes, one 4-bar loop the whole way, a melody guessed from
+  // a noisy analysis). Rewritten on what game-music practice and listening research suggest:
+  //  - Familiar but its own: the Original's key (G major), tempo (86 bpm) and chords (G–D–Em–C), a NEW hook.
+  //  - A hook people remember: a 4-bar question and answer that rises, then falls (the most common shape of catchy
+  //    tunes), with one leap up to the top note, and rests and long notes so it breathes and never chatters.
+  //  - Heard a thousand times without boring: a form instead of one loop (like Super Mario Bros., which alternates
+  //    sections before the whole song repeats): A (the hook) → A2 (the hook with a counter-line and chip arpeggios,
+  //    a new ending) → B (a calm bridge, Em–C–G–D, long notes, lighter drums) → A again…
+  //  - The passing of time without nerves: the tempo NEVER changes and the beat never doubles (faster tempo raises
+  //    tension and heart rate — Mario's "hurry up" does it on purpose; we don't want that). Instead clear signposts:
+  //    the lead slowly brightens through the station; the last 4 bars (~11 s) are always the hook lifted a whole
+  //    step (G → A, the classic "final chorus" lift), announced by the train whistle, with everything playing;
+  //    two short toots at 4 and 2 s left, a soft swell, and a warm chord exactly at 0.
+  //  - Calm sounds: major key, consonant chords, the lead's sharp edge filtered off, a soft echo on long notes.
+  // Sections are counted back from the end, so the lifted hook always lands on the last 4 bars, whatever the
+  // station's length. The first 2 bars are an intro (rails, bass, the whistle). Offline until Damon has heard it.
   remix: {
-    name: "Remix", offline: true, bpm: 86, gain: 0.9, seed: 86, boost: 7.2,   // boost measured to match the Original
-    prog: [{ root: 43, tones: [67, 71, 74] }, { root: 38, tones: [66, 69, 74] }, { root: 40, tones: [67, 71, 76] }, { root: 36, tones: [67, 72, 76] }],
-    // The Original's tune, one row per bar (G, D, Em, C), eight eighth notes each (MIDI)
-    MELODY: [[74, 74, 79, 79, 83, 84, 83, 79], [74, 74, 78, 76, 79, 83, 81, 74], [76, 76, 79, 79, 83, 84, 83, 79], [79, 79, 79, 76, 79, 79, 79, 72]],
+    name: "Remix", offline: true, bpm: 86, gain: 0.9, seed: 86, boost: 6.6,   // boost measured: level with the Original (−17.3)
+    prog: [{ root: 43, tones: [67, 71, 74] }, { root: 38, tones: [66, 69, 74] }, { root: 40, tones: [67, 71, 76] }, { root: 36, tones: [67, 72, 76] }],   // G D Em C
+    progB: [{ root: 40, tones: [67, 71, 76] }, { root: 36, tones: [67, 72, 76] }, { root: 43, tones: [67, 71, 74] }, { root: 38, tones: [66, 69, 74] }],  // Em C G D
+    // Melodies: [16th step in the 4 bars (0–63), MIDI note, length in 16ths]
+    A: [[0, 74, 3], [3, 79, 3], [6, 83, 6], [12, 81, 2], [14, 79, 2],          // G:  D–G–B, a little turn (rising)
+        [16, 81, 6], [22, 78, 2], [24, 74, 8],                                  // D:  A–F#–D, held (falling, a breath)
+        [32, 76, 3], [35, 79, 3], [38, 83, 4], [42, 86, 2], [44, 84, 2], [46, 83, 2],   // Em: up again, the leap to the top D
+        [48, 79, 6], [54, 76, 2], [56, 79, 8]],                                 // C:  home to G, held
+    A2: [[0, 74, 3], [3, 79, 3], [6, 83, 6], [12, 81, 2], [14, 79, 2],
+         [16, 81, 6], [22, 78, 2], [24, 74, 8],
+         [32, 76, 3], [35, 79, 3], [38, 83, 4], [42, 86, 2], [44, 84, 2], [46, 83, 2],
+         [48, 76, 4], [52, 74, 4], [56, 72, 8]],                                // C: a new ending, stepping down to C (into the bridge)
+    B: [[0, 71, 8], [8, 76, 8],                                                 // Em: B, E (long notes, low and calm)
+        [16, 79, 12], [28, 76, 4],                                              // C:  G held, E
+        [32, 74, 8], [40, 71, 8],                                               // G:  D, B
+        [48, 69, 4], [52, 74, 4], [56, 78, 8]],                                 // D:  A, D, F# — leading back up to the hook
     step(c, out, s) {
-      const { t, pos, p, chord, d, bar, left } = s;
-      // the whistle: at the start (also part-way into the first bar), then every 16 bars; two toots at 4 and 2 s left
-      if ((pos === 0 && bar % 16 === 0) || (s.first && bar === 0)) THEMES.steam.whistle(c, out, t, d * 12);
-      if ((left <= 4 && left + d > 4) || (left <= 2 && left + d > 2)) THEMES.steam.whistle(c, out, t, 0.4);
-      // the rails: two soft thumps, then a lighter pair (Steam's clickety-clack), louder in the final stretch
-      const clack = left <= 7 ? 1.4 : left <= 15 ? 1.2 : 1;
-      if (pos === 0 || pos === 2) kick(c, out, t, 0.13 * clack, 110);
-      if (pos === 8 || pos === 10) kick(c, out, t, 0.07 * clack, 150);
-      // boogie bass in eighths: root, 3rd, 5th, 6th, octave, 6th, 5th, 3rd (minor third on Em)
-      if (pos % 2 === 0) {
-        const third = chord.root === 40 ? 3 : 4;
-        const steps = [0, third, 7, 9, 12, 9, 7, third];
-        tone(c, out, t, chord.root + steps[pos / 2], d * 1.8, { type: "triangle", vol: 0.15, attack: 0.01, lowpass: 900 });
+      const { t, pos, p, d, bar, bars, left } = s;
+      // Which section: counted back from the end in blocks of 4 bars (k = 0 is the last block, the final lift)
+      const k = Math.floor((bars - 1 - bar) / 4), inBar = 3 - ((bars - 1 - bar) % 4);
+      const sec = k === 0 ? "F" : ["B", "A2", "A"][(k - 1) % 3];
+      const intro = bar < 2 && sec !== "F";
+      const lift = sec === "F" ? 2 : 0;                                         // the last 4 bars, a whole step up
+      const ch = (sec === "B" ? this.progB : this.prog)[inBar];
+      const root = ch.root + lift, tones = ch.tones.map(n => n + lift);
+      const minor = ch.root === 40;                                             // Em
+      // the whistle: at the start, and announcing the final lift; two short toots at 4 and 2 s left
+      if (s.first || (sec === "F" && inBar === 0 && pos === 0)) THEMES.steam.whistle(c, out, t, d * 10);
+      if ((left <= 4 && left + d > 4) || (left <= 2 && left + d > 2)) THEMES.steam.whistle(c, out, t, 0.35);
+      // the rails (Steam's clickety-clack), all the way, a little stronger in the final lift
+      const clack = sec === "F" ? 1.3 : 1;
+      if (pos === 0 || pos === 2) kick(c, out, t, 0.12 * clack, 110);
+      if (pos === 8 || pos === 10) kick(c, out, t, 0.065 * clack, 150);
+      // the bass: soft roots in the intro; long notes in the bridge; the boogie walk in eighths elsewhere
+      if (intro) { if (pos % 4 === 0) tone(c, out, t, root, d * 3, { type: "triangle", vol: 0.13, attack: 0.01, lowpass: 800 }); }
+      else if (sec === "B") { if (pos === 0 || pos === 8) tone(c, out, t, root + (pos === 8 ? 7 : 0), d * 7, { type: "triangle", vol: 0.15, attack: 0.02, lowpass: 800 }); }
+      else if (pos % 2 === 0) {
+        const walk = [0, minor ? 3 : 4, 7, 9, 12, 9, 7, minor ? 3 : 4];
+        tone(c, out, t, root + walk[pos / 2], d * 1.8, { type: "triangle", vol: 0.15, attack: 0.01, lowpass: 900 });
       }
-      // chip arpeggios on the chord (Pixel), from a little way in
-      if (p > 0.1 && pos % 2 === 1) tone(c, out, t, chord.tones[(pos >> 1) % 3] + 12, d * 0.9, { type: "square", vol: 0.022, lowpass: 5000 });
-      // light chip drums: snare on 2 and 4, hats on the eighths (brighter from 15 s left), a swell in the last 4 s
-      if (p > 0.15) {
-        if (pos === 4 || pos === 12) hit(c, out, t, { vol: 0.11, dur: 0.1, hp: 1500, lp: 6500 });
-        if (pos % 2 === 0) hit(c, out, t, { vol: left <= 15 ? 0.045 : 0.03, dur: 0.03, hp: 8500 });
-        if (left <= 15 && pos % 4 === 2) hit(c, out, t, { vol: 0.025, dur: 0.12, hp: 7000 });
-        if (left <= 4 && left + d > 4) hit(c, out, t, { vol: 0.06, dur: 4, hp: 1500, lp: 7000, attack: 3.8 });
+      if (intro) return;
+      // drums: a light chip snare on 2 and 4 and closed hats on the eighths; in the bridge only a soft shaker on the
+      // off-beats (a breather); in the final lift an open hat on the off-beats; a soft swell in the last 4 s
+      if (sec === "B") { if (pos % 4 === 2) hit(c, out, t, { vol: 0.02, dur: 0.06, hp: 6000, attack: 0.01 }); }
+      else {
+        if (pos === 4 || pos === 12) hit(c, out, t, { vol: 0.1, dur: 0.1, hp: 1500, lp: 6000 });
+        if (pos % 2 === 0) hit(c, out, t, { vol: 0.028, dur: 0.03, hp: 8500 });
+        if (sec === "F" && pos % 4 === 2) hit(c, out, t, { vol: 0.03, dur: 0.14, hp: 7000 });
       }
-      // the tune: on the eighths, from a fifth of the way in. Odd phrases (every other 4 bars) go down an octave to
-      // the mellow harmonica voice; from 8 s left the tune is up an octave
-      if (p > 0.2 && pos % 2 === 0) {
-        const n = this.MELODY[bar % 4][pos / 2];
-        const answer = Math.floor(bar / 4) % 2 === 1 && left > 8;
-        if (answer) tone(c, out, t, n - 12, d * 1.8, { type: "square", vol: 0.03, attack: 0.02, lowpass: 1500, vibrato: 10 });
-        else tone(c, out, t, n + (left <= 8 ? 12 : 0), d * 1.5, { type: "square", vol: 0.05, lowpass: 6000 });
+      if (left <= 4 && left + d > 4) hit(c, out, t, { vol: 0.05, dur: 4, hp: 1500, lp: 7000, attack: 3.8 });
+      // chip arpeggios on the chord in A2 and the final lift (a texture layer that comes and goes)
+      if ((sec === "A2" || sec === "F") && pos % 2 === 1) tone(c, out, t, tones[(pos >> 1) % 3] + 12, d * 0.9, { type: "square", vol: 0.018, lowpass: 4000 });
+      // a counter-line on the harmonica voice (Steam): half notes on the chord in A2 and the final lift
+      if ((sec === "A2" || sec === "F") && (pos === 0 || pos === 8))
+        tone(c, out, t, pos === 0 ? tones[1] : tones[0], d * 7, { type: "square", vol: 0.016, attack: 0.04, lowpass: 1400, vibrato: 10 });
+      // the tune: Pixel's square lead, its sharp edge filtered off (a little brighter as the station goes on);
+      // long notes get a soft vibrato and a quiet echo 3 sixteenths later
+      const tune = this[sec === "F" ? "A" : sec];
+      const here = inBar * 16 + pos;
+      for (const [at, n, len] of tune) {
+        if (at !== here) continue;
+        const note = n + lift, bright = 2600 + 2400 * p;
+        tone(c, out, t, note, d * len * 0.92, { type: "square", vol: sec === "B" ? 0.042 : 0.05, attack: 0.008, lowpass: bright, vibrato: len >= 6 ? 8 : 0 });
+        if (len >= 4) tone(c, out, t + d * 3, note, d * Math.min(len, 6) * 0.8, { type: "square", vol: 0.014, attack: 0.01, lowpass: bright * 0.7 });
+        if (sec === "F") tone(c, out, t, note - 12, d * len * 0.92, { type: "triangle", vol: 0.05, attack: 0.01, lowpass: 2000 });   // doubled below
       }
     },
-    // A chip "arrival" run up the G chord into a long whistle and a warm G chord
+    // At 0, in the lifted key (A): a short chip run up the chord into the whistle and a warm A chord
     ending(c, out, t) {
-      [67, 71, 74, 79].forEach((n, k) => tone(c, out, t + k * 0.08, n + 12, 0.2, { type: "square", vol: 0.04, lowpass: 5000 }));
+      [69, 73, 76, 81].forEach((n, k) => tone(c, out, t + k * 0.08, n + 12, 0.2, { type: "square", vol: 0.035, lowpass: 4500 }));
       const end = t + 0.32;
       THEMES.steam.whistle(c, out, end, 1.8);
-      [67, 71, 74, 79].forEach(n => tone(c, out, end, n, 1.8, { type: "square", vol: 0.022, attack: 0.02, lowpass: 3000 }));
-      tone(c, out, end, 43, 1.8, { type: "triangle", vol: 0.2, attack: 0.02 });
+      [69, 73, 76, 81].forEach(n => tone(c, out, end, n, 1.8, { type: "square", vol: 0.02, attack: 0.02, lowpass: 2800 }));
+      tone(c, out, end, 45, 1.8, { type: "triangle", vol: 0.2, attack: 0.02 });
     },
   },
 
