@@ -285,11 +285,11 @@ applyTheme(loadThemeKey());   // before the first render, so the page never flas
 //   --lf-scale / --lf-lh  size factor and line height of the big letters (Honk's capitals are smaller)
 //   --tf-scale / --tf-lh  the same for the timer: its numbers as tall as the original timer's (Segoe UI bold), measured
 //                         2026-10-21 (Damon: "Honk seems too small … Pixel is too big"): digits at 100px are 72px
-//                         tall in Segoe UI, 59 in Honk (×1.22), 72 in Russo One (×1), 74 in Titan One (×0.97)
-// Russo = Russo One (bold, sporty), Titan = Titan One (chunky, rounded): both 2026-10-21, replacing "Pixel" (Press
-// Start 2P), which Damon didn't like. Their capitals measure 71 / 72 against Bowlby's 76, hence ×1.07 / ×1.055.
-// A saved "pixel" choice falls back to Bowlby.
-const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", russo: "Russo", titan: "Titan" };   // key → name shown in the menu
+//                         tall in Segoe UI, 59 in Honk (×1.22), 72 in Russo One (×1), 74 in Trueno SemiBold (×0.97)
+// Russo = Russo One (bold, sporty; 2026-10-21, replacing "Pixel" = Press Start 2P). Trueno = Trueno SemiBold
+// (2026-10-22, replacing Titan One; Damon: "Trueno Semi Bold kicks ass"). Both capitals measure 71 against Bowlby's
+// 76, hence ×1.07. A saved "pixel" or "titan" choice falls back to Bowlby.
+const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", russo: "Russo", trueno: "Trueno" };   // key → name shown in the menu
 function loadLetterFont() {
   try { const k = localStorage.getItem("acro.letterFont"); return LETTER_FONTS[k] ? k : "bowlby"; } catch { return "bowlby"; }
 }
@@ -304,9 +304,9 @@ function applyLetterFont(key) {
     root.setProperty("--tf-lh", "0.82");      // 1 ÷ 1.22: the timer line keeps its height, nothing below moves
     root.setProperty("--lf-scale", "1.55");   // Honk's capitals are smaller: 1.4× matched Bowlby; 1.55× = "a bit bigger" (Damon, 2026-10-20)
     root.setProperty("--lf-lh", "0.645");     // …in the same height (1 ÷ 1.55), so nothing below moves
-  } else if (key === "russo" || key === "titan") {
-    const fam = key === "russo" ? "'Russo One'" : "'Titan One'";
-    const lf = key === "russo" ? 1.07 : 1.055, tf = key === "russo" ? 1 : 0.97;   // measured, see above
+  } else if (key === "russo" || key === "trueno") {
+    const fam = key === "russo" ? "'Russo One'" : "'Trueno'";
+    const lf = 1.07, tf = key === "russo" ? 1 : 0.97;   // measured, see above
     root.setProperty("--lf-family", fam + ", 'Bowlby One SC', sans-serif");
     root.setProperty("--lf-shadow", "var(--c-letterShadow)");   // the palette's shadow, as with Bowlby
     root.setProperty("--tf-family", fam + ", " + NUM_FONT);
@@ -669,7 +669,7 @@ function ThemePicker() {
               </button>
             );
           })}
-          {/* The big letters' font (and the timer's): Bowlby, Honk, Russo or Titan. Each button shows "B T V" in its own font */}
+          {/* The big letters' font (and the timer's): Bowlby, Honk, Russo or Trueno. Each button shows "B T V" in its own font */}
           <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 6px", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>Big letters</div>
           {/* one font per row, stacked like the floors of a building (Damon, 2026-10-22: not columns) */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -682,7 +682,7 @@ function ThemePicker() {
                     honk: { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "var(--fp-big)", fontVariationSettings: "'SHLN' 0, 'MORF' 15" },
                     bowlby: { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand },
                     russo: { fontFamily: "'Russo One', sans-serif", fontSize: 18, color: C.brand },
-                    titan: { fontFamily: "'Titan One', sans-serif", fontSize: 18, color: C.brand },
+                    trueno: { fontFamily: "'Trueno', sans-serif", fontSize: 18, color: C.brand },
                   }[key]}>B T V</span>
                   <span style={{ fontSize: 13, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</span>
                 </button>
