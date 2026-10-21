@@ -285,9 +285,11 @@ applyTheme(loadThemeKey());   // before the first render, so the page never flas
 //   --lf-scale / --lf-lh  size factor and line height of the big letters (Honk's capitals are smaller)
 //   --tf-scale / --tf-lh  the same for the timer: its numbers as tall as the original timer's (Segoe UI bold), measured
 //                         2026-10-21 (Damon: "Honk seems too small … Pixel is too big"): digits at 100px are 72px
-//                         tall in Segoe UI, 59 in Honk (×1.22), 87 in Press Start 2P (×0.8, a touch under: it is wide)
-// Pixel = Press Start 2P, an 8-bit arcade font (2026-10-21, matches the Pixel song).
-const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", pixel: "Pixel" };   // key → name shown in the menu
+//                         tall in Segoe UI, 59 in Honk (×1.22), 72 in Russo One (×1), 74 in Titan One (×0.97)
+// Russo = Russo One (bold, sporty), Titan = Titan One (chunky, rounded): both 2026-10-21, replacing "Pixel" (Press
+// Start 2P), which Damon didn't like. Their capitals measure 71 / 72 against Bowlby's 76, hence ×1.07 / ×1.055.
+// A saved "pixel" choice falls back to Bowlby.
+const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", russo: "Russo", titan: "Titan" };   // key → name shown in the menu
 function loadLetterFont() {
   try { const k = localStorage.getItem("acro.letterFont"); return LETTER_FONTS[k] ? k : "bowlby"; } catch { return "bowlby"; }
 }
@@ -302,15 +304,17 @@ function applyLetterFont(key) {
     root.setProperty("--tf-lh", "0.82");      // 1 ÷ 1.22: the timer line keeps its height, nothing below moves
     root.setProperty("--lf-scale", "1.55");   // Honk's capitals are smaller: 1.4× matched Bowlby; 1.55× = "a bit bigger" (Damon, 2026-10-20)
     root.setProperty("--lf-lh", "0.645");     // …in the same height (1 ÷ 1.55), so nothing below moves
-  } else if (key === "pixel") {
-    root.setProperty("--lf-family", "'Press Start 2P', 'Bowlby One SC', monospace");
+  } else if (key === "russo" || key === "titan") {
+    const fam = key === "russo" ? "'Russo One'" : "'Titan One'";
+    const lf = key === "russo" ? 1.07 : 1.055, tf = key === "russo" ? 1 : 0.97;   // measured, see above
+    root.setProperty("--lf-family", fam + ", 'Bowlby One SC', sans-serif");
     root.setProperty("--lf-shadow", "var(--c-letterShadow)");   // the palette's shadow, as with Bowlby
-    root.setProperty("--tf-family", "'Press Start 2P', " + NUM_FONT);
+    root.setProperty("--tf-family", fam + ", " + NUM_FONT);
     root.setProperty("--tf-weight", "400");   // one weight only; bold would be faked
-    root.setProperty("--tf-scale", "0.8");
-    root.setProperty("--tf-lh", "1.25");      // 1 ÷ 0.8
-    root.setProperty("--lf-scale", "0.8");    // its capitals fill the whole size: 0.8× = Bowlby's height
-    root.setProperty("--lf-lh", "1.25");      // …in the same line height (1 ÷ 0.8), so nothing below moves
+    root.setProperty("--lf-scale", String(lf));
+    root.setProperty("--lf-lh", (1 / lf).toFixed(3));   // the same line height, so nothing below moves
+    root.setProperty("--tf-scale", String(tf));
+    root.setProperty("--tf-lh", (1 / tf).toFixed(3));
   } else {   // Bowlby: the original look (the variables are removed, so every style uses its own fallback)
     for (const v of ["--lf-family", "--lf-shadow", "--tf-family", "--tf-weight", "--lf-scale", "--lf-lh", "--tf-scale", "--tf-lh"]) root.removeProperty(v);
   }
@@ -665,7 +669,7 @@ function ThemePicker() {
               </button>
             );
           })}
-          {/* The big letters' font (and the timer's): Bowlby, Honk or Pixel. Each button shows "B T V" in its own font */}
+          {/* The big letters' font (and the timer's): Bowlby, Honk, Russo or Titan. Each button shows "B T V" in its own font */}
           <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 6px", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>Big letters</div>
           <div style={{ display: "flex", gap: 8 }}>
             {Object.entries(LETTER_FONTS).map(([key, name]) => {
@@ -676,7 +680,8 @@ function ThemePicker() {
                   <span style={{
                     honk: { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "var(--fp-big)", fontVariationSettings: "'SHLN' 0, 'MORF' 15" },
                     bowlby: { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand },
-                    pixel: { fontFamily: "'Press Start 2P', monospace", fontSize: 13, color: C.brand },
+                    russo: { fontFamily: "'Russo One', sans-serif", fontSize: 18, color: C.brand },
+                    titan: { fontFamily: "'Titan One', sans-serif", fontSize: 18, color: C.brand },
                   }[key]}>B T V</span>
                   <div style={{ fontSize: 12, marginTop: 2, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</div>
                 </button>
