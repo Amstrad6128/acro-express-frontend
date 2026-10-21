@@ -894,9 +894,10 @@ function uiPop(steps, vol) {
 // production. Just less loud": 0.12 → 0.06); the hover = what he tuned on the admin mixer (150 Hz, 40 ms fade-in,
 // 80 ms, volume 0.032 → hover = 90% pitch, 80% length, 40% volume): a very low, soft hum.
 // Then lower again ("at least X2 lower": 0.06 → 0.025, hover 0.0128), then up a bit (2026-10-21, Damon: "barely
-// heard right now"): about +4 dB each, still under the 0.06 that was too loud
-const playClickPop = () => uiPop([[0, 620, 0.07], [0.035, 930, 0.09]], 0.04);
-const playHoverTick = () => uiSoft([[135, 132]], 0.04, 0.064, 0.02);
+// heard right now"): about +4 dB each, still under the 0.06 that was too loud; then a bit more the same evening
+// ("a bit louder": 0.04 → 0.052, hover 0.02 → 0.026, about +2.3 dB)
+const playClickPop = () => uiPop([[0, 620, 0.07], [0.035, 930, 0.09]], 0.052);
+const playHoverTick = () => uiSoft([[135, 132]], 0.04, 0.064, 0.026);
 
 (function installButtonSounds() {
   if (typeof document === "undefined") return;
