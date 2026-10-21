@@ -2429,7 +2429,7 @@ function Lobby() {
   // Departures: the trains, then free platforms so the board always shows 3 rows — and always at least one
   // free platform, the row where you start a new Sky Train
   const used = new Set(roomList.map(r => r.platform));
-  const freeRows = shortWin ? 1 : Math.max(1, 2 - roomList.length);   // short windows: just the New Sky Train row (the Night Express row counts as one of the 3)
+  const freeRows = shortWin ? 1 : Math.max(1, 2 - roomList.length);   // short windows: just the New Sky Train row (the Daily Express row counts as one of the 3)
   const night = nightExpress(Date.now(), roomList);                    // tonight's game (re-worked out on every refresh of the list)
   const freeNumbers = []; for (let n = 1; freeNumbers.length < freeRows; n++) if (!used.has(n)) freeNumbers.push(n);
   const boardCols = "76px minmax(0, 2.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) 132px";   // platform · train · aboard · status · button
@@ -2573,16 +2573,16 @@ function Lobby() {
               )}
               {/* Up to 3 rows show; more trains scroll inside the board */}
               <div style={{ maxHeight: fits ? 3 * 62 : undefined, overflowY: fits ? "auto" : "visible" }}>
-                {/* The Night Express: the nightly game, always the first row, on platform 23 */}
-                <div data-hint="Our game night: every night at 23:00 Limassol time, shown here in your own time"
+                {/* The Daily Express: the daily game (23:00 Limassol), always the first row, on platform 23 */}
+                <div data-hint="Our daily game: every day at the same time (23:00 in Cyprus), shown here in your own time"
                   style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
                     gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
                   <PlatformBox n={23} />
                   <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                    {!phone && <span style={{ fontSize: 20 }}>🌙</span>}
+                    {!phone && <Icon name="train" size={22} color={C.teal} />}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Night Express</div>
-                      <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Every night · departs {night.local} your time</div>
+                      <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Daily Express</div>
+                      <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Every day · departs {night.local} your time</div>
                       {phone && <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}><StatusPill {...night.status} />{night.room && <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={smallBtn}>Board →</Btn>}</div>}
                     </div>
                   </div>
@@ -2699,9 +2699,11 @@ function StatusPill({ text, color }) {
 }
 
 // The platform number in a box, like a station sign ("01"); "free" = a quiet dashed box
-// The Night Express (Damon, 2026-10-22): "we need somewhere to announce that there is a game at 11 PM usually".
+// The Daily Express (Damon, 2026-10-22): "we need somewhere to announce that there is a game at 11 PM usually".
+// (First called "Night Express"; Damon: "it's not Night Express for people in the USA": 23:00 Limassol is the
+// afternoon there. So: Daily Express, "every day", no moon.)
 // A permanent first row in Departures, on platform 23. The game night is 23:00 Limassol time (Asia/Nicosia, so
-// summer time is handled); each player sees it in their own time. Status: "Tonight" until 20 minutes before,
+// summer time is handled); each player sees it in their own time. Status: "Today" until 20 minutes before,
 // "Boarding soon", "Departing now" for the first 10 minutes, then "Running a little late 🚂" while no game is on
 // (Damon chose this over "Delayed"); "On the move" as soon as any train is playing. After 00:30 Limassol time it
 // shows the next night.
@@ -2716,7 +2718,7 @@ function nightExpress(now, rooms) {
   const playing = rooms.find(r => r.gameOn);
   let status;
   if (playing && mins > -30) status = { text: "On the move", color: C.success };
-  else if (mins < -20) status = { text: "Tonight", color: C.teal };
+  else if (mins < -20) status = { text: "Today", color: C.teal };
   else if (mins < 0) status = { text: "Boarding soon", color: C.brand };
   else if (mins < 10) status = { text: "Departing now", color: C.brand };
   else status = { text: "Running a little late 🚂", color: C.gold || C.brand };
