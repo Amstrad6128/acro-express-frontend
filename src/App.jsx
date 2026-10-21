@@ -1432,7 +1432,10 @@ function StationLog() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <h2 style={{ margin: 0, fontSize: 16, color: C.teal }}>New entry</h2>
               {/* Admin only: which palettes the players use (2026-10-18) */}
-              <BtnSecondary onClick={() => navigate("/admin/palettes")}>Palette stats</BtnSecondary>
+              <div style={{ display: "flex", gap: 8 }}>
+                <BtnSecondary onClick={() => navigate("/admin/numbers")}>Numbers</BtnSecondary>
+                <BtnSecondary onClick={() => navigate("/admin/palettes")}>Palette stats</BtnSecondary>
+              </div>
             </div>
             <input id="logTitle" value={title} onChange={ev => setTitle(ev.target.value)} maxLength={120} placeholder="Title, e.g. Tonight's fixes" style={field} />
             <textarea id="logBody" value={body} onChange={ev => setBody(ev.target.value)} rows={6} placeholder={"What's new?\n- Lines starting with a dash become bullet points"} style={{ ...field, resize: "vertical" }} />
@@ -1528,6 +1531,121 @@ function PaletteStats() {
               <div style={{ color: C.textMuted, fontSize: 13 }}>{data.unknown} stations in this period have no palette recorded (played before 18 Oct 2026, or from a page that hadn't reloaded yet).</div>
             )}
           </Panel>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Numbers (admin only, Damon 2026-10-21: "measure before building more"): per week, new passengers and how many
+// of them played, came back within 7 days and finished 2+ games; players and games per week; the busiest hours and
+// weekdays. All in Limassol time. Damon himself is left out of the player numbers. (api/admin/numbers)
+const WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+function NumbersPage() {
+  const navigate = useNavigate();
+  const [weeks, setWeeks] = useState(8);         // how many weeks back
+  const [data, setData] = useState(null);        // the server's answer
+  const [err, setErr] = useState("");            // error text, if any
+  useEffect(() => {
+    setData(null); setErr("");
+    fetch(`${API_URL}/api/admin/numbers?weeks=${weeks}`, { headers: authHeaders() })
+      .then(async r => {
+        if (r.status === 403) throw new Error("This page is for the admin only.");
+        if (!r.ok) throw new Error("Couldn't load the numbers. Try again in a moment.");
+        setData(await r.json());
+      })
+      .catch(e => setErr(e.message));
+  }, [weeks]);
+  const pct = (a, b) => (b ? ` (${Math.round(a / b * 100)}%)` : "");
+  const cell = { padding: "7px 8px", textAlign: "right", whiteSpace: "nowrap" };
+  // A row of small bars (hours or weekdays), the tallest = full height
+  const Bars = ({ values, labels }) => {
+    const max = Math.max(1, ...values);
+    return (
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 120 }}>
+        {values.map((v, i) => (
+          <div key={i} title={`${labels[i]}: ${v}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, height: "100%", justifyContent: "flex-end" }}>
+            <span style={{ fontSize: 11, color: C.textMuted }}>{v || ""}</span>
+            <div style={{ width: "100%", height: `${v / max * 80}%`, minHeight: v ? 2 : 0, background: C.teal, borderRadius: 3 }} />
+            <span style={{ fontSize: 11, color: C.textMuted }}>{labels[i]}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+  const weekLabel = w => new Date(w + "T12:00:00").toLocaleDateString([], { day: "numeric", month: "short" });
+  return (
+    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "24px 16px 48px", boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h1 style={{ margin: 0, fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand }}>Numbers</h1>
+            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>How the Acro Express is growing. Limassol time, weeks from Monday. You are left out of the player numbers. Only you see this page.</p>
+          </div>
+          <BtnSecondary onClick={() => navigate("/log")}>← Station Log</BtnSecondary>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[4, 8, 12].map(w => (
+            <button key={w} onClick={() => setWeeks(w)}
+              style={{ background: w === weeks ? C.brand : C.bgPanel, color: w === weeks ? C.onBrand : C.textPrimary, border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 12px", fontFamily: "inherit", fontSize: 14, cursor: "pointer" }}>
+              Last {w} weeks
+            </button>
+          ))}
+        </div>
+        {err && <p style={{ color: C.brand }}>{err}</p>}
+        {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
+        {data && (
+          <>
+            {/* All time */}
+            <Panel style={{ padding: 16, display: "flex", gap: 24, flexWrap: "wrap" }}>
+              {[["Passengers signed up", data.totals.passengers], ["Played a station", data.totals.played], ["Played on 2+ days", data.totals.playedTwoDays]].map(([label, n]) => (
+                <div key={label}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: C.teal }}>{n}</div>
+                  <div style={{ fontSize: 13, color: C.textMuted }}>{label}</div>
+                </div>
+              ))}
+            </Panel>
+            {/* Week by week, newest first */}
+            <Panel style={{ padding: 0, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                <thead>
+                  <tr style={{ color: C.textMuted, fontSize: 12, borderBottom: `1px solid ${C.border}` }}>
+                    <th style={{ ...cell, textAlign: "left" }}>Week of</th>
+                    <th style={cell} title="Signed up that week">New passengers</th>
+                    <th style={cell} title="New passengers who played at least one station">Played</th>
+                    <th style={cell} title="Played again on another day within 7 days of their first station">Came back</th>
+                    <th style={cell} title="Finished 2 or more games (so far)">2+ games</th>
+                    <th style={cell} title="Everyone who played a station that week">Players</th>
+                    <th style={cell} title="Games that reached the Final Stop">Games</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...data.weeks].reverse().map(w => (
+                    <tr key={w.week} style={{ borderBottom: `1px solid ${C.border}` }}>
+                      <td style={{ ...cell, textAlign: "left" }}>{weekLabel(w.week)}{!w.complete && <span style={{ color: C.textMuted }}> (so far)</span>}</td>
+                      <td style={cell}>{w.newPassengers}</td>
+                      <td style={cell}>{w.newPlayed}{pct(w.newPlayed, w.newPassengers)}</td>
+                      <td style={cell}>{w.newCameBack}{pct(w.newCameBack, w.newPlayed)}</td>
+                      <td style={cell}>{w.newTwoGames}{pct(w.newTwoGames, w.newPlayed)}</td>
+                      <td style={cell}>{w.activePlayers}</td>
+                      <td style={cell}>{w.gamesFinished}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Panel>
+            <p style={{ margin: "-6px 0 0", color: "var(--c-bgText)", fontSize: 13 }}>
+              Came back and 2+ games are counted among the new passengers who played. Stations are recorded from 12 Oct 2026, so earlier playing is missing.
+            </p>
+            {/* When people play */}
+            <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+              <h2 style={{ margin: 0, fontSize: 16, color: C.teal }}>Busiest hours (Limassol time)</h2>
+              <Bars values={data.hours} labels={data.hours.map((_, h) => String(h))} />
+              <h2 style={{ margin: "8px 0 0", fontSize: 16, color: C.teal }}>Busiest days</h2>
+              <Bars values={data.weekdays} labels={WEEKDAY_NAMES} />
+              <div style={{ color: C.textMuted, fontSize: 13 }}>Player visits: one player playing in that hour (or on that day) counts once per day.</div>
+            </Panel>
+          </>
         )}
       </div>
     </div>
@@ -4219,6 +4337,7 @@ export default function App() {
       <Route path="/" element={<Lobby />} />
       <Route path="/log" element={<StationLog />} />
       <Route path="/admin/palettes" element={<PaletteStats />} />
+      <Route path="/admin/numbers" element={<NumbersPage />} />
       <Route path="/leaderboard" element={<SkyLeaderboard />} />
       <Route path="/rules" element={<HouseRules />} />
       <Route path="/privacy" element={<Privacy />} />
