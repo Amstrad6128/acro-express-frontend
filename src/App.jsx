@@ -2422,14 +2422,15 @@ function Lobby() {
     <>
       <div style={{ fontSize: 16, flex: shortWin ? "none" : 1, minWidth: shortWin ? 0 : 160, whiteSpace: "nowrap" }}>{greeting("")}<b style={{ color: C.teal }}>{auth.username}</b></div>
       <BtnSecondary onClick={() => navigate("/leaderboard")} style={smallBtn}>🏆 Sky Leaderboard</BtnSecondary>
-      <BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)} style={smallBtn}><Icon name="ticket" size={18} /> My Sky Passport</BtnSecondary>
-      <button onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4, whiteSpace: "nowrap" }}>Leave the station</button>
+      <span data-hint="My Sky Passport: your stats, your best acros and your stamps" style={{ display: "contents" }}><BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)} style={smallBtn}><Icon name="ticket" size={18} /> My Sky Passport</BtnSecondary></span>
+      <button data-hint="Leave the station: sign out on this computer" onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4, whiteSpace: "nowrap" }}>Leave the station</button>
     </>
   );
   // Departures: the trains, then free platforms so the board always shows 3 rows — and always at least one
   // free platform, the row where you start a new Sky Train
   const used = new Set(roomList.map(r => r.platform));
-  const freeRows = shortWin ? 1 : Math.max(1, 3 - roomList.length);   // short windows: just the New Sky Train row
+  const freeRows = shortWin ? 1 : Math.max(1, 2 - roomList.length);   // short windows: just the New Sky Train row (the Night Express row counts as one of the 3)
+  const night = nightExpress(Date.now(), roomList);                    // tonight's game (re-worked out on every refresh of the list)
   const freeNumbers = []; for (let n = 1; freeNumbers.length < freeRows; n++) if (!used.has(n)) freeNumbers.push(n);
   const boardCols = "76px minmax(0, 2.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) 132px";   // platform · train · aboard · status · button
 
@@ -2443,12 +2444,13 @@ function Lobby() {
         {/* Short windows: the greeting and your buttons sit here, next to the logo, instead of in their own bar */}
         {shortWin && auth && <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginRight: "auto" }}>{welcomeParts}</div>}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <StationLogButton />
-          <HowToPlay winScore={roomList[0]?.winScore || 30} />
-          <ThemePicker />
+          <span data-hint="Station Log: what's new on the Acro Express, and what we fixed" style={{ display: "contents" }}><StationLogButton /></span>
+          <span data-hint="How to play: the rules, the points and the special topics" style={{ display: "contents" }}><HowToPlay winScore={roomList[0]?.winScore || 30} /></span>
+          <span data-hint="Colors: the look of the station and the big letters' font. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>
           {/* Sound at the station too (2026-10-20): button sounds and the message chime play here */}
-          <SoundControl />
-          {status &&<span style={{ color: status === "ok" ? C.success : C.brand, fontSize: 14, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>}
+          <span data-hint="Music: volume, button sounds, and your song while acros are written" style={{ display: "contents" }}><SoundControl /></span>
+          {/* the hover strip: explains what the mouse is over; otherwise the connection status */}
+          <HoverHint idle={status && <span style={{ color: status === "ok" ? C.success : C.brand, fontSize: 14, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>} />
         </div>
       </div>
 
@@ -2571,13 +2573,30 @@ function Lobby() {
               )}
               {/* Up to 3 rows show; more trains scroll inside the board */}
               <div style={{ maxHeight: fits ? 3 * 62 : undefined, overflowY: fits ? "auto" : "visible" }}>
+                {/* The Night Express: the nightly game, always the first row, on platform 23 */}
+                <div data-hint="Our game night: every night at 23:00 Limassol time, shown here in your own time"
+                  style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
+                    gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
+                  <PlatformBox n={23} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                    {!phone && <span style={{ fontSize: 20 }}>🌙</span>}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Night Express</div>
+                      <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Every night · departs {night.local} your time</div>
+                      {phone && <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}><StatusPill {...night.status} />{night.room && <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={smallBtn}>Board →</Btn>}</div>}
+                    </div>
+                  </div>
+                  {!phone && <span />}
+                  {!phone && <span><StatusPill {...night.status} /></span>}
+                  {!phone && (night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>Board now →</Btn> : <span />)}
+                </div>
                 {roomList.map(room => {
                   const names = room.playingNames || [];
                   const away = room.awayNames || [];
                   const pill = room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand };
                   const board = () => navigate(`/room/${room.id}`);
                   return (
-                    <div key={room.id} style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
+                    <div key={room.id} data-hint={room.gameOn ? "A game is on: board now and join in from the next station" : "Waiting for passengers: board and the game starts with the first topic"} style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
                       gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
                       <PlatformBox n={room.platform} />
                       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
@@ -2635,9 +2654,9 @@ function Lobby() {
                       ) : (
                         <>
                           <div style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform · start your own Sky Train here</div>
-                          <Btn onClick={() => setCreating(true)} style={{ ...smallBtn, justifyContent: "center", gridColumn: phone ? "2" : undefined, justifySelf: phone ? "start" : undefined }}>
+                          <span data-hint="Start your own Sky Train on this platform and name it" style={{ display: "contents" }}><Btn onClick={() => setCreating(true)} style={{ ...smallBtn, justifyContent: "center", gridColumn: phone ? "2" : undefined, justifySelf: phone ? "start" : undefined }}>
                             <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> New Sky Train
-                          </Btn>
+                          </Btn></span>
                         </>
                       )}
                     </div>
@@ -2680,6 +2699,49 @@ function StatusPill({ text, color }) {
 }
 
 // The platform number in a box, like a station sign ("01"); "free" = a quiet dashed box
+// The Night Express (Damon, 2026-10-22): "we need somewhere to announce that there is a game at 11 PM usually".
+// A permanent first row in Departures, on platform 23. The game night is 23:00 Limassol time (Asia/Nicosia, so
+// summer time is handled); each player sees it in their own time. Status: "Tonight" until 20 minutes before,
+// "Boarding soon", "Departing now" for the first 10 minutes, then "Running a little late 🚂" while no game is on
+// (Damon chose this over "Delayed"); "On the move" as soon as any train is playing. After 00:30 Limassol time it
+// shows the next night.
+function nightExpress(now, rooms) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Nicosia", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })
+    .formatToParts(now).filter(p => p.type !== "literal").map(p => [p.type, Number(p.value)]));
+  const offset = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) - Math.floor(now / 1000) * 1000;   // Limassol's lead on UTC
+  const dayShift = parts.hour * 60 + parts.minute < 30 ? -1 : 0;           // just after midnight: still last night's train
+  const departs = Date.UTC(parts.year, parts.month - 1, parts.day + dayShift, 23, 0) - offset;
+  const mins = (now - departs) / 60000;                                     // minutes since 23:00 (negative = before)
+  const local = new Date(departs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const playing = rooms.find(r => r.gameOn);
+  let status;
+  if (playing && mins > -30) status = { text: "On the move", color: C.success };
+  else if (mins < -20) status = { text: "Tonight", color: C.teal };
+  else if (mins < 0) status = { text: "Boarding soon", color: C.brand };
+  else if (mins < 10) status = { text: "Departing now", color: C.brand };
+  else status = { text: "Running a little late 🚂", color: C.gold || C.brand };
+  return { local, status, room: playing && mins > -30 ? playing : null };
+}
+
+// The hover strip (Damon, 2026-10-22: "an area of the UI that tells you something when you hover on buttons"): one
+// quiet line in the header that explains whatever the mouse is over (anything inside an element with a data-hint),
+// and otherwise shows "idle" (at the station: the connection status). Always in the same place, a fixed width so
+// nothing moves, never covering anything. Mouse only: phones have no hover, so it is hidden on narrow screens.
+function HoverHint({ idle = null, width = 300 }) {
+  const [hint, setHint] = useState("");
+  useEffect(() => {
+    const over = e => { const el = e.target.closest?.("[data-hint]"); setHint(el ? el.getAttribute("data-hint") : ""); };
+    document.addEventListener("mouseover", over);
+    return () => document.removeEventListener("mouseover", over);
+  }, []);
+  if (window.innerWidth < 700) return idle;
+  return (
+    <span style={{ width, fontSize: 13, color: C.textSecond, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "right" }}>
+      {hint ? <>ⓘ {hint}</> : idle}
+    </span>
+  );
+}
+
 function PlatformBox({ n, free }) {
   return (
     <div style={{ width: 56, height: 44, borderRadius: 9, border: `1.5px ${free ? "dashed" : "solid"} ${free ? C.border : C.teal}`, background: C.bgApp, display: "flex", alignItems: "center", justifyContent: "center", ...smallTitle, fontSize: 24, color: free ? C.textMuted : C.teal }}>
@@ -3995,16 +4057,17 @@ function Room() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 4 : 8 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
             {/* "Express Colors" and "Sound" menus — change them any time, even mid-game */}
-            <OnlineButton />
-            <HowToPlay winScore={data.winScore || 30} />
-            <ThemePicker />
-            <SoundControl />
+            <HoverHint width={260} />
+            <span data-hint="Online: who is at the station and on the trains right now" style={{ display: "contents" }}><OnlineButton /></span>
+            <span data-hint="How to play: the rules, the points and the special topics" style={{ display: "contents" }}><HowToPlay winScore={data.winScore || 30} /></span>
+            <span data-hint="Colors: the look of the train and the big letters' font. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>
+            <span data-hint="Music: volume, button sounds, and your song (it switches at once)" style={{ display: "contents" }}><SoundControl /></span>
             {/* After a game ends the room is back in Waiting, so a new game can be started */}
             {/* Hidden during the 30-second break after a game — the next game starts by itself */}
             {/* Not while the first topic is being chosen: round 1 already exists then (currentRoundNumber > 0)
                 — clicking it gave "round already in progress" */}
             {/* No Start / New Game button: the first topic starts the journey (Damon, 2026-10-16) */}
-            <BtnSecondary onClick={handleLeaveRoom} style={{ border: `1px solid ${C.focusLine}` }}>← Grand Sky Station</BtnSecondary>
+            <span data-hint="Leave this train and go back to the Grand Sky Station" style={{ display: "contents" }}><BtnSecondary onClick={handleLeaveRoom} style={{ border: `1px solid ${C.focusLine}` }}>← Grand Sky Station</BtnSecondary></span>
           </div>
           {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
           {showTopic && !isNarrow && topicBlock("right")}
