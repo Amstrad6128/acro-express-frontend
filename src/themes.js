@@ -398,40 +398,45 @@ const THEMES = {
     },
   },
 
-  // Remix v2 (2026-10-21, Damon: "a tune based on the original theme, with a mix of PIXEL or STEAM"; v1 was "a nice
-  // try but not yet there" — a non-stop stream of eighth notes, one 4-bar loop the whole way, a melody guessed from
-  // a noisy analysis). Rewritten on what game-music practice and listening research suggest:
-  //  - Familiar but its own: the Original's key (G major), tempo (86 bpm) and chords (G–D–Em–C), a NEW hook.
-  //  - A hook people remember: a 4-bar question and answer that rises, then falls (the most common shape of catchy
-  //    tunes), with one leap up to the top note, and rests and long notes so it breathes and never chatters.
-  //  - Heard a thousand times without boring: a form instead of one loop (like Super Mario Bros., which alternates
-  //    sections before the whole song repeats): A (the hook) → A2 (the hook with a counter-line and chip arpeggios,
-  //    a new ending) → B (a calm bridge, Em–C–G–D, long notes, lighter drums) → A again…
-  //  - The passing of time without nerves: the tempo NEVER changes and the beat never doubles (faster tempo raises
-  //    tension and heart rate — Mario's "hurry up" does it on purpose; we don't want that). Instead clear signposts:
-  //    the lead slowly brightens through the station; the last 4 bars (~11 s) are always the hook lifted a whole
-  //    step (G → A, the classic "final chorus" lift), announced by the train whistle, with everything playing;
-  //    two short toots at 4 and 2 s left, a soft swell, and a warm chord exactly at 0.
-  //  - Calm sounds: major key, consonant chords, the lead's sharp edge filtered off, a soft echo on long notes.
-  // Sections are counted back from the end, so the lifted hook always lands on the last 4 bars, whatever the
-  // station's length. The first 2 bars are an intro (rails, bass, the whistle). Offline until Damon has heard it.
+  // Remix v3 (2026-10-21). v1 (Damon): "a nice try but it's not yet there"; v2: "much better, but it can be
+  // improved — learn from Jacob's Piano, Hans Zimmer and Yann Tiersen for melodies/piano, and from Lucas Pope
+  // (Papers, Please) and Nintendo's musicians". What v3 takes from them:
+  //  - Jacob's Piano: simple, strong melody first; a "felt" piano (a muted, warm attack: the recorded grand with
+  //    its brightness filtered off and a gentle start).
+  //  - Yann Tiersen: a broken-chord ostinato in eighths under everything (the left-hand pattern of his piano
+  //    pieces); melodies in groups of three over a duple beat (the hook's 3+3+2 rhythm); a descending cascade
+  //    of notes as the bridge's way back; the theme returning higher; ending quietly on one chord.
+  //  - Hans Zimmer: build by layering on top of one ostinato that never changes — each section adds or takes
+  //    away one layer, so the listener feels time moving while the pulse stays the same.
+  //  - Lucas Pope: identity from one distinctive voice (here the train whistle and the chip lead) and few notes.
+  //  - Nintendo (Kondo): music you can hear over and over; never fight the game's own sounds.
+  // Built on the Original's key (G major), tempo (86 bpm) and chords (G–D–Em–C). Form (counted back from the end,
+  // so the lift always lands on the last 4 bars): intro (felt piano ostinato + rails + whistle) → A (+ the chip hook,
+  // a bass pedal, light drums) → A2 (+ counter-line, chip arpeggios, the boogie walk) → B bridge (drums out; the
+  // felt piano takes the tune in long notes, then a cascade down into…) → … → F: the last 4 bars, the hook lifted
+  // a whole step (G → A), announced by the whistle, everything playing; toots at 4 and 2 s; one warm chord at 0.
+  // The tempo never changes and the beat never doubles. Offline until Damon has heard it.
   remix: {
-    name: "Remix", offline: true, bpm: 86, gain: 0.9, seed: 86, boost: 6.6,   // boost measured: level with the Original (−17.3)
+    name: "Remix", offline: true, bpm: 86, gain: 0.9, seed: 86, boost: 7.1, instruments: ["piano"],
     prog: [{ root: 43, tones: [67, 71, 74] }, { root: 38, tones: [66, 69, 74] }, { root: 40, tones: [67, 71, 76] }, { root: 36, tones: [67, 72, 76] }],   // G D Em C
     progB: [{ root: 40, tones: [67, 71, 76] }, { root: 36, tones: [67, 72, 76] }, { root: 43, tones: [67, 71, 74] }, { root: 38, tones: [66, 69, 74] }],  // Em C G D
     // Melodies: [16th step in the 4 bars (0–63), MIDI note, length in 16ths]
-    A: [[0, 74, 3], [3, 79, 3], [6, 83, 6], [12, 81, 2], [14, 79, 2],          // G:  D–G–B, a little turn (rising)
-        [16, 81, 6], [22, 78, 2], [24, 74, 8],                                  // D:  A–F#–D, held (falling, a breath)
+    A: [[0, 74, 3], [3, 79, 3], [6, 83, 6], [12, 81, 2], [14, 79, 2],          // G:  D–G–B (3+3: groups of three), a little turn
+        [16, 81, 6], [22, 78, 2], [24, 74, 8],                                  // D:  A–F#–D, held (a breath)
         [32, 76, 3], [35, 79, 3], [38, 83, 4], [42, 86, 2], [44, 84, 2], [46, 83, 2],   // Em: up again, the leap to the top D
         [48, 79, 6], [54, 76, 2], [56, 79, 8]],                                 // C:  home to G, held
     A2: [[0, 74, 3], [3, 79, 3], [6, 83, 6], [12, 81, 2], [14, 79, 2],
          [16, 81, 6], [22, 78, 2], [24, 74, 8],
          [32, 76, 3], [35, 79, 3], [38, 83, 4], [42, 86, 2], [44, 84, 2], [46, 83, 2],
-         [48, 76, 4], [52, 74, 4], [56, 72, 8]],                                // C: a new ending, stepping down to C (into the bridge)
-    B: [[0, 71, 8], [8, 76, 8],                                                 // Em: B, E (long notes, low and calm)
+         [48, 76, 4], [52, 74, 4], [56, 72, 8]],                                // C: a new ending, stepping down to C
+    // The bridge, on the felt piano: long notes, then a Tiersen-like cascade down the D chord's scale into the hook
+    B: [[0, 71, 8], [8, 76, 8],                                                 // Em: B, E
         [16, 79, 12], [28, 76, 4],                                              // C:  G held, E
         [32, 74, 8], [40, 71, 8],                                               // G:  D, B
-        [48, 69, 4], [52, 74, 4], [56, 78, 8]],                                 // D:  A, D, F# — leading back up to the hook
+        [48, 86, 1], [49, 85, 1], [50, 83, 1], [51, 81, 1], [52, 79, 1], [53, 78, 1], [54, 76, 1], [55, 74, 1],
+        [56, 73, 2], [58, 74, 6]],                                              // D:  a cascade from the top D down to D
+    // Felt piano: the recorded grand, muted and warm
+    felt(c, out, t, n, len, vol) { sample(c, out, t, "piano", n, len, { vol, attack: 0.012, release: 0.35, lowpass: 1700, human: true }); },
     step(c, out, s) {
       const { t, pos, p, d, bar, bars, left } = s;
       // Which section: counted back from the end in blocks of 4 bars (k = 0 is the last block, the final lift)
@@ -445,51 +450,127 @@ const THEMES = {
       // the whistle: at the start, and announcing the final lift; two short toots at 4 and 2 s left
       if (s.first || (sec === "F" && inBar === 0 && pos === 0)) THEMES.steam.whistle(c, out, t, d * 10);
       if ((left <= 4 && left + d > 4) || (left <= 2 && left + d > 2)) THEMES.steam.whistle(c, out, t, 0.35);
+      // the felt-piano ostinato (Tiersen), all the way: a low root held, then the chord broken in eighths
+      if (pos === 0) this.felt(c, out, t, root + 12, d * 14, 0.2);
+      if (pos % 2 === 0 && pos > 0) this.felt(c, out, t, [tones[0], tones[1], tones[2], tones[1]][(pos / 2) % 4] - 12 + 12 * (pos >= 8 ? 1 : 0), d * 3, 0.1);
       // the rails (Steam's clickety-clack), all the way, a little stronger in the final lift
       const clack = sec === "F" ? 1.3 : 1;
-      if (pos === 0 || pos === 2) kick(c, out, t, 0.12 * clack, 110);
-      if (pos === 8 || pos === 10) kick(c, out, t, 0.065 * clack, 150);
-      // the bass: soft roots in the intro; long notes in the bridge; the boogie walk in eighths elsewhere
-      if (intro) { if (pos % 4 === 0) tone(c, out, t, root, d * 3, { type: "triangle", vol: 0.13, attack: 0.01, lowpass: 800 }); }
-      else if (sec === "B") { if (pos === 0 || pos === 8) tone(c, out, t, root + (pos === 8 ? 7 : 0), d * 7, { type: "triangle", vol: 0.15, attack: 0.02, lowpass: 800 }); }
-      else if (pos % 2 === 0) {
-        const walk = [0, minor ? 3 : 4, 7, 9, 12, 9, 7, minor ? 3 : 4];
-        tone(c, out, t, root + walk[pos / 2], d * 1.8, { type: "triangle", vol: 0.15, attack: 0.01, lowpass: 900 });
-      }
+      if (pos === 0 || pos === 2) kick(c, out, t, 0.11 * clack, 110);
+      if (pos === 8 || pos === 10) kick(c, out, t, 0.06 * clack, 150);
       if (intro) return;
-      // drums: a light chip snare on 2 and 4 and closed hats on the eighths; in the bridge only a soft shaker on the
-      // off-beats (a breather); in the final lift an open hat on the off-beats; a soft swell in the last 4 s
-      if (sec === "B") { if (pos % 4 === 2) hit(c, out, t, { vol: 0.02, dur: 0.06, hp: 6000, attack: 0.01 }); }
-      else {
-        if (pos === 4 || pos === 12) hit(c, out, t, { vol: 0.1, dur: 0.1, hp: 1500, lp: 6000 });
-        if (pos % 2 === 0) hit(c, out, t, { vol: 0.028, dur: 0.03, hp: 8500 });
-        if (sec === "F" && pos % 4 === 2) hit(c, out, t, { vol: 0.03, dur: 0.14, hp: 7000 });
+      // the bass: a pedal (long root) in A and the bridge; the boogie walk in eighths in A2 and the lift (a layer)
+      if (sec === "A2" || sec === "F") {
+        if (pos % 2 === 0) {
+          const walk = [0, minor ? 3 : 4, 7, 9, 12, 9, 7, minor ? 3 : 4];
+          tone(c, out, t, root + walk[pos / 2], d * 1.8, { type: "triangle", vol: 0.14, attack: 0.01, lowpass: 900 });
+        }
+      } else if (pos === 0 || pos === 8) tone(c, out, t, root, d * 7.5, { type: "triangle", vol: 0.13, attack: 0.03, lowpass: 700 });
+      // drums: none in the bridge (a breather: just the piano and the rails); a light chip snare on 2 and 4 and
+      // closed hats on the eighths elsewhere; an open hat on the off-beats in the lift; a soft swell in the last 4 s
+      if (sec !== "B") {
+        if (pos === 4 || pos === 12) hit(c, out, t, { vol: 0.085, dur: 0.1, hp: 1500, lp: 6000 });
+        if (pos % 2 === 0) hit(c, out, t, { vol: 0.024, dur: 0.03, hp: 8500 });
+        if (sec === "F" && pos % 4 === 2) hit(c, out, t, { vol: 0.028, dur: 0.14, hp: 7000 });
       }
       if (left <= 4 && left + d > 4) hit(c, out, t, { vol: 0.05, dur: 4, hp: 1500, lp: 7000, attack: 3.8 });
-      // chip arpeggios on the chord in A2 and the final lift (a texture layer that comes and goes)
-      if ((sec === "A2" || sec === "F") && pos % 2 === 1) tone(c, out, t, tones[(pos >> 1) % 3] + 12, d * 0.9, { type: "square", vol: 0.018, lowpass: 4000 });
-      // a counter-line on the harmonica voice (Steam): half notes on the chord in A2 and the final lift
+      // chip arpeggios on the chord in A2 and the lift (a texture layer that comes and goes)
+      if ((sec === "A2" || sec === "F") && pos % 2 === 1) tone(c, out, t, tones[(pos >> 1) % 3] + 12, d * 0.9, { type: "square", vol: 0.016, lowpass: 4000 });
+      // a counter-line on the harmonica voice (Steam): half notes on the chord in A2 and the lift
       if ((sec === "A2" || sec === "F") && (pos === 0 || pos === 8))
-        tone(c, out, t, pos === 0 ? tones[1] : tones[0], d * 7, { type: "square", vol: 0.016, attack: 0.04, lowpass: 1400, vibrato: 10 });
-      // the tune: Pixel's square lead, its sharp edge filtered off (a little brighter as the station goes on);
-      // long notes get a soft vibrato and a quiet echo 3 sixteenths later
+        tone(c, out, t, pos === 0 ? tones[1] : tones[0], d * 7, { type: "square", vol: 0.015, attack: 0.04, lowpass: 1400, vibrato: 10 });
+      // the tune: the chip lead (its sharp edge filtered off, a little brighter as the station goes on), or the
+      // felt piano in the bridge; long chip notes get a soft vibrato and a quiet echo
       const tune = this[sec === "F" ? "A" : sec];
       const here = inBar * 16 + pos;
       for (const [at, n, len] of tune) {
         if (at !== here) continue;
         const note = n + lift, bright = 2600 + 2400 * p;
-        tone(c, out, t, note, d * len * 0.92, { type: "square", vol: sec === "B" ? 0.042 : 0.05, attack: 0.008, lowpass: bright, vibrato: len >= 6 ? 8 : 0 });
-        if (len >= 4) tone(c, out, t + d * 3, note, d * Math.min(len, 6) * 0.8, { type: "square", vol: 0.014, attack: 0.01, lowpass: bright * 0.7 });
-        if (sec === "F") tone(c, out, t, note - 12, d * len * 0.92, { type: "triangle", vol: 0.05, attack: 0.01, lowpass: 2000 });   // doubled below
+        if (sec === "B") { this.felt(c, out, t, note, d * Math.max(len, 2), len === 1 ? 0.2 : 0.3); continue; }
+        tone(c, out, t, note, d * len * 0.92, { type: "square", vol: 0.048, attack: 0.008, lowpass: bright, vibrato: len >= 6 ? 8 : 0 });
+        if (len >= 4) tone(c, out, t + d * 3, note, d * Math.min(len, 6) * 0.8, { type: "square", vol: 0.013, attack: 0.01, lowpass: bright * 0.7 });
+        if (sec === "F") this.felt(c, out, t, note - 12, d * len, 0.2);                     // the felt piano doubles it below
       }
     },
-    // At 0, in the lifted key (A): a short chip run up the chord into the whistle and a warm A chord
+    // At 0, in the lifted key (A): a short chip run up the chord, the whistle, and one quiet felt-piano chord
     ending(c, out, t) {
-      [69, 73, 76, 81].forEach((n, k) => tone(c, out, t + k * 0.08, n + 12, 0.2, { type: "square", vol: 0.035, lowpass: 4500 }));
+      [69, 73, 76, 81].forEach((n, k) => tone(c, out, t + k * 0.08, n + 12, 0.2, { type: "square", vol: 0.032, lowpass: 4500 }));
       const end = t + 0.32;
       THEMES.steam.whistle(c, out, end, 1.8);
-      [69, 73, 76, 81].forEach(n => tone(c, out, end, n, 1.8, { type: "square", vol: 0.02, attack: 0.02, lowpass: 2800 }));
-      tone(c, out, end, 45, 1.8, { type: "triangle", vol: 0.2, attack: 0.02 });
+      [45, 57, 64, 69, 73].forEach((n, k) => this.felt(c, out, end + k * 0.03, n, 2.4, 0.22));
+    },
+  },
+
+  // Skylight (2026-10-21) — a new theme from what was learned, not built on any of ours. Damon asked for one
+  // "based not on what we have, but on your new knowledge".
+  //  - One ostinato that never changes (Tiersen's left hand, Zimmer's engine): the felt piano breaking each chord
+  //    in eighths at 96 bpm — calm (under ~100 bpm), but moving, never sleepy.
+  //  - A signature voice (Pope: identity from one sound): a music-box vibraphone carries the tune.
+  //  - The tune: groups of three over the duple beat (3+3+2), a fall, then one surprising leap up and a held note —
+  //    the "rise and fall with one unusual leap" of catchy tunes. Bar 4 asks a question (A); A2 answers it (lands
+  //    home). Few notes, lots of air (Jacob's Piano: simple and strong).
+  //  - Harmony with a descending bass (D – C# – B – G: I – V/3 – vi – IV), warm and major; a bridge on
+  //    Em – G – A – D whose last bar is a Tiersen cascade down into the theme.
+  //  - Time is felt through layers (Zimmer), never through tempo: intro = piano alone; A = + the music box;
+  //    A2 = + the felt piano doubling the tune below and soft strings; bridge = piano + strings, the music box rests;
+  //    the last 4 bars = the tune lifted a whole step (D → E) with everything, a brush on 2 and 4, a high chime
+  //    announcing it; chimes at 4 and 2 s; at 0 one quiet chord (Tiersen's way of ending).
+  // Sections are counted back from the end (the lift always lands on the last 4 bars). Offline until Damon has heard it.
+  skylight: {
+    name: "Skylight", offline: true, bpm: 96, gain: 3.0, seed: 96, boost: 9.5, instruments: ["piano", "vibes", "strings"],
+    prog: [{ root: 38, tones: [62, 66, 69] }, { root: 37, tones: [61, 64, 69] }, { root: 35, tones: [62, 66, 71] }, { root: 43, tones: [62, 67, 71] }],    // D A/C# Bm G
+    progB: [{ root: 40, tones: [64, 67, 71] }, { root: 43, tones: [62, 67, 71] }, { root: 45, tones: [61, 64, 69] }, { root: 38, tones: [62, 66, 69] }],   // Em G A D
+    A: [[0, 78, 3], [3, 76, 3], [6, 74, 2], [8, 81, 8],                        // D:  F#–E–D (3+3+2), up to A, held
+        [16, 79, 3], [19, 78, 3], [22, 76, 2], [24, 73, 8],                     // A/C#: G–F#–E, C# held
+        [32, 74, 3], [35, 76, 3], [38, 78, 2], [40, 83, 6], [46, 81, 2],        // Bm: D–E–F# rising, the leap to B, A
+        [48, 79, 4], [52, 78, 4], [56, 76, 8]],                                 // G:  G–F#–E… a question
+    A2: [[0, 78, 3], [3, 76, 3], [6, 74, 2], [8, 81, 8],
+         [16, 79, 3], [19, 78, 3], [22, 76, 2], [24, 73, 8],
+         [32, 74, 3], [35, 76, 3], [38, 78, 2], [40, 83, 6], [46, 81, 2],
+         [48, 79, 3], [51, 78, 3], [54, 76, 2], [56, 74, 8]],                   // G: …answered, home on D
+    B: [[0, 71, 8], [8, 79, 8],                                                 // Em: B, G
+        [16, 78, 12], [28, 74, 4],                                              // G:  F# held (warm), D
+        [32, 76, 8], [40, 73, 8],                                               // A:  E, C#
+        [48, 86, 1], [49, 85, 1], [50, 83, 1], [51, 81, 1], [52, 79, 1], [53, 78, 1], [54, 76, 1], [55, 74, 1],
+        [56, 73, 2], [58, 74, 6]],                                              // D:  the cascade, home to D
+    felt(c, out, t, n, len, vol) { sample(c, out, t, "piano", n, len, { vol, attack: 0.012, release: 0.4, lowpass: 1800, human: true }); },
+    box(c, out, t, n, len, vol) { sample(c, out, t, "vibes", n, len, { vol, release: 0.6, human: true }); },   // the music box
+    step(c, out, s) {
+      const { t, pos, d, bar, bars, left } = s;
+      const k = Math.floor((bars - 1 - bar) / 4), inBar = 3 - ((bars - 1 - bar) % 4);
+      const sec = k === 0 ? "F" : ["B", "A2", "A"][(k - 1) % 3];
+      const intro = bar < 2 && sec !== "F";
+      const lift = sec === "F" ? 2 : 0;
+      const ch = (sec === "B" ? this.progB : this.prog)[inBar];
+      const root = ch.root + lift, tones = ch.tones.map(n => n + lift);
+      // the chime: a high music-box note announcing the last 4 bars; two more at 4 and 2 s left
+      if (sec === "F" && inBar === 0 && pos === 0) { this.box(c, out, t, 88, d * 8, 0.22); this.box(c, out, t + d * 2, 95, d * 8, 0.16); }
+      if ((left <= 4 && left + d > 4) || (left <= 2 && left + d > 2)) this.box(c, out, t, left > 3 ? 95 : 100, d * 6, 0.16);
+      // the ostinato: the low root held, the chord broken in eighths (up, then over the top and back)
+      if (pos === 0) this.felt(c, out, t, root + 12, d * 15, 0.22);
+      if (pos % 2 === 0 && pos > 0) this.felt(c, out, t, [tones[0], tones[1], tones[2], tones[2] + 5, tones[2], tones[1], tones[0]][pos / 2 - 1], d * 3, 0.11);
+      if (intro) return;
+      // strings: a soft pad from A2 on (and in the bridge), swelling into the lift
+      if ((sec === "A2" || sec === "B" || sec === "F") && pos === 0)
+        tones.forEach(n => sample(c, out, t, "strings", n, d * 15, { vol: sec === "F" ? 0.08 : 0.05, attack: 0.5, release: 0.6 }));
+      // a brush on 2 and 4, only in the last 4 bars (the pulse made audible at the end, not faster)
+      if (sec === "F" && (pos === 4 || pos === 12)) hit(c, out, t, { vol: 0.03, dur: 0.25, hp: 2500, lp: 7000, attack: 0.03 });
+      if (left <= 4 && left + d > 4) hit(c, out, t, { vol: 0.035, dur: 4, hp: 3000, attack: 3.8 });   // a soft cymbal swell
+      // the tune: the music box (not in the bridge, where the felt piano sings it); in A2 and the lift the felt
+      // piano doubles it an octave below
+      const tune = this[sec === "F" ? "A2" : sec];
+      const here = inBar * 16 + pos;
+      for (const [at, n, len] of tune) {
+        if (at !== here) continue;
+        const note = n + lift;
+        if (sec === "B") { this.felt(c, out, t, note, d * Math.max(len, 2), len === 1 ? 0.2 : 0.3); continue; }
+        this.box(c, out, t, note, d * len, 0.3);
+        if (sec === "A2" || sec === "F") this.felt(c, out, t, note - 12, d * len, 0.2);
+      }
+    },
+    // At 0 (in E, the lifted key): one quiet chord on the felt piano with the music box on top, left to ring
+    ending(c, out, t) {
+      [40, 52, 59, 64, 68].forEach((n, k) => this.felt(c, out, t + k * 0.04, n, 3, 0.22));
+      this.box(c, out, t + 0.2, 88, 2.5, 0.2);
     },
   },
 
