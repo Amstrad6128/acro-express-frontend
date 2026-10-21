@@ -671,19 +671,20 @@ function ThemePicker() {
           })}
           {/* The big letters' font (and the timer's): Bowlby, Honk, Russo or Titan. Each button shows "B T V" in its own font */}
           <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 6px", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>Big letters</div>
-          <div style={{ display: "flex", gap: 8 }}>
+          {/* one font per row, stacked like the floors of a building (Damon, 2026-10-22: not columns) */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {Object.entries(LETTER_FONTS).map(([key, name]) => {
               const active = key === letterFont;
               return (
                 <button key={key} onClick={() => { applyLetterFont(key); setLetterFont(key); }}
-                  style={{ flex: 1, background: active ? C.navy3 : "transparent", border: `1px solid ${active ? C.teal : C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: big ? 16 : 14, padding: big ? "10px 6px" : "6px 6px" }}>
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%", background: active ? C.navy3 : "transparent", border: `1px solid ${active ? C.teal : C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", fontSize: big ? 16 : 14, padding: big ? "8px 12px" : "5px 10px" }}>
                   <span style={{
                     honk: { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "var(--fp-big)", fontVariationSettings: "'SHLN' 0, 'MORF' 15" },
                     bowlby: { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand },
                     russo: { fontFamily: "'Russo One', sans-serif", fontSize: 18, color: C.brand },
                     titan: { fontFamily: "'Titan One', sans-serif", fontSize: 18, color: C.brand },
                   }[key]}>B T V</span>
-                  <div style={{ fontSize: 12, marginTop: 2, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</div>
+                  <span style={{ fontSize: 13, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</span>
                 </button>
               );
             })}
@@ -1080,8 +1081,9 @@ function RestartBanner() {
 }
 
 // Golden names (Damon, 2026-10-18): afool joked his name should be gold. Since 2026-10-20: in chat lines only.
+// 2026-10-22: moved to "Myself" (afool's new name, Damon); afool's own name is plain again.
 // --c-gold is set per palette (a darker gold on the light First Light). goldName(name) = the extra style, or {}.
-const GOLDEN_NAMES = ["afool"];
+const GOLDEN_NAMES = ["myself"];
 const isGolden = name => GOLDEN_NAMES.includes(String(name || "").toLowerCase());
 // Metallic: the gold gradient painted inside the letters (--c-goldMetal); --c-gold stays the plain colour for
 // places that can't take a gradient (the Sky Pass title's colour font)
