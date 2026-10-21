@@ -285,11 +285,17 @@ applyTheme(loadThemeKey());   // before the first render, so the page never flas
 //   --lf-scale / --lf-lh  size factor and line height of the big letters (Honk's capitals are smaller)
 //   --tf-scale / --tf-lh  the same for the timer: its numbers as tall as the original timer's (Segoe UI bold), measured
 //                         2026-10-21 (Damon: "Honk seems too small … Pixel is too big"): digits at 100px are 72px
-//                         tall in Segoe UI, 59 in Honk (×1.22), 72 in Russo One (×1), 74 in Trueno SemiBold (×0.97)
-// Russo = Russo One (bold, sporty; 2026-10-21, replacing "Pixel" = Press Start 2P). Trueno = Trueno SemiBold
-// (2026-10-22, replacing Titan One; Damon: "Trueno Semi Bold kicks ass"). Both capitals measure 71 against Bowlby's
-// 76, hence ×1.07. A saved "pixel" or "titan" choice falls back to Bowlby.
-const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", russo: "Russo", trueno: "Trueno" };   // key → name shown in the menu
+//                         tall in Segoe UI, 59 in Honk (×1.22), 74 in Trueno (×0.97), 73 in Nunito ExtraBold (×0.99), 75 in Righteous (×0.96)
+// Trueno = Trueno SemiBold (2026-10-22, replacing Titan One; Damon: "Trueno Semi Bold kicks ass"); Nunito = Nunito
+// ExtraBold and Righteous (2026-10-22, replacing Russo One: "Russo and Trueno too similar"). (Pixel = Press Start 2P,
+// Titan One and Russo One were tried and dropped: a saved choice of theirs falls back to Bowlby.)
+// Measured at 100px against Bowlby's capitals (76) and Segoe UI's digits (72): family, letter size, timer size, weight
+const EXTRA_FONTS = {
+  trueno: { fam: "'Trueno'", lf: 1.07, tf: 0.97, w: 400 },        // capitals 71, digits 74
+  nunito: { fam: "'Nunito'", lf: 1.055, tf: 0.99, w: 800 },       // capitals 72, digits 73
+  righteous: { fam: "'Righteous'", lf: 1.07, tf: 0.96, w: 400 },  // capitals 71, digits 75
+};
+const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", trueno: "Trueno", nunito: "Nunito", righteous: "Righteous" };   // key → name shown in the menu
 function loadLetterFont() {
   try { const k = localStorage.getItem("acro.letterFont"); return LETTER_FONTS[k] ? k : "bowlby"; } catch { return "bowlby"; }
 }
@@ -304,19 +310,19 @@ function applyLetterFont(key) {
     root.setProperty("--tf-lh", "0.714");     // 1 ÷ 1.4: the timer line keeps its height, nothing below moves
     root.setProperty("--lf-scale", "1.55");   // Honk's capitals are smaller: 1.4× matched Bowlby; 1.55× = "a bit bigger" (Damon, 2026-10-20)
     root.setProperty("--lf-lh", "0.645");     // …in the same height (1 ÷ 1.55), so nothing below moves
-  } else if (key === "russo" || key === "trueno") {
-    const fam = key === "russo" ? "'Russo One'" : "'Trueno'";
-    const lf = 1.07, tf = key === "russo" ? 1 : 0.97;   // measured, see above
+  } else if (EXTRA_FONTS[key]) {
+    const { fam, lf, tf, w } = EXTRA_FONTS[key];   // measured, see above
     root.setProperty("--lf-family", fam + ", 'Bowlby One SC', sans-serif");
+    root.setProperty("--lf-weight", String(w));
     root.setProperty("--lf-shadow", "var(--c-letterShadow)");   // the palette's shadow, as with Bowlby
     root.setProperty("--tf-family", fam + ", " + NUM_FONT);
-    root.setProperty("--tf-weight", "400");   // one weight only; bold would be faked
+    root.setProperty("--tf-weight", String(w));   // the weight we have; a bolder one would be faked
     root.setProperty("--lf-scale", String(lf));
     root.setProperty("--lf-lh", (1 / lf).toFixed(3));   // the same line height, so nothing below moves
     root.setProperty("--tf-scale", String(tf));
     root.setProperty("--tf-lh", (1 / tf).toFixed(3));
   } else {   // Bowlby: the original look (the variables are removed, so every style uses its own fallback)
-    for (const v of ["--lf-family", "--lf-shadow", "--tf-family", "--tf-weight", "--lf-scale", "--lf-lh", "--tf-scale", "--tf-lh"]) root.removeProperty(v);
+    for (const v of ["--lf-family", "--lf-weight", "--lf-shadow", "--tf-family", "--tf-weight", "--lf-scale", "--lf-lh", "--tf-scale", "--tf-lh"]) root.removeProperty(v);
     // …except the timer, a little smaller with Bowlby (Damon, 2026-10-22: "too big for the Bowlby font")
     root.setProperty("--tf-scale", "0.88");
     root.setProperty("--tf-lh", "1.136");     // 1 ÷ 0.88
@@ -672,7 +678,7 @@ function ThemePicker() {
               </button>
             );
           })}
-          {/* The big letters' font (and the timer's): Bowlby, Honk, Russo or Trueno. Each button shows "B T V" in its own font */}
+          {/* The big letters' font (and the timer's): Bowlby, Honk, Trueno, Nunito or Righteous. Each button shows "B T V" in its own font */}
           <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 6px", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>Big letters</div>
           {/* one font per row, stacked like the floors of a building (Damon, 2026-10-22: not columns) */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -684,8 +690,9 @@ function ThemePicker() {
                   <span style={{
                     honk: { fontFamily: "'Honk', serif", fontSize: 20, color: C.brand, fontPalette: "var(--fp-big)", fontVariationSettings: "'SHLN' 0, 'MORF' 15" },
                     bowlby: { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand },
-                    russo: { fontFamily: "'Russo One', sans-serif", fontSize: 18, color: C.brand },
                     trueno: { fontFamily: "'Trueno', sans-serif", fontSize: 18, color: C.brand },
+                    nunito: { fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.brand },
+                    righteous: { fontFamily: "'Righteous', sans-serif", fontSize: 18, color: C.brand },
                   }[key]}>B T V</span>
                   <span style={{ fontSize: 13, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</span>
                 </button>
@@ -4225,7 +4232,7 @@ function Room() {
                 color: C.brand,
                 fontPalette: "var(--fp-big)", fontVariationSettings: "'SHLN' 0, 'MORF' 15",   // only used by Honk; outline in the background colour; no shadow (Damon: confusing on lighter backgrounds)
                 textShadow: "var(--lf-shadow, var(--c-letterShadow))",   // per palette: softer on the light ones; none with Honk (it has its own)
-                fontWeight: 400
+                fontWeight: "var(--lf-weight, 400)"                      // 800 for Nunito ExtraBold
               }}>
                 {l}
               </span>
