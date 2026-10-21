@@ -300,8 +300,8 @@ function applyLetterFont(key) {
     root.setProperty("--lf-shadow", "none");
     root.setProperty("--tf-family", "'Honk', " + NUM_FONT);
     root.setProperty("--tf-weight", "400");   // Honk has one weight; bold would be faked and smudgy
-    root.setProperty("--tf-scale", "1.22");
-    root.setProperty("--tf-lh", "0.82");      // 1 ÷ 1.22: the timer line keeps its height, nothing below moves
+    root.setProperty("--tf-scale", "1.4");     // 1.22 matched by measurement, but looked "too small" (Damon, 2026-10-22)
+    root.setProperty("--tf-lh", "0.714");     // 1 ÷ 1.4: the timer line keeps its height, nothing below moves
     root.setProperty("--lf-scale", "1.55");   // Honk's capitals are smaller: 1.4× matched Bowlby; 1.55× = "a bit bigger" (Damon, 2026-10-20)
     root.setProperty("--lf-lh", "0.645");     // …in the same height (1 ÷ 1.55), so nothing below moves
   } else if (key === "russo" || key === "trueno") {
@@ -317,6 +317,9 @@ function applyLetterFont(key) {
     root.setProperty("--tf-lh", (1 / tf).toFixed(3));
   } else {   // Bowlby: the original look (the variables are removed, so every style uses its own fallback)
     for (const v of ["--lf-family", "--lf-shadow", "--tf-family", "--tf-weight", "--lf-scale", "--lf-lh", "--tf-scale", "--tf-lh"]) root.removeProperty(v);
+    // …except the timer, a little smaller with Bowlby (Damon, 2026-10-22: "too big for the Bowlby font")
+    root.setProperty("--tf-scale", "0.88");
+    root.setProperty("--tf-lh", "1.136");     // 1 ÷ 0.88
   }
   try { localStorage.setItem("acro.letterFont", key); } catch { /* private mode: just not remembered */ }
   window.dispatchEvent(new CustomEvent("acro-letterfont", { detail: key }));   // the Colors menu shows the new choice
