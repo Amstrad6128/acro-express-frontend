@@ -398,6 +398,61 @@ const THEMES = {
     },
   },
 
+  // Remix (2026-10-21, Damon: "a tune based on the original theme, with a mix of PIXEL or STEAM"). Built on what
+  // the Original recording measured as: G major, 86 bpm (felt as 172), the chords G–D–Em–C one bar each, and
+  // its melody as far as it could be picked out of the mix (eighth notes, see MELODY). Pixel's sound carries the
+  // tune (square lead, chip arpeggios); Steam's train runs underneath (the clickety-clack, the boogie bass, the
+  // whistle at the start and the two toots before the end). Every other 4-bar phrase the tune moves down an octave
+  // to Steam's mellow harmonica voice, so it answers itself; from 8 s left it's up an octave. Straight, no swing,
+  // like the Original. Offline until Damon has heard it.
+  remix: {
+    name: "Remix", offline: true, bpm: 86, gain: 0.9, seed: 86, boost: 7.2,   // boost measured to match the Original
+    prog: [{ root: 43, tones: [67, 71, 74] }, { root: 38, tones: [66, 69, 74] }, { root: 40, tones: [67, 71, 76] }, { root: 36, tones: [67, 72, 76] }],
+    // The Original's tune, one row per bar (G, D, Em, C), eight eighth notes each (MIDI)
+    MELODY: [[74, 74, 79, 79, 83, 84, 83, 79], [74, 74, 78, 76, 79, 83, 81, 74], [76, 76, 79, 79, 83, 84, 83, 79], [79, 79, 79, 76, 79, 79, 79, 72]],
+    step(c, out, s) {
+      const { t, pos, p, chord, d, bar, left } = s;
+      // the whistle: at the start (also part-way into the first bar), then every 16 bars; two toots at 4 and 2 s left
+      if ((pos === 0 && bar % 16 === 0) || (s.first && bar === 0)) THEMES.steam.whistle(c, out, t, d * 12);
+      if ((left <= 4 && left + d > 4) || (left <= 2 && left + d > 2)) THEMES.steam.whistle(c, out, t, 0.4);
+      // the rails: two soft thumps, then a lighter pair (Steam's clickety-clack), louder in the final stretch
+      const clack = left <= 7 ? 1.4 : left <= 15 ? 1.2 : 1;
+      if (pos === 0 || pos === 2) kick(c, out, t, 0.13 * clack, 110);
+      if (pos === 8 || pos === 10) kick(c, out, t, 0.07 * clack, 150);
+      // boogie bass in eighths: root, 3rd, 5th, 6th, octave, 6th, 5th, 3rd (minor third on Em)
+      if (pos % 2 === 0) {
+        const third = chord.root === 40 ? 3 : 4;
+        const steps = [0, third, 7, 9, 12, 9, 7, third];
+        tone(c, out, t, chord.root + steps[pos / 2], d * 1.8, { type: "triangle", vol: 0.15, attack: 0.01, lowpass: 900 });
+      }
+      // chip arpeggios on the chord (Pixel), from a little way in
+      if (p > 0.1 && pos % 2 === 1) tone(c, out, t, chord.tones[(pos >> 1) % 3] + 12, d * 0.9, { type: "square", vol: 0.022, lowpass: 5000 });
+      // light chip drums: snare on 2 and 4, hats on the eighths (brighter from 15 s left), a swell in the last 4 s
+      if (p > 0.15) {
+        if (pos === 4 || pos === 12) hit(c, out, t, { vol: 0.11, dur: 0.1, hp: 1500, lp: 6500 });
+        if (pos % 2 === 0) hit(c, out, t, { vol: left <= 15 ? 0.045 : 0.03, dur: 0.03, hp: 8500 });
+        if (left <= 15 && pos % 4 === 2) hit(c, out, t, { vol: 0.025, dur: 0.12, hp: 7000 });
+        if (left <= 4 && left + d > 4) hit(c, out, t, { vol: 0.06, dur: 4, hp: 1500, lp: 7000, attack: 3.8 });
+      }
+      // the tune: on the eighths, from a fifth of the way in. Odd phrases (every other 4 bars) go down an octave to
+      // the mellow harmonica voice; from 8 s left the tune is up an octave
+      if (p > 0.2 && pos % 2 === 0) {
+        const n = this.MELODY[bar % 4][pos / 2];
+        const answer = Math.floor(bar / 4) % 2 === 1 && left > 8;
+        if (answer) tone(c, out, t, n - 12, d * 1.8, { type: "square", vol: 0.03, attack: 0.02, lowpass: 1500, vibrato: 10 });
+        else tone(c, out, t, n + (left <= 8 ? 12 : 0), d * 1.5, { type: "square", vol: 0.05, lowpass: 6000 });
+      }
+    },
+    // A chip "arrival" run up the G chord into a long whistle and a warm G chord
+    ending(c, out, t) {
+      [67, 71, 74, 79].forEach((n, k) => tone(c, out, t + k * 0.08, n + 12, 0.2, { type: "square", vol: 0.04, lowpass: 5000 }));
+      const end = t + 0.32;
+      THEMES.steam.whistle(c, out, end, 1.8);
+      [67, 71, 74, 79].forEach(n => tone(c, out, end, n, 1.8, { type: "square", vol: 0.022, attack: 0.02, lowpass: 3000 }));
+      tone(c, out, end, 43, 1.8, { type: "triangle", vol: 0.2, attack: 0.02 });
+    },
+  },
+
   // Sunny Hills — inspired by classic Nintendo platformer music: a bouncy oom-pah (bass on 1 and 3, short chord
   // stabs on 2 and 4), a cheerful staccato square-wave melody with little grace notes, light NES-style noise drums,
   // chromatic colour chords (C–E7–F–Fm, C–A7–Dm7–G7). Ends on a quick "level clear" arpeggio.
