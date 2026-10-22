@@ -629,6 +629,48 @@ function setSoundSettings(next) {
   window.dispatchEvent(new Event("acro-sound-change"));
 }
 
+// Chat commands (2026-10-22, from AcroChallenge — Damon picked /?, /me, /mu and /pc; /eject votes on a train).
+// say(line) shows a line to you alone. Returns true when the text was a command (so it isn't sent as a message);
+// /me and /eject name return false: /me is a message everyone sees, and the train handles /eject itself.
+const CHAT_HELP = [
+  "Commands:",
+  "/me waves → shows \"* yourname waves\"",
+  "/pc name message → a private message",
+  "/mu → music on or off",
+  "/eject name → vote someone off the train (on a train)",
+  "/? → this list",
+];
+function chatCommand(text, say, inTrain) {
+  if (!text.startsWith("/")) return false;
+  const [, cmd = "", rest = ""] = text.match(/^\/(\S*)\s*([\s\S]*)$/) || [];
+  const c = cmd.toLowerCase(), r = rest.trim();
+  if (c === "?" || c === "help") { CHAT_HELP.forEach(say); return true; }
+  if (c === "me") { if (r) return false; say("Type /me and what you do, e.g. /me waves"); return true; }
+  if (c === "mu") {
+    const next = { ...soundSettings, on: !soundSettings.on };
+    setSoundSettings(next);
+    say(next.on ? "🔊 Music on." : "🔇 Music off.");
+    return true;
+  }
+  if (c === "pc" || c === "pm") {
+    // "/pc Sandy Hello!" (or AcroChallenge's "/pc Sandy\Hello!")
+    const m = r.match(/^@?([A-Za-z0-9_]{3,20})\s*[\\\s]\s*([\s\S]+)$/);
+    if (!m) { say("Type /pc name message, e.g. /pc Sandy Hello!"); return true; }
+    openPm(m[1]); sendPm(m[1], m[2].trim());   // the private chat opens, then shows the message (or the error)
+    return true;
+  }
+  if (c === "kick") { say("It's /eject now: type /eject name to vote someone off the train."); return true; }
+  if (c === "eject") {
+    if (!inTrain) { say("/eject works on a train: it votes someone off it."); return true; }
+    if (!r) { say("Type /eject name to vote someone off the train."); return true; }
+    return false;
+  }
+  say("Type /? for a list of commands.");
+  return true;
+}
+// "/me waves" is shown as "* Sandy waves"
+const meAction = message => (/^\/me\s+/i.test(message || "") ? message.replace(/^\/me\s+/i, "") : null);
+
 // A small header button that opens a menu underneath it (used by "Colors" and "Music").
 // Closes when you click outside it or press Escape.
 function HeaderMenu({ label, children, width = 230 }) {
@@ -752,6 +794,11 @@ function LetterFontPicker() {
 // "Music: 70% ▾" (or "Music: Off"; was "Sound", renamed by Damon 2026-10-20) — music choice, volume slider and a Mute / Unmute button for all game sounds
 function SoundControl() {
   const [st, setSt] = useState(soundSettings);
+  useEffect(() => {
+    const on = () => setSt(soundSettings);                           // e.g. typed /mu in the chat
+    window.addEventListener("acro-sound-change", on);
+    return () => window.removeEventListener("acro-sound-change", on);
+  }, []);
   const change = (next) => { setSoundSettings(next); setSt(next); };
   const pct = Math.round(st.volume * 100);
   return (
@@ -1328,6 +1375,7 @@ function HowToPlay({ winScore = 30 }) {
                 <ul style={rulesList}>
                   <li>Click a name to message that passenger: type and press Enter.</li>
                   <li>To vote someone off a train, type <b style={{ color: C.textPrimary }}>/eject name</b> in Sky Train Chat.</li>
+                  <li>More chat commands: <b style={{ color: C.textPrimary }}>/me</b> waves, <b style={{ color: C.textPrimary }}>/pc name message</b> (private), <b style={{ color: C.textPrimary }}>/mu</b> (music on or off). Type <b style={{ color: C.textPrimary }}>/?</b> for the list.</li>
                   <li><b style={{ color: C.textPrimary }}>Colors</b>: the look of the station and the font of the big letters (or just click the big letters).</li>
                   <li><b style={{ color: C.textPrimary }}>Music</b>: volume, button sounds, and your song while acros are written. It switches at once.</li>
                 </ul>
@@ -2678,9 +2726,11 @@ function Lobby() {
   })();
   // The chat as shown: this session's messages plus the arrival lines ("Carlos arrived at the station")
   // from the same time — arrival lines don't keep the chat session going themselves
+  const [localLines, setLocalLines] = useState([]);       // the answers to your chat commands, only on your screen
   const lobbyChat = (() => {
     const from = lobbySession.length ? new Date(lobbySession[0].time).getTime() : Math.max(chatNow, Date.now()) - QUIET_MS;
-    const lines = notices.filter(n => n.time.getTime() >= from).map(n => ({ ...n, notice: true }));
+    const lines = [...notices.filter(n => n.time.getTime() >= from).map(n => ({ ...n, notice: true })),
+      ...localLines];   // your command answers stay (this page only)
     return [...lobbySession, ...lines].sort((a, b) => new Date(a.time) - new Date(b.time));
   })();
   const [chatInput, setChatInput] = useState("");
@@ -2832,7 +2882,14 @@ function Lobby() {
     ...aboard,
   ];
   const [listOpen, setListOpen] = useState(true);   // phones: the "On the platform" list folded open or closed
-  const sendLobby = () => { if (chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } };   // Enter or Send
+  // Enter or Send; a chat command (/?, /mu, /pc …) is answered on your own screen instead
+  const sendLobby = () => {
+    const t = chatInput.trim();
+    if (!t) return;
+    setChatInput("");
+    if (chatCommand(t, line => setLocalLines(ls => [...ls, { local: true, text: line, time: new Date() }]), false)) return;
+    sendMessage(t);
+  };
   const boxTitle = { margin: 0, fontSize: phone ? 24 : 28, ...smallTitle, display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" };   // Honk box titles, all the same size
   const smallBtn = { fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, lineHeight: 1.2, padding: "8px 16px", letterSpacing: 0, display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" };
   // The greeting and your buttons: in the welcome bar, or in the header on short windows
@@ -3051,7 +3108,16 @@ function Lobby() {
               <h2 style={{ ...boxTitle, marginBottom: 8 }}><Icon name="chat" size={24} color={C.teal} /> Grand Sky Station Chat</h2>
               {/* The messages scroll inside their own box; the input stays at the bottom */}
               <div style={{ flex: 1, minHeight: phone ? 260 : 0, maxHeight: phone ? 300 : undefined, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4, padding: "8px 4px 4px 2px", marginBottom: 10, borderTop: `1px solid ${C.border}` }}>
-                {lobbyChat.map((m, i) => m.notice ? (
+                {lobbyChat.map((m, i) => m.local ? (
+                  // the answer to your command: only you see it
+                  <div key={i} style={{ fontSize: 13, color: C.textMuted, fontStyle: "italic" }}>{m.text}</div>
+                ) : meAction(m.message) != null ? (
+                  // "/me waves" → "* Sandy waves"
+                  <div key={i} style={{ fontSize: 15, lineHeight: 1.4, overflowWrap: "anywhere", fontStyle: "italic", color: C.textSecond }}>
+                    <span style={{ color: C.textMuted, fontSize: 12, marginRight: 8, fontStyle: "normal", fontVariantNumeric: "tabular-nums" }}>{lobbyTime(m.time)}</span>
+                    * <NameLink profile gold name={m.username} style={{ color: C.teal, fontWeight: 700 }} /> {meAction(m.message)}
+                  </div>
+                ) : m.notice ? (
                   // Arrival line: quiet, the name still clickable
                   <div key={i} style={{ fontSize: 13, color: C.textMuted, fontStyle: "italic" }}>
                     <NameLink profile name={m.username} style={{ color: C.textSecond }} /> {m.text} · {lobbyTime(m.time)}
@@ -4293,10 +4359,11 @@ function Room() {
   async function sendRoomMessage() {
     const text = roomChatInput.trim();
     if (!text || !auth) return;
+    // Chat commands (/?, /mu, /pc …); only you see their answers
+    if (chatCommand(text, postSystemMessage, true)) { setRoomChatInput(""); return; }
     // "/eject name" votes to eject instead of chatting (Damon 2026-10-22: /eject, and no /kick any more)
     const cmd = text.match(/^\/eject\s+(.+)$/i);
     if (cmd) { setRoomChatInput(""); voteKick(cmd[1].trim()); return; }
-    if (/^\/kick\b/i.test(text)) { setRoomChatInput(""); postSystemMessage("It's /eject now: type /eject name to vote someone off the train."); return; }
     try {
       const conn = connectionRef.current;
       if (conn) {
@@ -5041,10 +5108,17 @@ function Room() {
                 m.system ? (
                   <div key={i} style={{ fontSize: isShort ? 13 : 14, lineHeight: 1.35, color: C.textMuted, fontStyle: "italic", textAlign: "center", padding: "1px 0" }}>{m.message}</div>
                 ) : (
+                  meAction(m.message) != null ? (
+                    // "/me waves" → "* Sandy waves"
+                    <div key={i} style={{ fontSize: isShort ? 14 : 15, lineHeight: 1.35, fontStyle: "italic", color: C.textSecond }}>
+                      * <NameLink gold name={m.nickname} style={{ color: C.teal, fontWeight: 600 }} /> {meAction(m.message)}
+                    </div>
+                  ) : (
                   <div key={i} style={{ fontSize: isShort ? 14 : 15, lineHeight: 1.35 }}>
                     <NameLink gold name={m.nickname} style={{ color: C.teal, fontWeight: 600 }} /><span style={{ color: C.teal, fontWeight: 600 }}>: </span>
                     <span style={{ color: C.textSecond }}>{m.message}</span>
                   </div>
+                  )
                 )
               ))
             )}
