@@ -2533,10 +2533,14 @@ function Lobby() {
   // The greeting and your buttons: in the welcome bar, or in the header on short windows
   const welcomeParts = auth && (
     <>
-      <div style={{ fontSize: 16, flex: shortWin ? "none" : 1, minWidth: shortWin ? 0 : 160, whiteSpace: "nowrap" }}>{greeting("")}<b style={{ color: C.teal }}>{auth.username}</b></div>
-      <BtnSecondary onClick={() => navigate("/leaderboard")} style={smallBtn}>🏆 Sky Leaderboard</BtnSecondary>
-      <span data-hint="My Sky Passport: your stats, your best acros and your stamps" style={{ display: "contents" }}><BtnSecondary onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)} style={smallBtn}><Icon name="ticket" size={18} /> My Sky Passport</BtnSecondary></span>
-      <button data-hint="Leave the station: sign out on this computer" onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4, whiteSpace: "nowrap" }}>Leave the station</button>
+      {/* 2026-10-22 (Damon): no separate My Sky Passport button — your name opens it; the Sky Leaderboard moved up
+          into the header; "Leave the station" is now "Log out" */}
+      <div style={{ fontSize: 16, flex: shortWin ? "none" : 1, minWidth: shortWin ? 0 : 160, whiteSpace: "nowrap" }}>{greeting("")}
+        <button data-hint="Your Sky Passport: your stats, your best acros and your stamps" onClick={() => navigate(`/passenger/${encodeURIComponent(auth.username)}`)}
+          style={{ background: "none", border: "none", padding: 0, font: "inherit", fontWeight: 700, color: C.teal, cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(127,127,127,0.4)", textUnderlineOffset: 3 }}>
+          {auth.username}</button>
+      </div>
+      <button data-hint="Log out on this computer" onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4, whiteSpace: "nowrap" }}>Log out</button>
     </>
   );
   // The Station Board's news (2026-10-22): the Daily Express, the latest Station Log post, who's here, a tip
@@ -2545,7 +2549,7 @@ function Lobby() {
     { icon: "🚂", text: dailyNow.status.text === "On the move" ? "The Daily Express is on the move: hop on!"
         : dailyNow.status.text === "Running a little late 🚂" ? `The Daily Express is running a little late. Start it, or wait on the platform!`
         : `Daily Express: every day at ${dailyNow.local} your time · next one ${dailyNow.mins < 0 ? untilText(dailyNow.mins) : "tomorrow"}` },
-    ...(latestLog ? [{ icon: "📰", text: `New on the Station Log: ${latestLog}`, onClick: () => navigate("/log") }] : []),
+    ...(latestLog ? [{ icon: "📰", text: `Station Log: ${latestLog}`, onClick: () => navigate("/log") }] : []),   // the only way to the Station Log from here (2026-10-22)
     { icon: "👥", text: `${online.length} passenger${online.length === 1 ? "" : "s"} at the station · ${roomList.filter(r => r.gameOn).length} train${roomList.filter(r => r.gameOn).length === 1 ? "" : "s"} on the move` },
     { icon: "💡", text: BOARD_TIPS[Math.floor(Date.now() / 3600000) % BOARD_TIPS.length] },   // a different tip every hour
   ];
@@ -2562,7 +2566,9 @@ function Lobby() {
     // it was cut off below the first screen (2026-10-22)
     <div style={{ height: auth || !phone ? "100vh" : undefined, minHeight: "100vh", overflowY: fits && auth ? "hidden" : "auto", overflowX: "hidden", color: C.textPrimary, display: "flex", flexDirection: "column" }}>
       {/* Header: the logo, then the menus (on phones the menus go under the logo) */}
-      <div style={{ flexShrink: 0, borderBottom: `1px solid ${C.border}`, padding: phone ? "10px 16px" : "10px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 8, columnGap: shortWin ? 20 : 16 }}>
+      {/* the line runs edge to edge; the logo and menus sit in the same column as the panels below (Damon, 2026-10-22) */}
+      <div style={{ flexShrink: 0, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto", boxSizing: "border-box", padding: phone ? "10px 10px" : "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 8, columnGap: shortWin ? 20 : 16 }}>
         <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : (shortWin ? 40 : 46), fontWeight: 400, margin: 0, lineHeight: 1.05, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
           Acro Express<sup style={{ fontFamily: "'Nunito', sans-serif", fontSize: 12, color: "var(--c-bgText)", marginLeft: 3, verticalAlign: "super" }}>™</sup>
         </h1>
@@ -2571,13 +2577,15 @@ function Lobby() {
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {/* Before signing in only How to play (2026-10-22, Damon: colors and music "shouldn't even be a part of that
               screen"); the rest appears once you're aboard */}
-          {auth && <span data-hint="Station Log: what's new on the Acro Express, and what we fixed" style={{ display: "contents" }}><StationLogButton /></span>}
+          {/* (2026-10-22, Damon: the Station Log only as news on the Station Board; Music only on the trains, where the
+              songs play — your settings carry over) */}
+          {auth && <span data-hint="Sky Leaderboard: the champions of the week, the month and all time" style={{ display: "contents" }}>
+            <button onClick={() => navigate("/leaderboard")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏆 Sky Leaderboard</button></span>}
           <span data-hint="How to play: the rules, the points and the special topics" style={{ display: "contents" }}><HowToPlay winScore={roomList[0]?.winScore || 30} /></span>
           {auth && <span data-hint="Colors: the look of the station and the big letters' font. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>}
-          {/* Sound at the station too (2026-10-20): button sounds and the message chime play here */}
-          {auth && <span data-hint="Music: volume, button sounds, and your song while acros are written" style={{ display: "contents" }}><SoundControl /></span>}
           {auth && status && <span data-hint={status === "ok" ? "Our server is up and the live connection works" : "The connection dropped: it reconnects by itself"} style={{ color: status === "ok" ? C.success : C.brand, fontSize: 14, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>}
         </div>
+      </div>
       </div>
       {/* The Station Board: the news, and the explanation of whatever the mouse is over */}
       {auth && <StationBoard news={boardNews} />}
@@ -3020,15 +3028,18 @@ function StationBoard({ news }) {
   const line = hint ? { icon: "ⓘ", text: hint } : item;
   if (!line) return null;
   return (
+    <div style={{ flexShrink: 0, background: "var(--c-bgApp)", borderBottom: `1px solid ${C.border}` }}>
+    {/* the board's text sits in the same column as the panels (Damon, 2026-10-22) */}
     <div onClick={!hint ? line.onClick : undefined} role={line.onClick && !hint ? "button" : undefined}
-      style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, minHeight: 32, padding: "4px 24px", boxSizing: "border-box",
-        background: "var(--c-bgApp)", borderBottom: `1px solid ${C.border}`, cursor: line.onClick && !hint ? "pointer" : "default" }}>
+      style={{ maxWidth: 1400, margin: "0 auto", display: "flex", alignItems: "center", gap: 10, minHeight: 32, padding: window.innerWidth < 600 ? "4px 10px" : "4px 16px", boxSizing: "border-box",
+        cursor: line.onClick && !hint ? "pointer" : "default" }}>
       {/* the board's lamp: teal for news, amber while explaining */}
       <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: hint ? "var(--c-gold, #FFC24A)" : C.teal, boxShadow: `0 0 8px ${hint ? "var(--c-gold, #FFC24A)" : C.teal}` }} />
       <span style={{ fontSize: 14, color: hint ? C.textPrimary : C.textSecond, letterSpacing: "0.02em", opacity: hint || shown ? 1 : 0, transition: hint ? "none" : "opacity 0.35s" }}>
         {line.icon && <span style={{ marginRight: 6 }}>{line.icon}</span>}{line.text}
         {line.onClick && !hint && <span style={{ color: C.teal, marginLeft: 6 }}>→</span>}
       </span>
+    </div>
     </div>
   );
 }
