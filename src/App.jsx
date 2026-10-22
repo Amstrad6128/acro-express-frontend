@@ -250,6 +250,9 @@ function applyTheme(key) {
   if (t.pattern) { root.style.setProperty("--c-pattern", t.pattern); root.style.setProperty("--c-patternSize", t.patternSize || "320px 320px"); root.style.setProperty("--c-patternAttach", t.patternAttach || "scroll"); }
   else { root.style.removeProperty("--c-pattern"); root.style.removeProperty("--c-patternSize"); root.style.removeProperty("--c-patternAttach"); }
   root.style.setProperty("--c-letterShadow", t.letterShadow || "3px 3px 0px rgba(0,0,0,0.5)");
+  // The page's background, remembered for the very first frame of the next visit: index.html paints it before the
+  // game's code has loaded, so a refresh doesn't blink in the default dark colours first (2026-10-22)
+  try { localStorage.setItem("acro.splash", JSON.stringify({ bgApp: t.bgApp, bgGradient: t.bgGradient, pattern: t.pattern || null, patternSize: t.patternSize || null, patternAttach: t.patternAttach || null })); } catch { /* private mode */ }
   // Quiet text on the page background (the tagline): the palette's own bgText, otherwise textMuted as before
   root.style.setProperty("--c-bgText", t.bgText || t.textMuted);
   // Gold for golden names (afool): bright on the dark palettes, darker on the light one so it stays readable

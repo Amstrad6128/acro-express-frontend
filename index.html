@@ -45,13 +45,34 @@
     <!-- Fonts: all served from our own site (public/fonts, declared in src/index.css), none from Google —
          Google Fonts would see every player's IP address (2026-10-18) -->
     <link rel="preload" href="/fonts/honk-v6-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- The very first frame (2026-10-22): the player's own colours, before the game's code has loaded (so a refresh
+         doesn't blink dark first). A brand-new visitor gets Golden Hour, the default for newcomers (App.jsx
+         loadThemeKey); someone who has logged in here before and never chose keeps Midnight (the CSS fallback). -->
+    <script>
+      try {
+        var s = JSON.parse(localStorage.getItem("acro.splash") || "null"), r = document.documentElement.style;
+        if (!s && !localStorage.getItem("acro.theme") && !localStorage.getItem("acro.auth"))
+          s = { bgApp: "#8A5440", bgGradient: "linear-gradient(180deg, #B06F48 0%, #C4855A 60%, #D49C6C 100%)" };
+        if (s) {
+          r.setProperty("--c-bgApp", s.bgApp);
+          if (s.bgGradient) r.setProperty("--c-bgGradient", s.bgGradient);
+          if (s.pattern) { r.setProperty("--c-pattern", s.pattern); r.setProperty("--c-patternSize", s.patternSize || "320px 320px"); r.setProperty("--c-patternAttach", s.patternAttach || "scroll"); }
+        }
+      } catch (e) { /* private mode: the default colours */ }
+    </script>
+    <!-- The text for search engines (below): kept in the page but never seen ("visually hidden", the standard way —
+         search engines and screen readers still read it). Before 2026-10-22 it showed for a split second on every
+         refresh (Damon: "feels totally like a cheap website made by amateurs"). -->
+    <style>
+      .crawl-text { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+    </style>
   </head>
   <body>
     <!-- The game draws itself into #root. The text below is what search engines and AI answer engines read
          (2026-10-19: Google said "there is no game called Acro Express" — the page used to be empty without
-         JavaScript). The game replaces it the moment it starts, so players only see it for an instant. -->
+         JavaScript). The game replaces it the moment it starts; it is visually hidden, so players never see it. -->
     <div id="root">
-      <main style="max-width: 760px; margin: 0 auto; padding: 32px 20px; font-family: Nunito, sans-serif; color: #F5F6FA; line-height: 1.6;">
+      <main class="crawl-text">
         <h1>Acro Express – a free multiplayer acronym word game</h1>
         <p>Acro Express is a free online word game for friends and strangers. Board a Sky Train at the Grand Sky
           Station, get a few random letters, and turn them into the funniest, cleverest line you can. Then everyone
