@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, createContext, useContext } from "react";
+import { useEffect, useLayoutEffect, useState, useCallback, useRef, createContext, useContext } from "react";
 import { Routes, Route, useParams, useNavigate, useLocation } from "react-router-dom";
 import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, getAuth, doneVoting, API_URL, topicGo, kickVote, fetchPassenger, searchPassengers } from "./services/api";
 import { useSignalR } from "./hooks/useSignalR";
@@ -1151,7 +1151,7 @@ const goldName = name => (isGolden(name) ? {
 
 // A player's name you can click. One rule everywhere (Damon asked for it clear, 2026-10-18; like Discord, Slack
 // and Twitch): a click opens the player's Sky Passport card, whose main button is Message. Kicking is never a
-// click: only "/kick name" in Sky Train Chat. ("profile" is kept for older calls; it no longer changes anything.)
+// click: only "/eject name" in Sky Train Chat. ("profile" is kept for older calls; it no longer changes anything.)
 function NameLink({ name, style, gold = false }) {   // gold: golden names in gold (chat lines only)
   if (!name) return <span style={style}>{name}</span>;
   const go = el => openProfile(name, el);
@@ -1327,7 +1327,7 @@ function HowToPlay({ winScore = 30 }) {
               <RulesSection icon="💬" title="Tips">
                 <ul style={rulesList}>
                   <li>Click a name to message that passenger: type and press Enter.</li>
-                  <li>To vote someone off a train, type <b style={{ color: C.textPrimary }}>/kick name</b> in Sky Train Chat.</li>
+                  <li>To vote someone off a train, type <b style={{ color: C.textPrimary }}>/eject name</b> in Sky Train Chat.</li>
                   <li><b style={{ color: C.textPrimary }}>Colors</b>: the look of the station and the font of the big letters (or just click the big letters).</li>
                   <li><b style={{ color: C.textPrimary }}>Music</b>: volume, button sounds, and your song while acros are written. It switches at once.</li>
                 </ul>
@@ -1784,6 +1784,8 @@ const PRACTICE_STATIONS = [
   { letters: "HMCCPB", topic: "Outer space adventure", acros: [["Hyperspace mission, chart cosmic planetary bodies.", 1], ["Hovering my craft carefully.... Pluto's beautiful!"]] },
 ];
 // The special topics, in one line each (as in How to play), shown under the topic in the practice
+// A station starts with its writing time, or first with the special topic explained (Damon, 2026-10-22)
+const practiceStart = st => (st && specialTopicNote(st.topic) ? "intro" : "write");
 function specialTopicNote(topic) {
   const t = (topic || "").toLowerCase();
   if (t.startsWith("a + b = c")) return 'The first word plus the second word makes the third: "Sun + Flower = Sunflower".';
@@ -1845,7 +1847,8 @@ function PracticeTrain({ onClose = null, boarding = null }) {
   const endRef = useRef(0);                              // when this station's writing time ends (for the Music menu)
   const inputRef = useRef(null);
   useEffect(() => {
-    setStations(practiceRide());                          // the handpicked stations (no server call)
+    const ride = practiceRide();                          // the handpicked stations (no server call)
+    setStations(ride); setPhase(practiceStart(ride[0]));
     return () => musicRef.current?.stop();
   }, []);
   const st = stations?.[n];
@@ -1884,7 +1887,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
     musicRef.current?.stop();
     setPhase("reveal");
   };
-  const next = () => { setN(x => x + 1); setPhase("write"); };
+  const next = () => { setN(x => x + 1); setPhase(practiceStart(stations?.[n + 1])); };
   const shell = children => (
     <div style={onClose
       ? { position: "fixed", inset: 0, zIndex: 86, overflowY: "auto", background: "var(--c-bgApp)", backgroundImage: "var(--c-bgGradient, none)", color: C.textPrimary, display: "flex", flexDirection: "column" }
@@ -1927,12 +1930,22 @@ function PracticeTrain({ onClose = null, boarding = null }) {
         <p style={{ margin: 0, fontSize: 17, color: C.textSecond }}>Join free (just a name and a password) and ride the Daily Express at 23:00 Cyprus time ({nightExpress(Date.now(), []).local} your time) to find out.</p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
           <Btn onClick={leave}>{getAuth()?.token ? "Back to the Grand Sky Station" : "Join free"}</Btn>
-          <BtnSecondary onClick={() => { setStations(practiceRide()); setMine([]); setN(0); setPhase("write"); }}>Another practice ride</BtnSecondary>
+          <BtnSecondary onClick={() => { const ride = practiceRide(); setStations(ride); setMine([]); setN(0); setPhase(practiceStart(ride[0])); }}>Another practice ride</BtnSecondary>
         </div>
       </Panel>
     );
   }
   const letters = st.letters.split("");
+  // A special topic: explained first; the letters and the clock come when the player is ready
+  if (phase === "intro") return shell(
+    <Panel style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12, alignItems: "center", textAlign: "center", maxWidth: 560, width: "100%", margin: "0 auto", boxSizing: "border-box", borderColor: C.teal }}>
+      <div style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: C.textMuted }}>🎭 Special topic</div>
+      <div style={{ ...honkTitle, fontSize: 36, lineHeight: 1.15 }}>{st.topic}</div>
+      <div style={{ fontSize: 18, color: C.textPrimary }}>{specialTopicNote(st.topic)}</div>
+      <div style={{ fontSize: 15, color: C.textSecond }}>Your letters and the {PRACTICE_SECONDS} seconds start when you're ready.</div>
+      <Btn autoFocus onClick={() => setPhase("write")}>I'm ready →</Btn>
+    </Panel>
+  );
   return shell(
     <>
       {/* the stage: topic, timer, letters — the game's look, in the player's own letter font */}
@@ -2425,10 +2438,12 @@ function PassengerCard({ inTrain = false }) {
   const [p, setP] = useState(null);
   const [err, setErr] = useState("");
   const [text, setText] = useState("");
+  const cardRef = useRef(null);
+  const [top, setTop] = useState(null);                    // measured: the card's top, kept inside the window
   useEffect(() => {
     const open = e => {
       const d = typeof e.detail === "string" ? { name: e.detail } : e.detail;
-      setName(d.name); setRect(d.rect || null); setP(null); setErr(""); setText("");
+      setName(d.name); setRect(d.rect || null); setP(null); setErr(""); setText(""); setTop(null);
     };
     window.addEventListener("acro-open-profile", open);
     return () => window.removeEventListener("acro-open-profile", open);
@@ -2440,6 +2455,15 @@ function PassengerCard({ inTrain = false }) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [name]);
+  // Under the name if the card fits there, else above it, else as low as fits — never off the screen (2026-10-22:
+  // at the station the list is low on the page and the card opened above it, its name and message box out of sight)
+  useLayoutEffect(() => {
+    const el = cardRef.current;
+    if (!el || !rect || window.innerWidth < 600) return;
+    const h = el.offsetHeight, H = window.innerHeight;
+    const t = rect.bottom + 6 + h <= H - 8 ? rect.bottom + 6 : rect.top - 6 - h >= 8 ? rect.top - 6 - h : Math.max(8, H - h - 8);
+    if (t !== top) setTop(t);
+  }, [name, p, err, rect, top]);   // again when the stats load in (the card grows)
   if (!name) return null;
   const me = String(getAuth()?.username || "").toLowerCase() === String(name).toLowerCase();
   const send = async () => {
@@ -2452,13 +2476,12 @@ function PassengerCard({ inTrain = false }) {
   // Beside the name: under it (or above it when it's low on the screen), kept inside the window
   const W = Math.min(360, window.innerWidth - 16);
   const place = rect && window.innerWidth >= 600
-    ? { left: Math.max(8, Math.min(rect.left, window.innerWidth - W - 8)),
-        ...(rect.bottom > window.innerHeight * 0.55 ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }) }
+    ? { left: Math.max(8, Math.min(rect.left, window.innerWidth - W - 8)), top: top ?? rect.bottom + 6, visibility: top == null ? "hidden" : "visible" }
     : { left: (window.innerWidth - W) / 2, top: "12vh" };
   return (
     <div onPointerDown={e => { if (e.target === e.currentTarget) setName(null); }}
       style={{ position: "fixed", inset: 0, zIndex: 88, background: rect ? "transparent" : "rgba(0,0,0,0.35)" }}>
-      <div role="dialog" aria-label={`${name}`} style={{ position: "fixed", ...place, background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: W, boxSizing: "border-box", padding: 16, boxShadow: "0 16px 48px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div ref={cardRef} role="dialog" aria-label={`${name}`} style={{ position: "fixed", ...place, maxHeight: "calc(100vh - 16px)", overflowY: "auto", background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: W, boxSizing: "border-box", padding: 16, boxShadow: "0 16px 48px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
           {p ? <PassHeader p={p} /> : <div style={{ ...honkTitle, fontSize: 32, color: C.brand, fontPalette: "var(--fp-letters)" }}>{name}</div>}
           <button onClick={() => setName(null)} aria-label="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 20 }}>✕</button>
@@ -3004,20 +3027,19 @@ function Lobby() {
                     return (
                       // One rule everywhere: a click opens the player's Sky Passport card; Message is its main button
                       <li key={o.name} onClick={e => openProfile(o.name, e.currentTarget)} title={`Message ${o.name} or see their Sky Passport`}
-                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: isMe ? C.navy2 : "transparent", cursor: "pointer" }}>
-                        <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.success, flexShrink: 0 }} />
-                        <AvatarSquare name={o.name} size={32} />
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: 15, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            <span>{o.name}</span>
-                          </div>
-                          <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Online · {o.where}</div>
+                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 6px", borderRadius: 8, background: isMe ? C.navy2 : "transparent", cursor: "pointer" }}>
+                        {/* one line per passenger (Damon, 2026-10-22: ready for many more players): a smaller avatar, the
+                            name, and the train's name after it when they're aboard one (the full place is in the hover) */}
+                        <AvatarSquare name={o.name} size={22} />
+                        <div data-hint={`${o.name} · ${o.where}`} style={{ minWidth: 0, flex: 1, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ fontWeight: 600 }}>{o.name}</span>
+                          {o.onTrain && <span style={{ fontSize: 13, color: C.textMuted }}> · 🚂 {o.where.replace(/^Aboard /, "")}</span>}
                         </div>
                         {/* Unread private messages from them */}
                         {(pm.unread[o.name] || 0) > 0 && <span style={{ background: C.brand, color: C.onBrand, fontSize: 11, borderRadius: 999, padding: "1px 6px" }}>{pm.unread[o.name]}</span>}
                         {/* one click straight to a private chat (2026-10-22) */}
                         {!isMe && <button onClick={e => { e.stopPropagation(); openPm(o.name); }} title={`Message ${o.name}`} aria-label={`Message ${o.name}`} data-hint={`Send ${o.name} a private message`}
-                          style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, color: C.teal, cursor: "pointer", fontSize: 15, lineHeight: 1, padding: "5px 7px", flexShrink: 0 }}>✉</button>}
+                          style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, color: C.teal, cursor: "pointer", fontSize: 13, lineHeight: 1, padding: "3px 5px", flexShrink: 0 }}>✉</button>}
                       </li>
                     );
                   })}
@@ -3226,7 +3248,6 @@ function useWordOfWeek() {
 const DEMO_ACROS = [
   { topic: "Words on your tombstone", acro: "An Angel's Risen Skywards", votes: 3 },
   { topic: "A + B = C", acro: "Winning + Ticket = Millions", votes: 4 },
-  { topic: "Once upon a time…", acro: "…dwarves were loving Snowhite!", votes: 3 },
   { topic: "Rhyme", acro: "Clothes fold, Dad's old.", votes: 4 },
   { topic: "Thank you", acro: "Love now playing Acro Express!", votes: 4 },
 ];
@@ -4197,10 +4218,10 @@ function Room() {
       });
       if (sameId(m.voterId, auth?.userId)) {
         setMyKicks(prev => m.added ? [...prev, String(m.targetId).toLowerCase()] : prev.filter(t => t !== String(m.targetId).toLowerCase()));
-        postSystemMessage(m.added ? `You voted to kick "${m.target}".` : `You took back your vote to kick "${m.target}".`);
+        postSystemMessage(m.added ? `You voted to eject "${m.target}".` : `You took back your vote to eject "${m.target}".`);
       } else {
-        postSystemMessage(m.added ? `A vote to kick "${m.target}" was cast (${m.votes} of ${m.needed} needed).`
-          : `A vote to kick "${m.target}" was taken back (${m.votes} of ${m.needed}).`);
+        postSystemMessage(m.added ? `A vote to eject "${m.target}" was cast (${m.votes} of ${m.needed} needed).`
+          : `A vote to eject "${m.target}" was taken back (${m.votes} of ${m.needed}).`);
       }
     }, [auth]),
 
@@ -4259,7 +4280,7 @@ function Room() {
     return () => clearInterval(iv);
   }, [topicTimer]);
 
-  // Vote to kick (or take the vote back) — only by typing "/kick name" in Sky Train Chat
+  // Vote to eject (or take the vote back) — only by typing "/eject name" in Sky Train Chat
   async function voteKick(name) {
     try {
       const r = await kickVote(id, name);
@@ -4272,9 +4293,10 @@ function Room() {
   async function sendRoomMessage() {
     const text = roomChatInput.trim();
     if (!text || !auth) return;
-    // "/kick name" votes to kick instead of chatting (Damon 2026-10-19: /kick only; /kp no longer)
-    const cmd = text.match(/^\/kick\s+(.+)$/i);
+    // "/eject name" votes to eject instead of chatting (Damon 2026-10-22: /eject, and no /kick any more)
+    const cmd = text.match(/^\/eject\s+(.+)$/i);
     if (cmd) { setRoomChatInput(""); voteKick(cmd[1].trim()); return; }
+    if (/^\/kick\b/i.test(text)) { setRoomChatInput(""); postSystemMessage("It's /eject now: type /eject name to vote someone off the train."); return; }
     try {
       const conn = connectionRef.current;
       if (conn) {
@@ -4565,7 +4587,7 @@ function Room() {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, color: C.textPrimary }}>
       <Panel style={{ padding: 32, textAlign: "center", maxWidth: 480, borderColor: C.brand }}>
         <h2 style={{ margin: "0 0 12px", fontFamily: "Fredoka, sans-serif", fontSize: 26, color: C.ivory }}>
-          You were removed from this train by a passenger vote
+          You were ejected from this train by a passenger vote
         </h2>
         <p style={{ margin: "0 0 24px", color: C.textSecond, fontSize: 16 }}>
           You can board it again when this journey ends — or board another train now.
@@ -4971,7 +4993,7 @@ function Room() {
                   title={`Message ${p.nickname} or see their Sky Passport`}
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
                   // One click opens their Sky Passport card (Message is its main button), like everywhere else.
-                  // Kicking is never mixed in here (Damon, 2026-10-18): only "/kick name" in Sky Train Chat
+                  // Ejecting is never mixed in here (Damon, 2026-10-18): only "/eject name" in Sky Train Chat
                   onClick={e => openProfile(p.nickname, e.currentTarget)}>
                   {/* Left side: a fixed tick column, then the name — the ✓ sits outside the name in its own
                       16px column, so names never move when someone submits (Damon's request) */}
@@ -4992,8 +5014,8 @@ function Room() {
                     )}
                     {/* Votes to kick this passenger, for everyone to see (the passenger too) */}
                     {kickVotes[String(p.id).toLowerCase()] && (
-                      <span title="Votes to kick" style={{ marginLeft: 6, color: C.brand, fontSize: 12, fontWeight: 700 }}>
-                        kick {kickVotes[String(p.id).toLowerCase()].votes}/{kickVotes[String(p.id).toLowerCase()].needed}
+                      <span title="Votes to eject" style={{ marginLeft: 6, color: C.brand, fontSize: 12, fontWeight: 700 }}>
+                        eject {kickVotes[String(p.id).toLowerCase()].votes}/{kickVotes[String(p.id).toLowerCase()].needed}
                       </span>
                     )}
                   </span>
