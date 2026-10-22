@@ -2569,7 +2569,9 @@ function Lobby() {
       {/* the line runs edge to edge; the logo and menus sit in the same column as the panels below (Damon, 2026-10-22) */}
       <div style={{ flexShrink: 0, borderBottom: `1px solid ${C.border}` }}>
       <div style={{ maxWidth: 1400, margin: "0 auto", boxSizing: "border-box", padding: phone ? "10px 10px" : "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 8, columnGap: shortWin ? 20 : 16 }}>
-        <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : (shortWin ? 40 : 46), fontWeight: 400, margin: 0, lineHeight: 1.05, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
+        {/* marginLeft: Honk draws an outline in the box colour around the letters, almost invisible on the page, so the
+            visible A started ~3px right of the panels' edge (Damon, 2026-10-22): pulled back by that outline */}
+        <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : (shortWin ? 40 : 46), fontWeight: 400, margin: 0, marginLeft: "-0.065em", lineHeight: 1.05, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
           Acro Express<sup style={{ fontFamily: "'Nunito', sans-serif", fontSize: 12, color: "var(--c-bgText)", marginLeft: 3, verticalAlign: "super" }}>™</sup>
         </h1>
         {/* Short windows: the greeting and your buttons sit here, next to the logo, instead of in their own bar */}
@@ -3034,7 +3036,8 @@ function StationBoard({ news }) {
       style={{ maxWidth: 1400, margin: "0 auto", display: "flex", alignItems: "center", gap: 10, minHeight: 32, padding: window.innerWidth < 600 ? "4px 10px" : "4px 16px", boxSizing: "border-box",
         cursor: line.onClick && !hint ? "pointer" : "default" }}>
       {/* the board's lamp: teal for news, amber while explaining */}
-      <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: hint ? "var(--c-gold, #FFC24A)" : C.teal, boxShadow: `0 0 8px ${hint ? "var(--c-gold, #FFC24A)" : C.teal}` }} />
+      {/* its glow only to the right, so its left edge lines up with the panels (Damon, 2026-10-22) */}
+      <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: hint ? "var(--c-gold, #FFC24A)" : C.teal, boxShadow: `4px 0 8px -2px ${hint ? "var(--c-gold, #FFC24A)" : C.teal}` }} />
       <span style={{ fontSize: 14, color: hint ? C.textPrimary : C.textSecond, letterSpacing: "0.02em", opacity: hint || shown ? 1 : 0, transition: hint ? "none" : "opacity 0.35s" }}>
         {line.icon && <span style={{ marginRight: 6 }}>{line.icon}</span>}{line.text}
         {line.onClick && !hint && <span style={{ color: C.teal, marginLeft: 6 }}>→</span>}
