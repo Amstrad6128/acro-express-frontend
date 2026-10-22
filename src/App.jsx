@@ -1783,6 +1783,15 @@ const PRACTICE_STATIONS = [
   { letters: "HSBPS", topic: "Bad racehorse names", acros: [["\"Hop Stop\" \"Boring Pace\" \"Sleepy\"", 1], ["\"Hero Slacker\" \"Broken Pal\" \"Slowpoke\""], ["\"Happy Skipper\" \"Big Problem\" \"Slowpoke\""]] },
   { letters: "HMCCPB", topic: "Outer space adventure", acros: [["Hyperspace mission, chart cosmic planetary bodies.", 1], ["Hovering my craft carefully.... Pluto's beautiful!"]] },
 ];
+// The special topics, in one line each (as in How to play), shown under the topic in the practice
+function specialTopicNote(topic) {
+  const t = (topic || "").toLowerCase();
+  if (t.startsWith("a + b = c")) return 'The first word plus the second word makes the third: "Sun + Flower = Sunflower".';
+  if (t.startsWith("word > chain")) return 'Each word goes with the next one; put > between the words: "Fire > Truck > Driver".';
+  if (t.startsWith("word bank")) return 'Every letter of the 2nd and 3rd words must also be in the 1st word: "Pastries Ape Sit".';
+  if (t.startsWith("rhyme")) return 'Use words that rhyme: "Fat Cat Sat".';
+  return null;
+}
 // A ride: a 3-letter station, a 4-letter one, then a longer one, each picked at random; the acros shuffled
 function practiceRide() {
   const pick = list => list[Math.floor(Math.random() * list.length)];
@@ -1930,6 +1939,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: C.textMuted }}>Topic</div>
         <div style={{ ...honkTitle, fontSize: 30, lineHeight: 1.15 }}>{st.topic}</div>
+        {specialTopicNote(st.topic) && <div style={{ color: C.textSecond, fontSize: 15, marginTop: 4 }}>🎭 Special topic: {specialTopicNote(st.topic)}</div>}
         {phase === "write" && (
           <div style={{ fontSize: `calc(clamp(28px, 6vh, 46px) * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, lineHeight: "var(--tf-lh, 1)", color: left <= 10 ? C.brand : C.teal, marginTop: 6,
             // as on the train: with Honk, the palette's colours (the letters' colours in the last 10 s), no shadow — without
@@ -2816,7 +2826,7 @@ function Lobby() {
           under Departures, where it competed with the trains — its own button, explained) */}
       <span data-hint="Three stations from our past games to write acros for, on your own: then see what the passengers wrote. No scores, just fun" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
         <BtnSecondary onClick={() => setPracticing(true)} style={smallBtn}>🚂 Practice ride</BtnSecondary>
-        {!phone && !shortWin && <span style={{ fontSize: 13, color: C.textMuted, whiteSpace: "nowrap" }}>or try a solo warm-up session</span>}
+        {!phone && !shortWin && <span style={{ fontSize: 13, color: C.textMuted, whiteSpace: "nowrap" }}>try a solo warm-up session</span>}
       </span>
       <button data-hint="Log out on this computer" onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4, whiteSpace: "nowrap" }}>Log out</button>
     </>
