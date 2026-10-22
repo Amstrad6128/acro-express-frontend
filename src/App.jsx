@@ -668,12 +668,6 @@ function HeaderMenu({ label, children, width = 230 }) {
 // "Colors: Midnight ▾" (was "Express Colors", renamed by Damon 2026-10-20) — pick a palette; the page recolours at once (Damon: no settings page)
 function ThemePicker() {
   const [current, setCurrent] = useState(loadThemeKey);
-  const [letterFont, setLetterFont] = useState(loadLetterFont);   // "bowlby" or "honk"
-  useEffect(() => {
-    const on = e => setLetterFont(e.detail);
-    window.addEventListener("acro-letterfont", on);
-    return () => window.removeEventListener("acro-letterfont", on);
-  }, []);
   return (
     <HeaderMenu label={<>Colors: <span style={{ color: C.teal, fontWeight: 600 }}>{THEMES[current].name}</span></>}>
       {(close, big) => (
@@ -692,8 +686,27 @@ function ThemePicker() {
               </button>
             );
           })}
+        </>
+      )}
+    </HeaderMenu>
+  );
+}
+
+// "Letters: Bowlby ▾" — the font of the big letters and the timer, on the trains only (2026-10-22, moved out of
+// Colors: Damon, "it only affects things there"). Clicking the letters themselves still picks the next font.
+function LetterFontPicker() {
+  const [letterFont, setLetterFont] = useState(loadLetterFont);
+  useEffect(() => {
+    const on = e => setLetterFont(e.detail);
+    window.addEventListener("acro-letterfont", on);                 // a click on the letters changes it too
+    return () => window.removeEventListener("acro-letterfont", on);
+  }, []);
+  return (
+    <HeaderMenu width={240} label={<>Letters: <span style={{ color: C.teal, fontWeight: 600 }}>{LETTER_FONTS[letterFont]}</span></>}>
+      {(close, big) => (
+        <>
+          <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>The font of the big letters and the timer. Only you see it. (Or just click the letters.)</div>
           {/* The big letters' font (and the timer's): Bowlby, Honk, Trueno, Nunito or Righteous. Each button shows "B T V" in its own font */}
-          <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 6px", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>Big letters</div>
           {/* one font per row, stacked like the floors of a building (Damon, 2026-10-22: not columns) */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {Object.entries(LETTER_FONTS).map(([key, name]) => {
@@ -1715,6 +1728,160 @@ function NumbersPage() {
   );
 }
 
+// ── The Practice Train (2026-10-22, Damon's spec) ─────────────────
+// Newcomers play right away, alone, without signing up: three REAL past stations (their letters and topic, from
+// api/practice), with the game's look, timer, music and clock tick. A writing experience, not a competition: no
+// voting, no scores, nothing stored. After each station: the acros real passengers wrote for it (no names; a ★ on the
+// passengers' favourite). After three: an invitation to the Daily Express. 40 seconds a station (≈ 2 minutes).
+const PRACTICE_SECONDS = 40;
+// The same rule as the server (AcroValidator): one word per letter, in order; a "word" has at least one letter
+function practiceProblem(letters, text) {
+  const words = text.trim().split(/\s+/).filter(w => /\p{L}/u.test(w));
+  if (!words.length) return "Write one word for each letter.";
+  if (words.length !== letters.length) return `Write ${letters.length} words, one for each letter (you have ${words.length}).`;
+  for (let i = 0; i < letters.length; i++) {
+    const first = words[i].match(/\p{L}/u)[0].toUpperCase();
+    if (first !== letters[i]) return `Word ${i + 1} should start with ${letters[i]}.`;
+  }
+  return "";
+}
+// The player's song for a practice station: the Original (from the right spot, so it ends at 0) or a song made here
+function startPracticeMusic(seconds) {
+  const music = soundSettings.music || "classic";
+  if (soundGain() <= 0) return { stop() { } };
+  if (music !== "classic") {
+    let pl = null, stopped = false;
+    playTheme(music, seconds, THEME_LEVEL, seconds).then(p => { pl = p; if (stopped) p?.stop(); else p?.setLevel(THEME_LEVEL * soundGain()); }).catch(() => { });
+    return { stop() { stopped = true; pl?.stop(); } };
+  }
+  const audio = new Audio("/AcroExpress_tunes.m4a");
+  audio.volume = THEME_LEVEL * soundGain();
+  try { audio.currentTime = Math.max(0, 91.9 - seconds); } catch { /* not ready: starts at 0 */ }
+  audio.play().catch(() => { });
+  return { stop() { audio.pause(); } };
+}
+function PracticeTrain() {
+  const navigate = useNavigate();
+  const [stations, setStations] = useState(null);       // the three stations from the server
+  const [err, setErr] = useState("");
+  const [n, setN] = useState(0);                         // which station (0–2); 3 = the end
+  const [phase, setPhase] = useState("write");           // "write" → "reveal"
+  const [left, setLeft] = useState(PRACTICE_SECONDS);
+  const [text, setText] = useState("");
+  const textRef = useRef("");                            // the latest text, for the timer's "time's up"
+  const [mine, setMine] = useState([]);                  // the player's acro per station ("" = none)
+  const [problem, setProblem] = useState("");
+  const musicRef = useRef(null);
+  const inputRef = useRef(null);
+  useEffect(() => {
+    fetch(`${API_URL}/api/practice`).then(r => r.json()).then(d => {
+      if (!d.stations?.length) throw new Error("No practice stations yet: come back a little later!");
+      setStations(d.stations);
+    }).catch(e => setErr(e.message || "Couldn't load the practice ride. Try again in a moment."));
+    return () => musicRef.current?.stop();
+  }, []);
+  const st = stations?.[n];
+  // each station: the timer and the music
+  useEffect(() => {
+    if (!st || phase !== "write") return;
+    setLeft(PRACTICE_SECONDS); setText(""); textRef.current = ""; setProblem("");
+    musicRef.current?.stop(); musicRef.current = startPracticeMusic(PRACTICE_SECONDS);
+    setTimeout(() => inputRef.current?.focus(), 50);
+    const end = Date.now() + PRACTICE_SECONDS * 1000;
+    const iv = setInterval(() => {
+      const s = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+      setLeft(s);
+      if (s <= 0) { clearInterval(iv); finish(true); }
+    }, 250);
+    return () => clearInterval(iv);
+  }, [st, phase]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // Send (Enter or the button) — or time's up: a valid acro still counts, like in the game
+  const finish = (timeUp = false) => {
+    const cur = textRef.current;
+    const ok = cur.trim() && !practiceProblem(st.letters, cur);
+    if (!timeUp && !ok) { setProblem(practiceProblem(st.letters, cur)); return; }
+    setMine(m => { const c = [...m]; c[n] = ok ? cur.trim() : ""; return c; });
+    musicRef.current?.stop();
+    setPhase("reveal");
+  };
+  const next = () => { setN(x => x + 1); setPhase("write"); };
+  const shell = children => (
+    <div style={{ minHeight: "100vh", color: C.textPrimary, display: "flex", flexDirection: "column" }}>
+      <div style={{ borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: 34, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15", lineHeight: 1.05 }}>Acro Express</span>
+          <span style={{ color: C.teal, fontWeight: 700 }}>🚂 Practice ride{st && n < 3 ? ` · Station ${n + 1} of 3` : ""}</span>
+          <BtnSecondary onClick={() => { musicRef.current?.stop(); navigate("/"); }} style={{ padding: "6px 12px", fontSize: 14 }}>Leave the practice</BtnSecondary>
+        </div>
+      </div>
+      <div style={{ flex: 1, width: "100%", maxWidth: 900, margin: "0 auto", padding: "16px", boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 14 }}>{children}</div>
+    </div>
+  );
+  if (err) return shell(<Panel style={{ padding: 20 }}><p style={{ margin: 0 }}>{err}</p></Panel>);
+  if (!stations) return shell(<p style={{ color: "var(--c-bgText)" }}>Boarding…</p>);
+  // the end of the ride
+  if (n >= 3) {
+    const written = mine.filter(Boolean).length;
+    return shell(
+      <Panel style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14, textAlign: "center", alignItems: "center" }}>
+        <h1 style={{ margin: 0, fontSize: 38, ...honkTitle }}>End of the line!</h1>
+        <p style={{ margin: 0, color: C.textSecond, fontSize: 17 }}>You wrote {written} acro{written === 1 ? "" : "s"} on this ride.</p>
+        {mine.map((m, i) => m && <div key={i} style={{ fontSize: 18 }}><span style={{ color: C.brand, letterSpacing: "0.1em", fontWeight: 800 }}>{stations[i].letters.split("").join(" ")}</span> · "{m}"</div>)}
+        {/* Damon's closing message */}
+        <p style={{ margin: "8px 0 0", fontSize: 19, color: C.textPrimary, fontWeight: 700 }}>Wonder how your acros would fare with the passengers?</p>
+        <p style={{ margin: 0, fontSize: 17, color: C.textSecond }}>Get your Sky Passport and join the Daily Express at 23:00 Cyprus time ({nightExpress(Date.now(), []).local} your time) to find out.</p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
+          <Btn onClick={() => navigate("/")}>{getAuth()?.token ? "Back to the Grand Sky Station" : "Get my Sky Passport"}</Btn>
+          <BtnSecondary onClick={() => { setStations(null); setMine([]); setN(0); setPhase("write"); fetch(`${API_URL}/api/practice`).then(r => r.json()).then(d => setStations(d.stations)).catch(() => setErr("Couldn't load another ride.")); }}>Another practice ride</BtnSecondary>
+        </div>
+      </Panel>
+    );
+  }
+  const letters = st.letters.split("");
+  return shell(
+    <>
+      {/* the stage: topic, timer, letters — the game's look, in the player's own letter font */}
+      <div style={{ textAlign: "center" }}>
+        <div style={{ color: C.textSecond, fontSize: 15 }}>Topic: <b style={{ color: C.teal }}>{st.topic}</b></div>
+        {phase === "write" && (
+          <div style={{ fontSize: `calc(clamp(28px, 6vh, 46px) * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, lineHeight: "var(--tf-lh, 1)", color: left <= 10 ? C.brand : C.teal, marginTop: 6 }}>{left}</div>
+        )}
+        <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 6 }}>
+          {letters.map((L, i) => (
+            <span key={i} style={{ fontFamily: "var(--lf-family, 'Bowlby One SC', serif)", fontWeight: "var(--lf-weight, 400)", fontSize: "calc(clamp(3rem, 11vh, 6rem) * var(--lf-scale, 1))", lineHeight: "var(--lf-lh, 1)", color: C.brand, fontPalette: "var(--fp-big)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", textShadow: "var(--lf-shadow, var(--c-letterShadow))" }}>{L}</span>
+          ))}
+        </div>
+      </div>
+      {phase === "write" ? (
+        <form onSubmit={e => { e.preventDefault(); finish(false); }} style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "stretch", maxWidth: 640, width: "100%", margin: "0 auto" }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input ref={inputRef} value={text} onChange={e => { setText(e.target.value); textRef.current = e.target.value; setProblem(""); }} maxLength={300} placeholder="Type your acro and press Enter"
+              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "12px 14px", color: C.textPrimary, fontSize: 18, outline: "none", fontFamily: "inherit", textAlign: "center" }} />
+            <Btn onClick={() => finish(false)}>Submit</Btn>
+          </div>
+          <div style={{ minHeight: 20, textAlign: "center", fontSize: 14, color: problem ? C.brand : C.textMuted }}>{problem || "One word for each letter, in order. Have fun with the topic!"}</div>
+        </form>
+      ) : (
+        // the reveal: the player's acro, then what the passengers wrote for these letters (no names)
+        <Panel style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10, maxWidth: 640, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
+          <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Your acro</div>
+          <div style={{ fontSize: 19, color: mine[n] ? C.textPrimary : C.textMuted }}>{mine[n] ? `"${mine[n]}"` : "Time ran out this time. No problem, it's practice!"}</div>
+          <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 8 }}>What the passengers wrote for these letters</div>
+          {st.acros.map((a, i) => (
+            <div key={i} style={{ fontSize: 17, color: C.textPrimary, display: "flex", gap: 8, alignItems: "baseline" }}>
+              <span style={{ color: a.won ? "var(--c-gold, #FFC24A)" : C.textMuted, width: 16, flexShrink: 0 }}>{a.won ? "★" : "·"}</span>
+              <span>"{a.text}"{a.won && <span style={{ color: C.textMuted, fontSize: 13 }}> · the passengers' favourite</span>}</span>
+            </div>
+          ))}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+            <Btn onClick={next}>{n < 2 ? "Next station →" : "Finish the ride →"}</Btn>
+          </div>
+        </Panel>
+      )}
+    </>
+  );
+}
+
 // ── House Rules, Privacy and the footer (2026-10-18) ───────────
 // Written in train words so the game stays playful. Not legal advice: Damon may have the texts checked.
 // Contact = a private message to the admin in the game (no email address yet).
@@ -2602,7 +2769,7 @@ function Lobby() {
           {auth && <span data-hint="Sky Leaderboard: the champions of the week, the month and all time" style={{ display: "contents" }}>
             <button onClick={() => navigate("/leaderboard")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏆 Sky Leaderboard</button></span>}
           <span data-hint="How to play: the rules, the points and the special topics" style={{ display: "contents" }}><HowToPlay winScore={roomList[0]?.winScore || 30} /></span>
-          {auth && <span data-hint="Colors: the look of the station and the big letters' font. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>}
+          {auth && <span data-hint="Colors: the look of the station and the trains. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>}
           {/* ("All lines running" moved to the Station Board's right end, 2026-10-22: loose text broke the row of buttons) */}
         </div>
       </div>
@@ -2648,6 +2815,8 @@ function Lobby() {
                   <p style={{ margin: "8px 0 0", color: C.textPrimary, fontSize: 17, fontWeight: 700 }}>First to {30} points wins the journey. Grab a seat!</p>
                 </div>
                 <AcroDemo />
+                {/* the Practice Train: play right away, no sign-up (2026-10-22) */}
+                <button onClick={() => navigate("/practice")} style={{ alignSelf: "flex-start", background: "transparent", border: `2px solid ${C.teal}`, borderRadius: 999, color: C.teal, fontFamily: "inherit", fontSize: 16, fontWeight: 700, padding: "9px 18px", cursor: "pointer" }}>🚂 Take a practice ride · 3 stations · 2 minutes</button>
                 <div style={{ display: "grid", gridTemplateColumns: phone ? "1fr" : "repeat(3, 1fr)", gap: 10 }}>
                   {step("1", "Letters arrive", "And a topic.")}
                   {step("2", "Write a phrase", "One word per letter, about a minute.")}
@@ -2786,7 +2955,7 @@ function Lobby() {
               <Icon name="train" size={30} color={C.teal} />
               <div>
                 <h2 style={boxTitle}>Departures</h2>
-                <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}</div>
+                <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? <>Are you ready to play? Start a Sky Train! Quiet right now? <button data-hint="Three real past stations to write acros for, on your own: no scores, just practice" onClick={() => navigate("/practice")} style={{ background: "none", border: "none", padding: 0, color: C.teal, fontFamily: "inherit", fontSize: 14, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>🚂 Take a practice ride</button></> : "Pick a train and hop on, or start your own."}</div>
               </div>
             </div>
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
@@ -4399,7 +4568,8 @@ function Room() {
             {/* "Colors" and "Music" menus — change them any time, even mid-game */}
             <span data-hint="Online: who is at the station and on the trains right now" style={{ display: "contents" }}><OnlineButton /></span>
             <span data-hint="How to play: the rules, the points and the special topics" style={{ display: "contents" }}><HowToPlay winScore={data.winScore || 30} /></span>
-            <span data-hint="Colors: the look of the train and the big letters' font. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>
+            <span data-hint="Colors: the look of the train. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>
+            <span data-hint="Letters: the font of the big letters and the timer (or click the letters)" style={{ display: "contents" }}><LetterFontPicker /></span>
             <span data-hint="Music: volume, button sounds, and your song (it switches at once)" style={{ display: "contents" }}><SoundControl /></span>
             {/* After a game ends the room is back in Waiting, so a new game can be started */}
             {/* Hidden during the 30-second break after a game — the next game starts by itself */}
@@ -4771,6 +4941,7 @@ export default function App() {
       <Route path="/admin/palettes" element={<PaletteStats />} />
       <Route path="/admin/numbers" element={<NumbersPage />} />
       <Route path="/leaderboard" element={<SkyLeaderboard />} />
+      <Route path="/practice" element={<PracticeTrain />} />
       <Route path="/rules" element={<HouseRules />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/passenger/:name" element={<PassengerPage />} />
