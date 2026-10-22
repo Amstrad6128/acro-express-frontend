@@ -1743,6 +1743,7 @@ function NumbersPage() {
                     <th style={cell} title="Finished 2 or more games (so far)">2+ games</th>
                     <th style={cell} title="Everyone who played a station that week">Players</th>
                     <th style={cell} title="Games that reached the Final Stop">Games</th>
+                    <th style={cell} title="Visitors (not signed in): visits · practice started · practice finished · signed up (counted from 22 Oct 2026)">Visitors</th>
                     <th style={cell} title="That week's Word of the Week: acros that used it (players)">📖 Word</th>
                   </tr>
                 </thead>
@@ -1756,6 +1757,7 @@ function NumbersPage() {
                       <td style={cell}>{w.newTwoGames}{pct(w.newTwoGames, w.newPlayed)}</td>
                       <td style={cell}>{w.activePlayers}</td>
                       <td style={cell}>{w.gamesFinished}</td>
+                      <td style={cell}>{w.visits} · {w.practiceStarts} · {w.practiceFinishes} · {w.signups}</td>
                       <td style={cell}>{w.word ? <>{w.word}: {w.wordUses}{w.wordPlayers ? ` (${w.wordPlayers})` : ""}</> : ""}</td>
                     </tr>
                   ))}
@@ -1763,7 +1765,7 @@ function NumbersPage() {
               </table>
             </Panel>
             <p style={{ margin: "-6px 0 0", color: "var(--c-bgText)", fontSize: 13 }}>
-              Came back and 2+ games are counted among the new passengers who played. Stations are recorded from 12 Oct 2026, so earlier playing is missing.
+              Came back and 2+ games are counted among the new passengers who played. Stations are recorded from 12 Oct 2026, so earlier playing is missing. Visitors: visits · practice started · practice finished · signed up (visitors not signed in, counted from 22 Oct 2026).
             </p>
             {/* When people play */}
             <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1772,6 +1774,25 @@ function NumbersPage() {
               <h2 style={{ margin: "8px 0 0", fontSize: 16, color: C.teal }}>Busiest days</h2>
               <Bars values={data.weekdays} labels={WEEKDAY_NAMES} />
               <div style={{ color: C.textMuted, fontSize: 13 }}>Player visits: one player playing in that hour (or on that day) counts once per day.</div>
+            </Panel>
+            {/* Where visitors come from (counted from 22 Oct 2026, api/track) */}
+            <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8, overflowX: "auto" }}>
+              <h2 style={{ margin: 0, fontSize: 16, color: C.teal }}>Where visitors come from</h2>
+              {data.sources?.length ? (
+                <table style={{ borderCollapse: "collapse", fontSize: 14 }}>
+                  <thead><tr style={{ color: C.textMuted }}>
+                    <th style={{ ...cell, textAlign: "left" }}>Source</th><th style={cell}>Visits</th><th style={cell}>Practice</th><th style={cell}>Finished it</th><th style={cell}>Signed up</th>
+                  </tr></thead>
+                  <tbody>{data.sources.map(x => (
+                    <tr key={x.source} style={{ borderTop: `1px solid ${C.border}` }}>
+                      <td style={{ ...cell, textAlign: "left" }}>{x.source === "player" ? "Players (signed in)" : x.source}</td>
+                      <td style={cell}>{x.visits}</td><td style={cell}>{x.practiceStarts}</td><td style={cell}>{x.practiceFinishes}</td>
+                      <td style={cell}>{x.signups}{x.visits ? pct(x.signups, x.visits) : ""}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              ) : <div style={{ color: C.textMuted, fontSize: 14 }}>Nothing yet: counted from 22 Oct 2026.</div>}
+              <div style={{ color: C.textMuted, fontSize: 13 }}>Visitors who aren't signed in, once per browser tab. Tag the links you post, e.g. acro.express/?from=reddit, to see each post here; untagged visits show the site that linked to us, or "direct". Only counts are kept: nothing about the person.</div>
             </Panel>
             {/* Where they play from: the time zone of their computer's clock (recorded from 21 Oct 2026) */}
             <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1897,9 +1918,11 @@ function PracticeTrain({ onClose = null, boarding = null }) {
   useEffect(() => {
     const ride = practiceRide();                          // the handpicked stations (no server call)
     setStations(ride); setPhase(practiceStart(ride[0]));
+    track("practice_start");
     return () => musicRef.current?.stop();
   }, []);
   const st = stations?.[n];
+  useEffect(() => { if (n === 3) track("practice_finish"); }, [n]);   // the end of the ride: all three stations done
   // each station: the timer and the music
   useEffect(() => {
     if (!st || phase !== "write") return;
@@ -1978,7 +2001,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
         <p style={{ margin: 0, fontSize: 17, color: C.textSecond }}>Join free (just a name and a password) and ride the Daily Express at 23:00 Cyprus time ({nightExpress(Date.now(), []).local} your time) to find out.</p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
           <Btn onClick={leave}>{getAuth()?.token ? "Back to the Grand Sky Station" : "Join free"}</Btn>
-          <BtnSecondary onClick={() => { const ride = practiceRide(); setStations(ride); setMine([]); setN(0); setPhase(practiceStart(ride[0])); }}>Another practice ride</BtnSecondary>
+          <BtnSecondary onClick={() => { const ride = practiceRide(); setStations(ride); setMine([]); setN(0); setPhase(practiceStart(ride[0])); track("practice_start"); }}>Another practice ride</BtnSecondary>
         </div>
       </Panel>
     );
@@ -2766,6 +2789,7 @@ function Lobby() {
     try {
       const api = await import("./services/api");
       const data = await (mode === "new" ? api.register : api.login)(username.trim(), password);
+      if (mode === "new") track("signup");             // counted with the source the visit came from
       localStorage.setItem("acro.auth", JSON.stringify(data));
       authChanged();   // the station connection logs in too
       setAuth(data); setUsername(""); setPassword("");
@@ -3293,6 +3317,39 @@ function StatusPill({ text, color }) {
 }
 
 // The platform number in a box, like a station sign ("01"); "free" = a quiet dashed box
+// Counting visitors (2026-10-22, GROWTH.md: "see which posts bring players"). Where this visit came from: our own
+// tag on a link we post (acro.express/?from=reddit), else the site that linked here (facebook.com), else "direct".
+// Worked out once per browser tab and kept in sessionStorage (gone when the tab closes); the ?from= is then taken
+// out of the address, so a link copied from it doesn't carry the tag on.
+function visitSource() {
+  try {
+    const kept = sessionStorage.getItem("acro.from");
+    if (kept) return kept;
+    const url = new URL(window.location.href);
+    let from = (url.searchParams.get("from") || url.searchParams.get("utm_source") || "").toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 40);
+    if (from) {
+      url.searchParams.delete("from"); url.searchParams.delete("utm_source");
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    } else if (document.referrer) {
+      const host = new URL(document.referrer).hostname.replace(/^www\./, "");
+      if (!/(^|\.)acro\.express$|^localhost$/.test(host)) from = host.slice(0, 40);
+    }
+    from = from || "direct";
+    sessionStorage.setItem("acro.from", from);
+    return from;
+  } catch { return "direct"; }
+}
+// One more on today's count for a step: "visit", "practice_start", "practice_finish", "signup". Signed-in players
+// using the practice count as "player", apart from the visitors.
+function track(kind) {
+  const from = kind.startsWith("practice") && getAuth()?.token ? "player" : visitSource();
+  fetch(`${API_URL}/api/track`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, from }), keepalive: true }).catch(() => { });
+}
+// A visit: someone not signed in opened the site (once per tab; the regulars' visits would blur the count)
+try {
+  if (!getAuth()?.token && !sessionStorage.getItem("acro.visited")) { sessionStorage.setItem("acro.visited", "1"); track("visit"); }
+} catch { /* no sessionStorage: not counted */ }
+
 // The Word of the Week (2026-10-22, Damon): a fun, little-known word; an acro that uses it and gets at least one vote
 // earns +1. A new word every Monday (the server's list of 56, api/word). Asked once per page load.
 let wordOfWeekPromise = null;
