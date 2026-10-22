@@ -755,7 +755,10 @@ function SoundControl() {
   const change = (next) => { setSoundSettings(next); setSt(next); };
   const pct = Math.round(st.volume * 100);
   return (
-    <HeaderMenu width={210} label={<>Music: <span style={{ color: C.teal, fontWeight: 600 }}>{st.on ? `${pct}%` : "Off"}</span></>}>
+    <HeaderMenu width={210} label={<>Music: <span style={{ color: C.teal, fontWeight: 600, display: "inline-grid", textAlign: "left" }}>
+      {/* as wide as "100%" whatever it shows, so nothing next to it moves */}
+      <span aria-hidden style={{ gridArea: "1 / 1", visibility: "hidden" }}>100%</span>
+      <span style={{ gridArea: "1 / 1" }}>{st.on ? `${pct}%` : "Off"}</span></span></>}>
       {() => (
         <>
           <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>Music and sound effects</div>
@@ -1830,6 +1833,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
   const [mine, setMine] = useState([]);                  // the player's acro per station ("" = none)
   const [problem, setProblem] = useState("");
   const musicRef = useRef(null);
+  const endRef = useRef(0);                              // when this station's writing time ends (for the Music menu)
   const inputRef = useRef(null);
   useEffect(() => {
     setStations(practiceRide());                          // the handpicked stations (no server call)
@@ -1843,6 +1847,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
     musicRef.current?.stop(); musicRef.current = startPracticeMusic(PRACTICE_SECONDS);
     setTimeout(() => inputRef.current?.focus(), 50);
     const end = Date.now() + PRACTICE_SECONDS * 1000;
+    endRef.current = end;
     const iv = setInterval(() => {
       const s = Math.max(0, Math.ceil((end - Date.now()) / 1000));
       setLeft(s);
@@ -1850,6 +1855,17 @@ function PracticeTrain({ onClose = null, boarding = null }) {
     }, 250);
     return () => clearInterval(iv);
   }, [st, phase]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // The Music menu changed (on/off, volume or song): restart the music for the time that's left, at the right point
+  useEffect(() => {
+    if (phase !== "write") return;
+    const on = () => {
+      const left = (endRef.current - Date.now()) / 1000;
+      musicRef.current?.stop();
+      musicRef.current = left > 3 ? startPracticeMusic(left) : null;
+    };
+    window.addEventListener("acro-sound-change", on);
+    return () => window.removeEventListener("acro-sound-change", on);
+  }, [phase]);
   // Send (Enter or the button) — or time's up: a valid acro still counts, like in the game
   const finish = (timeUp = false) => {
     const cur = textRef.current;
@@ -1870,6 +1886,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
           <span style={{ color: C.teal, fontWeight: 700 }}>🚂 Practice ride{st && n < 3 ? ` · Station ${n + 1} of 3` : ""}</span>
           {/* the letters' font, as on a train (Damon, 2026-10-22: "the practice font doesn't change") */}
           <LetterFontPicker />
+          <SoundControl />   {/* music on/off, volume and song, as on a train */}
           <BtnSecondary onClick={leave} style={{ padding: "6px 12px", fontSize: 14 }}>{onClose ? "Back to the station" : "Leave the practice"}</BtnSecondary>
         </div>
       </div>
