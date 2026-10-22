@@ -309,8 +309,19 @@ const EXTRA_FONTS = {
   dela: { fam: "'Dela Gothic One'", lf: 1.01, tf: 0.95, w: 400 },           // capitals 75, digits 76
 };
 const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", trueno: "Trueno", nunito: "Nunito", righteous: "Righteous", bricolage: "Bricolage", dela: "Dela Gothic" };   // key → name shown in the menu
+// No choice yet (2026-10-22, Damon: "I think Honk"): brand-new players get Honk; someone who has logged in here before
+// keeps Bowlby, the old default, so a regular's letters don't suddenly change. (A saved choice that no longer exists,
+// like "pixel" or "titan", goes back to Bowlby.)
 function loadLetterFont() {
-  try { const k = localStorage.getItem("acro.letterFont"); return LETTER_FONTS[k] ? k : "bowlby"; } catch { return "bowlby"; }
+  try {
+    const k = localStorage.getItem("acro.letterFont");
+    if (!k) {                                             // decided once, then remembered (so signing up later doesn't change it)
+      const d = localStorage.getItem("acro.auth") ? "bowlby" : "honk";
+      localStorage.setItem("acro.letterFont", d);
+      return d;
+    }
+    return LETTER_FONTS[k] ? k : "bowlby";
+  } catch { return "honk"; }
 }
 function applyLetterFont(key) {
   const root = document.documentElement.style;
@@ -1853,6 +1864,8 @@ function PracticeTrain({ onClose = null, boarding = null }) {
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <span style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: 34, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15", lineHeight: 1.05 }}>Acro Express</span>
           <span style={{ color: C.teal, fontWeight: 700 }}>🚂 Practice ride{st && n < 3 ? ` · Station ${n + 1} of 3` : ""}</span>
+          {/* the letters' font, as on a train (Damon, 2026-10-22: "the practice font doesn't change") */}
+          <LetterFontPicker />
           <BtnSecondary onClick={leave} style={{ padding: "6px 12px", fontSize: 14 }}>{onClose ? "Back to the station" : "Leave the practice"}</BtnSecondary>
         </div>
       </div>
@@ -1902,7 +1915,8 @@ function PracticeTrain({ onClose = null, boarding = null }) {
             // fontPalette Honk shows its own yellow-pink gradient (Damon spotted it, 2026-10-22)
             fontPalette: left <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", fontVariantNumeric: "tabular-nums" }}>{left}</div>
         )}
-        <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 6 }}>
+        <div title="Click to change the letters' font" onClick={() => { cycleLetterFont(); inputRef.current?.focus(); }}
+          style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 6, cursor: "pointer", userSelect: "none" }}>
           {letters.map((L, i) => (
             <span key={i} style={{ fontFamily: "var(--lf-family, 'Bowlby One SC', serif)", fontWeight: "var(--lf-weight, 400)", fontSize: "calc(clamp(3rem, 11vh, 6rem) * var(--lf-scale, 1))", lineHeight: "var(--lf-lh, 1)", color: C.brand, fontPalette: "var(--fp-big)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", textShadow: "var(--lf-shadow, var(--c-letterShadow))" }}>{L}</span>
           ))}
