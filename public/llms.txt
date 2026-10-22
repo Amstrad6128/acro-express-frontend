@@ -5,7 +5,7 @@
 ## How it works
 - Players meet at the Grand Sky Station (the lobby), chat, and board a Sky Train (a game room, up to 14 players).
 - Each round (a "station") shows a topic and 3 to 7 random letters, for example B T V.
-- Each player writes a phrase with one word per letter, in order: "Bring The Volcano".
+- Each player writes a phrase with one word per letter, in order: "Bagpipes Terrify Vampires".
 - Entries are shown without names and everyone votes for their favourite.
 - Points: 1 per vote received, a bonus for the winning phrase (1 point per letter), +1 for voting for the winner, and a speed bonus.
 - The first player to reach 30 points wins the journey (the game).

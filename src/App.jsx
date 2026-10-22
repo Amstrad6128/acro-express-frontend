@@ -1324,7 +1324,7 @@ function HowToPlay({ winScore = 30 }) {
               </RulesSection>
               <RulesSection icon="✍️" title="Write">
                 <ul style={rulesList}>
-                  <li>One word for each letter, in order: <b style={{ color: C.textPrimary }}>B T V</b> → <span style={ex}>"Bring The Volcano"</span>.</li>
+                  <li>One word for each letter, in order: <b style={{ color: C.textPrimary }}>B T V</b> → <span style={ex}>"Bagpipes Terrify Vampires"</span>.</li>
                   <li>No extra words, not even "the" or "a". Symbols like + = &gt; &amp; are fine: they don't count as words.</li>
                   <li>You have about a minute. Press Enter to send it; you can change it until the time is up.</li>
                   <li>Still typing when the time runs out? If what you've typed already fits the letters, it counts.</li>
