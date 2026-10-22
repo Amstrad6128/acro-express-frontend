@@ -3778,7 +3778,8 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
   const cell = { padding: "3px 10px", lineHeight: 1.25, borderBottom: `1px solid ${C.border}`, textAlign: "left" };   // compact rows (AcroChallenge): 14 fit
   const youVotedLine = `2px solid ${C.teal}`;
   return (
-    <Panel style={{ padding: "10px 14px" }}>
+    // Not wider than 860 px, in the middle of the stage (Damon, 2026-10-22: the results were "too far off into the left")
+    <Panel style={{ padding: "10px 14px", maxWidth: 860, margin: "0 auto", boxSizing: "border-box" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 4 }}>
         <h2 style={{ margin: 0, fontSize: 28, ...smallTitle }}>   {/* Honk (Damon, 2026-10-18) */}
           Station {round}{topic ? ` – ${topic}` : ""}
