@@ -2795,7 +2795,7 @@ function Lobby() {
           under Departures, where it competed with the trains — its own button, explained) */}
       <span data-hint="Three stations from our past games to write acros for, on your own: then see what the passengers wrote. No scores, just fun" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
         <BtnSecondary onClick={() => setPracticing(true)} style={smallBtn}>🚂 Practice ride</BtnSecondary>
-        {!phone && !shortWin && <span style={{ fontSize: 13, color: C.textMuted, whiteSpace: "nowrap" }}>warm up alone · 3 stations from past games</span>}
+        {!phone && !shortWin && <span style={{ fontSize: 13, color: C.textMuted, whiteSpace: "nowrap" }}>solo warm-up session · 3 stations from past games</span>}
       </span>
       <button data-hint="Log out on this computer" onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4, whiteSpace: "nowrap" }}>Log out</button>
     </>
