@@ -1251,40 +1251,42 @@ function HowToPlay({ winScore = 30 }) {
               <button onClick={() => setOpen(false)} aria-label="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>✕</button>
             </div>
             <div style={{ overflowY: "auto", padding: "16px 20px 4px" }}>
+              {/* 2026-10-22: rewritten shorter and plainer (Damon: "make them more easy to understand and more simple";
+                  the old "A valid acro is entered for you" sounded as if the game wrote one for you) */}
               <RulesSection icon="🚉" title="All aboard!">
-                Acro Express is a word game. Board a Sky Train at the Grand Sky Station and travel from station to station.
-                At every station you get a few letters: make a phrase from them, everyone votes for their favourite,
-                and the first passenger to reach <b style={{ color: C.textPrimary }}>{winScore} points</b> wins the journey.
+                Each station gives you a few letters and a topic. Turn the letters into a funny phrase, then everyone votes.
+                The first to <b style={{ color: C.textPrimary }}>{winScore} points</b> wins the journey.
               </RulesSection>
-              <RulesSection icon="✍️" title="Write your acro">
+              <RulesSection icon="✍️" title="Write">
                 <ul style={rulesList}>
-                  <li>A topic is shown, then the letters — for example <b style={{ color: C.textPrimary }}>B T V</b>.</li>
-                  <li>Write one word for each letter, in order: <span style={ex}>"Bring The Volcano"</span>.</li>
-                  <li>No extra words — not even little ones like "the" or "of". Symbols like + = &gt; &amp; are fine; they don't count as words.</li>
-                  <li>Stations get longer as you travel: 3 letters, then 4, 5, 6 and 7, then back to 3.</li>
-                  <li>You have about a minute (a little more for longer acros). Press Enter or Submit — you can change it until the time is up.</li>
-                  <li>Time ran out while you were still typing? A valid acro is entered for you.</li>
+                  <li>One word for each letter, in order: <b style={{ color: C.textPrimary }}>B T V</b> → <span style={ex}>"Bring The Volcano"</span>.</li>
+                  <li>No extra words, not even "the" or "a". Symbols like + = &gt; &amp; are fine: they don't count as words.</li>
+                  <li>You have about a minute. Press Enter to send it; you can change it until the time is up.</li>
+                  <li>Still typing when the time runs out? If what you've typed already fits the letters, it counts.</li>
+                  <li>Each station adds a letter: 3, 4, 5, 6, 7, then back to 3.</li>
                 </ul>
               </RulesSection>
               <RulesSection icon="🗳️" title="Vote">
                 <ul style={rulesList}>
-                  <li>All acros appear without names. Pick your favourite (or "None of the above"), then press Done Voting.</li>
+                  <li>The acros appear without names. Pick the one you like best.</li>
                   <li>You can't vote for your own.</li>
-                  <li>Vote for what you truly think is the funniest, cleverest or best fit for the topic.</li>
                 </ul>
               </RulesSection>
               <RulesSection icon="⭐" title="Points">
                 <ul style={rulesList}>
-                  <li><b style={{ color: C.textPrimary }}>1 point</b> for every vote your acro gets.</li>
-                  <li>The <b style={{ color: C.textPrimary }}>winning acro</b> gets a bonus of <b style={{ color: C.textPrimary }}>1 point per letter</b> (5 letters = +5).</li>
-                  <li>You <b style={{ color: C.textPrimary }}>voted for the winner</b>? +1.</li>
-                  <li><b style={{ color: C.textPrimary }}>Speed bonus +1</b> for the fastest acro that got at least one vote.</li>
-                  <li>Same number of votes? The acro sent first wins.</li>
-                  <li>Identical acros are shown once, and everyone who wrote it shares the votes.</li>
+                  <li><b style={{ color: C.textPrimary }}>+1</b> for every vote your acro gets.</li>
+                  <li><b style={{ color: C.textPrimary }}>The winning acro</b>: +1 for every letter (5 letters = +5).</li>
+                  <li><b style={{ color: C.textPrimary }}>You voted for the winner</b>: +1.</li>
+                  <li><b style={{ color: C.textPrimary }}>The fastest acro</b> with at least one vote: +1.</li>
+                  <li>A tie? The acro sent first wins. The same acro twice? It's shown once and its writers share the votes.</li>
                 </ul>
               </RulesSection>
+              <RulesSection icon="🎫" title="Your Sky Passport">
+                Your free player account: your passenger name, your stats, your best acros and your stamps. No email needed.
+                Click your name at the station to see it.
+              </RulesSection>
               <RulesSection icon="🎯" title="Topics">
-                The winner of a station picks the topic for the next one. No topic in time? It's "General Acro".
+                The winner of a station picks the next topic. No topic in time? Then it's "General Acro".
               </RulesSection>
               <RulesSection icon="🎭" title="Special topics">
                 Sometimes the topic is a special challenge — your acro still has to fit the letters.
@@ -1730,10 +1732,45 @@ function NumbersPage() {
 
 // ── The Practice Train (2026-10-22, Damon's spec) ─────────────────
 // Newcomers play right away, alone, without signing up: three REAL past stations (their letters and topic, from
-// api/practice), with the game's look, timer, music and clock tick. A writing experience, not a competition: no
+// the handpicked PRACTICE_STATIONS; first from api/practice, which was dropped the same day as too risky), with the game's look, timer, music and clock tick. A writing experience, not a competition: no
 // voting, no scores, nothing stored. After each station: the acros real passengers wrote for it (no names; a ★ on the
 // passengers' favourite). After three: an invitation to the Daily Express. 40 seconds a station (≈ 2 minutes).
 const PRACTICE_SECONDS = 40;
+// 21 stations handpicked from real games (2026-10-22, Damon: "if you use old acros there is a big risk … handpick
+// 20 21"): broad topics only, and only the clean acros of each (no names, no insider jokes, no drink, weapons or
+// death). ★ = the passengers' favourite at the time. Spelling kept as the passengers wrote it.
+const PRACTICE_STATIONS = [
+  { letters: "SMO", topic: "What's in your wallet?", acros: [["Six money orders.", 1], ["Stamps, money, opera-tickets"], ["Some money, obviously."]] },
+  { letters: "CTS", topic: "What do you love to hate?", acros: [["Constantly talking strangers.", 1], ["Cars that smoke."], ["Creatures that scare."], ["Cauliflower that's stale."], ["China tea sets"]] },
+  { letters: "WUT", topic: "Prehistoric age!", acros: [["Wandered upon Triceratops.", 1], ["Wandering undisturbed.... tyronassaurus"], ["We understand troglodytes"]] },
+  { letters: "EOF", topic: "A + B = C", acros: [["Egg + Omelet = Fluffy", 1], ["End + Of = Finished"], ["Eleven + One = Fourteen?"]] },
+  { letters: "EHC", topic: "Word > Chain", acros: [["Extra > Hard > Choices", 1], ["Egged > House > Cleaned"], ["Every > Hour > Chimed"]] },
+  { letters: "LBU", topic: "A + B = C", acros: [["Life + Boat = Underwater", 1], ["Loathes + Books = Uneducated"], ["Love + Bacon = Uhhuh"]] },
+  { letters: "BCHB", topic: "Rhyme it", acros: [["Beginning chores, housework bores.", 1], ["Banana cake, hearty bake"], ["Big Chuck's horse bucked."]] },
+  { letters: "RBIR", topic: "I remember when...", acros: [["...rubber boots involved rain.", 1], ["...running backwards is reversed."], ["...real butter is requested."], ["....romance became interesting. Really?"]] },
+  { letters: "CFDO", topic: "Rhyme", acros: [["Clothes fold, Dad's old.", 1], ["Cat's for dog odor."], ["Craving fall days overall."]] },
+  { letters: "CHOQ", topic: "Things in a kid's schoolbag", acros: [["Crayons, homework (obviously), Quiche", 1], ["Coat Homework Orange Quotes"], ["Chalk, homework, oreos quickly"]] },
+  { letters: "INTE", topic: "Rhyme", acros: [["It's neat & tasty, EAT!", 1], ["I'm near their ear."], ["It's new, that Ewe."]] },
+  { letters: "ENCH", topic: "Strange hobby", acros: [["Evidently nerdy... collecting heirlooms", 1], ["Extra nighttime chanting HmmmHmmmHmmmm"], ["Exploring nostrils, cleaning happily."], ["Eating nine crocodile hatchlings."]] },
+  { letters: "RISM", topic: "How I got fired", acros: [["Ran into supervisor's Maserati", 1], ["Requested insane salary, 1 million!"], ["Rushed into someone's Mercedes"]] },
+  { letters: "EADN", topic: "What's for dinner?", acros: [["Enchiladas and drunken noodles.", 1], ["Eating a domino's now."], ["Eating at diner: noodles."], ["Egg and ..dunno, nothing?"]] },
+  { letters: "MXIT", topic: "Word > Chain", acros: [["My > Xray > In > Tense", 1], ["Many > X's > Irritating > Temper"], ["Must > Xit > Into > Trouble"]] },
+  { letters: "FPGR", topic: "What's for dinner?", acros: [["Fried potatoes, grilled rabbit.", 1], ["French potatoes, get ready!"], ["Fried Pickles, gobs ranch."]] },
+  { letters: "ITOR", topic: "What's for dinner?", acros: [["Incredible T-bone over roasties.", 1], ["It's tomatoes & onion ratatouille"], ["I'm thinking of Ravioli's."]] },
+  { letters: "POCFS", topic: "Words of wisdom", acros: [["Patience often cures frustrations strength.", 1], ["Panic often causes fear, surprise!!"], ["Put our children first, safely."]] },
+  { letters: "MCRSC", topic: "Haunted houses", acros: [["Maybe Caspar's real, screaming creature.", 1], ["Mansion's creaking, really spooky cellars"], ["Mystical creatures request soul capture."], ["Made Casper roast some chicken."], ["Makes children really scared... chilling."]] },
+  { letters: "HSBPS", topic: "Bad racehorse names", acros: [["\"Hop Stop\" \"Boring Pace\" \"Sleepy\"", 1], ["\"Hero Slacker\" \"Broken Pal\" \"Slowpoke\""], ["\"Happy Skipper\" \"Big Problem\" \"Slowpoke\""]] },
+  { letters: "HMCCPB", topic: "Outer space adventure", acros: [["Hyperspace mission, chart cosmic planetary bodies.", 1], ["Hovering my craft carefully.... Pluto's beautiful!"]] },
+];
+// A ride: a 3-letter station, a 4-letter one, then a longer one, each picked at random; the acros shuffled
+function practiceRide() {
+  const pick = list => list[Math.floor(Math.random() * list.length)];
+  const by = test => PRACTICE_STATIONS.filter(st => test(st.letters.length));
+  return [pick(by(l => l === 3)), pick(by(l => l === 4)), pick(by(l => l >= 5))].map(st => ({
+    letters: st.letters, topic: st.topic,
+    acros: st.acros.map(([text, won]) => ({ text, won: !!won })).sort(() => Math.random() - 0.5),
+  }));
+}
 // The same rule as the server (AcroValidator): one word per letter, in order; a "word" has at least one letter
 function practiceProblem(letters, text) {
   const words = text.trim().split(/\s+/).filter(w => /\p{L}/u.test(w));
@@ -1774,10 +1811,7 @@ function PracticeTrain() {
   const musicRef = useRef(null);
   const inputRef = useRef(null);
   useEffect(() => {
-    fetch(`${API_URL}/api/practice`).then(r => r.json()).then(d => {
-      if (!d.stations?.length) throw new Error("No practice stations yet: come back a little later!");
-      setStations(d.stations);
-    }).catch(e => setErr(e.message || "Couldn't load the practice ride. Try again in a moment."));
+    setStations(practiceRide());                          // the handpicked stations (no server call)
     return () => musicRef.current?.stop();
   }, []);
   const st = stations?.[n];
@@ -1832,7 +1866,7 @@ function PracticeTrain() {
         <p style={{ margin: 0, fontSize: 17, color: C.textSecond }}>Get your Sky Passport and join the Daily Express at 23:00 Cyprus time ({nightExpress(Date.now(), []).local} your time) to find out.</p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
           <Btn onClick={() => navigate("/")}>{getAuth()?.token ? "Back to the Grand Sky Station" : "Get my Sky Passport"}</Btn>
-          <BtnSecondary onClick={() => { setStations(null); setMine([]); setN(0); setPhase("write"); fetch(`${API_URL}/api/practice`).then(r => r.json()).then(d => setStations(d.stations)).catch(() => setErr("Couldn't load another ride.")); }}>Another practice ride</BtnSecondary>
+          <BtnSecondary onClick={() => { setStations(practiceRide()); setMine([]); setN(0); setPhase("write"); }}>Another practice ride</BtnSecondary>
         </div>
       </Panel>
     );
@@ -1842,7 +1876,8 @@ function PracticeTrain() {
     <>
       {/* the stage: topic, timer, letters — the game's look, in the player's own letter font */}
       <div style={{ textAlign: "center" }}>
-        <div style={{ color: C.textSecond, fontSize: 15 }}>Topic: <b style={{ color: C.teal }}>{st.topic}</b></div>
+        <div style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: C.textMuted }}>Topic</div>
+        <div style={{ ...honkTitle, fontSize: 30, lineHeight: 1.15 }}>{st.topic}</div>
         {phase === "write" && (
           <div style={{ fontSize: `calc(clamp(28px, 6vh, 46px) * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, lineHeight: "var(--tf-lh, 1)", color: left <= 10 ? C.brand : C.teal, marginTop: 6 }}>{left}</div>
         )}
@@ -2838,7 +2873,7 @@ function Lobby() {
                 </div>
                 <form onSubmit={e => { e.preventDefault(); doAuth(authMode); }} style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
                   <div style={{ color: C.textSecond, fontSize: 15 }}>
-                    {authMode === "new" ? "Get your free Sky Passport: just pick a passenger name and a password." : "Welcome back! Type your passenger name and password."}
+                    {authMode === "new" ? <>Get your free <b style={{ color: C.textPrimary }}>Sky Passport</b>: your player account, with your stats and best acros. Just pick a passenger name and a password.</> : "Welcome back! Type your passenger name and password."}
                   </div>
                   <label style={{ fontSize: 13, color: C.textMuted }}>Passenger name
                     <Input id="welcomeName" value={username} onChange={e => { setUsername(e.target.value); setAuthMsg(""); }} placeholder={authMode === "new" ? "e.g. SkyRider_7" : "Your passenger name"} style={{ textAlign: "left", marginTop: 4 }} autoFocus={!phone} />
