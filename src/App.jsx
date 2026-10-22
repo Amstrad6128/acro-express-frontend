@@ -186,13 +186,20 @@ const C = Object.fromEntries(COLOR_NAMES.map(n => [n, `var(--c-${n})`]));
 function loadThemeKey() {
   try {
     let k = localStorage.getItem("acro.theme");
+    // No palette chosen yet (2026-10-22, Damon: the default "should be something visually beautiful"; he picked Golden
+    // Hour): brand-new visitors get Golden Hour; someone who has logged in here before keeps Midnight, the old default,
+    // so a regular's screen doesn't suddenly change. Remembered, so it stays put afterwards.
+    if (!k) {
+      k = localStorage.getItem("acro.auth") ? "midnight" : "goldenhour";
+      try { localStorage.setItem("acro.theme", k); } catch { /* private mode */ }
+    }
     if (k === "lamplight") k = "nightfall";   // the green palette's old name — keep the player's choice
     // Palettes retired on 2026-10-16 → the nearest new one, so nobody's choice is lost
     // and on 2026-10-18 (Notebook, Blueprint, Marigold retired; bluehour went to Blueprint, now to Lagoon)
     k = { twilight: "neon", moonrise: "neon", afterglow: "ember", bluehour: "lagoon", aurora: "midnight",
           notebook: "sakura", paperticket: "sakura", blueprint: "lagoon", marigold: "goldenhour" }[k] || k;   // Paper Ticket → First Light (both light)
-    return THEMES[k] ? k : "midnight";
-  } catch { return "midnight"; }
+    return THEMES[k] ? k : "goldenhour";
+  } catch { return "goldenhour"; }
 }
 // The big letters in Honk: their outline (and the square Honk draws behind each letter) is painted in the
 // exact colour of the sky behind them, so it disappears into the page (Damon, 2026-10-18). The sky is a
@@ -2602,11 +2609,13 @@ function Lobby() {
                 {phone && <button type="button" onClick={() => { setAuthMode("login"); setAuthMsg(""); setTimeout(() => document.getElementById("welcomeName")?.focus(), 50); }}
                   style={{ alignSelf: "flex-end", marginBottom: -8, background: "none", border: `1px solid ${C.border}`, borderRadius: 999, color: C.teal, fontFamily: "inherit", fontSize: 14, padding: "4px 12px", cursor: "pointer" }}>I have a passport · Log in ↓</button>}
                 <div>
-                  <h2 style={{ margin: 0, fontSize: phone ? 32 : 42, ...honkTitle }}>Welcome aboard!</h2>
-                  <p style={{ margin: "6px 0 0", color: C.textSecond, fontSize: 17, lineHeight: 1.45 }}>
-                    A word game for people with a sense of humour. You get a few letters, you turn them into the funniest
-                    phrase you can, and everyone votes. First to {30} points wins the journey.
+                  {/* Damon picked this text (option 1 of three, 2026-10-22; "a prompt of" → "a handful of") */}
+                  <h2 style={{ margin: 0, fontSize: phone ? 30 : 40, ...honkTitle }}>Welcome aboard Acro Express!</h2>
+                  <p style={{ margin: "8px 0 0", color: C.textSecond, fontSize: 17, lineHeight: 1.5 }}>
+                    Get a handful of random letters. Turn them into unforgettable phrases. Vote for the ones that make you
+                    smile, gasp, or wonder how anyone thought of that.
                   </p>
+                  <p style={{ margin: "8px 0 0", color: C.textPrimary, fontSize: 17, fontWeight: 700 }}>First to {30} points wins the journey. Grab a seat!</p>
                 </div>
                 <AcroDemo />
                 <div style={{ display: "grid", gridTemplateColumns: phone ? "1fr" : "repeat(3, 1fr)", gap: 10 }}>
