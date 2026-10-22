@@ -713,7 +713,11 @@ function LetterFontPicker() {
     return () => window.removeEventListener("acro-letterfont", on);
   }, []);
   return (
-    <HeaderMenu width={240} label={<>Letters: <span style={{ color: C.teal, fontWeight: 600 }}>{LETTER_FONTS[letterFont]}</span></>}>
+    <HeaderMenu width={240} label={<>Letters: <span style={{ color: C.teal, fontWeight: 600, display: "inline-grid", textAlign: "left" }}>
+      {/* every name sits in the same cell, hidden, so the button is always as wide as the longest one and nothing next to
+          it moves when the font changes (Damon, 2026-10-22) */}
+      {Object.values(LETTER_FONTS).map(n => <span key={n} aria-hidden style={{ gridArea: "1 / 1", visibility: "hidden" }}>{n}</span>)}
+      <span style={{ gridArea: "1 / 1" }}>{LETTER_FONTS[letterFont]}</span></span></>}>
       {(close, big) => (
         <>
           <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>The font of the big letters and the timer. Only you see it. (Or just click the letters.)</div>
@@ -1935,7 +1939,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
         // the reveal: the player's acro, then what the passengers wrote for these letters (no names)
         <Panel style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10, maxWidth: 640, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
           <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Your acro</div>
-          <div style={{ fontSize: 19, color: mine[n] ? C.textPrimary : C.textMuted }}>{mine[n] ? `"${mine[n]}"` : "Time ran out this time. No problem, it's practice!"}</div>
+          <div style={{ fontSize: 19, color: mine[n] ? C.textPrimary : C.textMuted }}>{mine[n] ? `"${mine[n]}"` : "Time ran out! No problem, it's practice."}</div>
           <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 8 }}>What the passengers wrote for these letters</div>
           {st.acros.map((a, i) => (
             <div key={i} style={{ fontSize: 17, color: C.textPrimary, display: "flex", gap: 8, alignItems: "baseline" }}>
