@@ -13,7 +13,9 @@
 ## Features
 - Sky Passport: each player's profile with stats, best acros and stamps.
 - Sky Leaderboard: rankings for the week, the month and all time.
-- Express Colors: colour themes named after times of the day.
+- Colors: colour themes and a choice of fonts for the letters.
+- Music: a choice of songs for the writing time.
+- The Daily Express: the regulars play every day at 23:00 Cyprus time (Asia/Nicosia).
 - Free, no download, works on computers and phones.
 
 ## Links

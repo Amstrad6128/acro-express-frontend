@@ -519,7 +519,7 @@ function playOriginal(secs) {
 // Admin only (Damon, 2026-10-20): listen to the three new writing themes (src/themes.js) before players get a
 // choice. Plays a whole station on this screen only, at the level the game uses for its theme, with a countdown.
 function ThemeListening() {
-  const [secs, setSecs] = useState(60);
+  const [secs, setSecs] = useState(56);
   const [playing, setPlaying] = useState(null);   // { id, name, endsAt }
   const [left, setLeft] = useState(0);
   const playerRef = useRef(null);
@@ -549,19 +549,20 @@ function ThemeListening() {
   return (
     <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
       <div>
-        <div style={{ fontWeight: 800, fontSize: 17 }}>Listen to the new writing themes</div>
-        <div style={{ fontSize: 14, color: C.textMuted }}>A whole station of music, on your screen only, at the game's music level. It builds up as the time runs out and ends exactly at 0.{soundGain() <= 0 ? " Your Sound is off: turn it on to listen." : ""}</div>
+        <div style={{ fontWeight: 800, fontSize: 17 }}>Listen to the songs</div>
+        <div style={{ fontSize: 14, color: C.textMuted }}>A whole station of music, on your screen only, at the game's music level. It builds up as the time runs out and ends exactly at 0.{soundGain() <= 0 ? " Your Music is off: turn it on to listen." : ""}</div>
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <span style={{ fontSize: 14, color: C.textSecond }}>Station length</span>
-        {[30, 60, 90].map(n => (
+        {[56, 70, 84].map(n => (   // the real station lengths (3, 5 and 7 letters)
           <button key={n} onClick={() => setSecs(n)}
             style={{ background: n === secs ? C.brand : C.bgPanel2, color: n === secs ? C.onBrand : C.textPrimary, border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 12px", fontFamily: "inherit", fontSize: 14, cursor: "pointer" }}>{n} s</button>
         ))}
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <Btn onClick={() => play({ id: "original", name: "Original" })}>▶ Original</Btn>
-        {THEME_LIST.map(th => <Btn key={th.id} onClick={() => play(th)}>▶ {th.name}{th.offline ? " (kept back)" : ""}</Btn>)}
+        {/* only the songs players can pick (Damon, 2026-10-22: the kept-back ones "are just cluttering the place") */}
+        {THEME_LIST.filter(th => !th.offline).map(th => <Btn key={th.id} onClick={() => play(th)}>▶ {th.name}</Btn>)}
         {playing && <BtnSecondary onClick={stop}>Stop</BtnSecondary>}
       </div>
       {playing && (playing.loading
@@ -604,7 +605,7 @@ function setSoundSettings(next) {
   window.dispatchEvent(new Event("acro-sound-change"));
 }
 
-// A small header button that opens a menu underneath it (used by "Express Colors" and "Sound").
+// A small header button that opens a menu underneath it (used by "Colors" and "Music").
 // Closes when you click outside it or press Escape.
 function HeaderMenu({ label, children, width = 230 }) {
   const [open, setOpen] = useState(false);
@@ -1107,11 +1108,11 @@ const goldName = name => (isGolden(name) ? {
 // click: only "/kick name" in Sky Train Chat. ("profile" is kept for older calls; it no longer changes anything.)
 function NameLink({ name, style, gold = false }) {   // gold: golden names in gold (chat lines only)
   if (!name) return <span style={style}>{name}</span>;
-  const go = () => openProfile(name);
+  const go = el => openProfile(name, el);
   return (
-    <span role="button" tabIndex={0} title={`${name}: Sky Passport and Message`}
-      onClick={e => { e.stopPropagation(); go(); }}
-      onKeyDown={e => { if (e.key === "Enter") go(); }}
+    <span role="button" tabIndex={0} title={`Message ${name} or see their Sky Passport`}
+      onClick={e => { e.stopPropagation(); go(e.currentTarget); }}
+      onKeyDown={e => { if (e.key === "Enter") go(e.currentTarget); }}
       style={{ cursor: "pointer", ...style, ...(gold ? goldName(name) : {}) }}>{name}</span>
   );
 }
@@ -1271,8 +1272,16 @@ function HowToPlay({ winScore = 30 }) {
               <RulesSection icon="🏁" title="Final Stop">
                 When someone reaches {winScore}, the highest score wins the journey. After a 30-second break the next journey starts by itself.
               </RulesSection>
+              <RulesSection icon="🚂" title="When we play">
+                Every day at <b style={{ color: C.textPrimary }}>{nightExpress(Date.now(), []).local}</b> your time (23:00 in Cyprus) the regulars ride the <b style={{ color: C.textPrimary }}>Daily Express</b>: that's when the trains are fullest. You can start or join a train any other time too.
+              </RulesSection>
               <RulesSection icon="💬" title="Tips">
-                Click a name to send a private message. To vote someone off a train, type <b style={{ color: C.textPrimary }}>/kick name</b> in Sky Train Chat. Change your colours under Colors, and your music and sound under Music.
+                <ul style={rulesList}>
+                  <li>Click a name to message that passenger: type and press Enter.</li>
+                  <li>To vote someone off a train, type <b style={{ color: C.textPrimary }}>/kick name</b> in Sky Train Chat.</li>
+                  <li><b style={{ color: C.textPrimary }}>Colors</b>: the look of the station and the font of the big letters (or just click the big letters).</li>
+                  <li><b style={{ color: C.textPrimary }}>Music</b>: volume, button sounds, and your song while acros are written. It switches at once.</li>
+                </ul>
               </RulesSection>
             </div>
             <div style={{ padding: "12px 20px", borderTop: `1px solid ${C.border}`, textAlign: "right" }}>
@@ -1504,7 +1513,7 @@ function PaletteStats() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
             <h1 style={{ margin: 0, fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand }}>Palette stats</h1>
-            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>Stations played with each Express Colors palette (one per player per station), other players only: your own picks are left out. Only you see this page.</p>
+            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>Stations played with each Colors palette (one per player per station), other players only: your own picks are left out. Only you see this page.</p>
           </div>
           <BtnSecondary onClick={() => navigate("/log")}>← Station Log</BtnSecondary>
         </div>
@@ -1529,7 +1538,7 @@ function PaletteStats() {
               return (
                 <div key={t.theme}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    {/* the same dot as in the Express Colors menu */}
+                    {/* the same dot as in the Colors menu */}
                     <span style={{ width: 14, height: 14, borderRadius: "50%", background: th?.bgApp || "transparent", border: `2px solid ${th?.brand || C.textMuted}`, flexShrink: 0 }} />
                     <span style={{ flex: 1, fontWeight: 700 }}>{th?.name || `${t.theme} (retired)`}</span>
                     <span style={{ color: C.textSecond, fontSize: 14 }}>{t.stations} stations · {t.players} {t.players === 1 ? "player" : "players"} · {share}%</span>
@@ -1865,7 +1874,7 @@ function SkyLeaderboard() {
     <div style={{ width: size, height: size, borderRadius: "50%", background: metal[i], color: "#1B1A17", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: size * 0.5, fontVariantNumeric: "tabular-nums", boxShadow: "0 2px 6px rgba(0,0,0,0.3)" }}>{ranks[i]}</div>
   );
   const nameBtn = (name, style) => (
-    <button onClick={() => openProfile(name)} title={`${name}: Sky Passport and Message`}
+    <button onClick={e => openProfile(name, e.currentTarget)} title={`Message ${name} or see their Sky Passport`}
       style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", ...style }}>{name}</button>
   );
   const th = { textAlign: "left", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: C.teal, fontWeight: 700, padding: "8px 10px", borderBottom: `1px solid ${C.border}` };
@@ -2069,7 +2078,10 @@ function StationLogButton() {
 // Built from the stats recorded since 2026-10-12. Quick card at the Grand Sky Station (click a name),
 // full page at /passenger/<name>. No avatar for now (Damon, 2026-10-16). Not on trains: during a
 // journey a name opens a private chat / the passenger menu instead.
-const openProfile = name => window.dispatchEvent(new CustomEvent("acro-open-profile", { detail: name }));
+// at = the clicked element (or its box): the card opens right beside it (2026-10-22); without it, in the middle
+const openProfile = (name, at) => window.dispatchEvent(new CustomEvent("acro-open-profile", {
+  detail: { name, rect: at?.getBoundingClientRect ? at.getBoundingClientRect() : at || null },
+}));
 const monthYear = d => new Date(d).toLocaleDateString([], { month: "long", year: "numeric" });
 // "Good morning" … by the time on the player's own device (passengers play from all over the world)
 function greeting(name) {
@@ -2110,14 +2122,22 @@ function PassHeader({ p, big }) {
   );
 }
 
-// Quick card — opens when a name is clicked (station and trains). inTrain: no button that leaves the train
+// Quick card — opens when a name is clicked (station and trains). inTrain: no button that leaves the train.
+// 2026-10-22 (Damon: "there is a UX conflict … it's not easy to message someone"): like Discord, Slack and Twitch,
+// a small card RIGHT BESIDE the name (no dark full-screen box), showing the name at once, with the message box
+// ready: type and press Enter, and the private chat opens with the message sent. The stats load in underneath.
 function PassengerCard({ inTrain = false }) {
   const navigate = useNavigate();
   const [name, setName] = useState(null);
+  const [rect, setRect] = useState(null);                  // where the clicked name is on screen
   const [p, setP] = useState(null);
   const [err, setErr] = useState("");
+  const [text, setText] = useState("");
   useEffect(() => {
-    const open = e => { setName(e.detail); setP(null); setErr(""); };
+    const open = e => {
+      const d = typeof e.detail === "string" ? { name: e.detail } : e.detail;
+      setName(d.name); setRect(d.rect || null); setP(null); setErr(""); setText("");
+    };
     window.addEventListener("acro-open-profile", open);
     return () => window.removeEventListener("acro-open-profile", open);
   }, []);
@@ -2130,14 +2150,36 @@ function PassengerCard({ inTrain = false }) {
   }, [name]);
   if (!name) return null;
   const me = String(getAuth()?.username || "").toLowerCase() === String(name).toLowerCase();
+  const send = async () => {
+    const t = text.trim();
+    if (!t) { openPm(name); setName(null); return; }      // nothing typed: just open the chat
+    const ok = await sendPm(name, t);
+    openPm(name);                                           // the chat shows the message (or the error)
+    if (ok !== false) setName(null);
+  };
+  // Beside the name: under it (or above it when it's low on the screen), kept inside the window
+  const W = Math.min(360, window.innerWidth - 16);
+  const place = rect && window.innerWidth >= 600
+    ? { left: Math.max(8, Math.min(rect.left, window.innerWidth - W - 8)),
+        ...(rect.bottom > window.innerHeight * 0.55 ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }) }
+    : { left: (window.innerWidth - W) / 2, top: "12vh" };
   return (
     <div onPointerDown={e => { if (e.target === e.currentTarget) setName(null); }}
-      style={{ position: "fixed", inset: 0, zIndex: 88, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "10vh 16px", boxSizing: "border-box" }}>
-      <div role="dialog" aria-label={`Sky Passport of ${name}`} style={{ background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: "min(400px, 100%)", padding: 18, boxShadow: "0 16px 48px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 14 }}>
+      style={{ position: "fixed", inset: 0, zIndex: 88, background: rect ? "transparent" : "rgba(0,0,0,0.35)" }}>
+      <div role="dialog" aria-label={`${name}`} style={{ position: "fixed", ...place, background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, width: W, boxSizing: "border-box", padding: 16, boxShadow: "0 16px 48px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-          {p ? <PassHeader p={p} /> : <div style={{ color: C.textMuted }}>{err || "Loading…"}</div>}
+          {p ? <PassHeader p={p} /> : <div style={{ ...honkTitle, fontSize: 32, color: C.brand, fontPalette: "var(--fp-letters)" }}>{name}</div>}
           <button onClick={() => setName(null)} aria-label="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 20 }}>✕</button>
         </div>
+        {/* The message box first: type and press Enter */}
+        {!me && (
+          <form onSubmit={e => { e.preventDefault(); send(); }} style={{ display: "flex", gap: 8 }}>
+            <input autoFocus value={text} onChange={e => setText(e.target.value)} placeholder={`Message ${name}…`} maxLength={500}
+              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
+            <Btn onClick={send} style={{ padding: "6px 14px" }}>Send</Btn>
+          </form>
+        )}
+        {err && <div style={{ color: C.textMuted, fontSize: 14 }}>{err}</div>}
         {p && (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
@@ -2148,10 +2190,11 @@ function PassengerCard({ inTrain = false }) {
             {p.bestAcro
               ? <div><div style={{ fontSize: 13, color: C.textMuted, marginBottom: 4 }}>Best acro</div><AcroQuote a={p.bestAcro} /></div>
               : <div style={{ fontSize: 14, color: C.textMuted }}>No votes yet — the best acro shows here.</div>}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {!me && <Btn onClick={() => { openPm(p.name); setName(null); }}>✉ Message</Btn>}
-              {!inTrain && <BtnSecondary onClick={() => { setName(null); navigate(`/passenger/${encodeURIComponent(p.name)}`); }}>Open Sky Passport →</BtnSecondary>}
-            </div>
+            {!inTrain && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <BtnSecondary onClick={() => { setName(null); navigate(`/passenger/${encodeURIComponent(p.name)}`); }}>Open Sky Passport →</BtnSecondary>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -2237,15 +2280,37 @@ function PassengerPage() {
             <Panel style={{ padding: 20 }}>
               <h2 style={{ margin: "0 0 10px", fontSize: 28, ...smallTitle }}>Last 10 stations</h2>   {/* Honk */}
               {p.last10.length === 0 ? <p style={{ margin: 0, color: C.textMuted }}>No stations yet.</p> : (
-                <>
-                  <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 70 }}>
-                    {p.last10.map((s, i) => (
-                      <div key={i} title={`${s.letters} · ${s.points} point${s.points === 1 ? "" : "s"}${s.won ? " · won" : ""}`}
-                        style={{ flex: 1, height: `${Math.max(6, Math.round(s.points / maxPts * 100))}%`, background: s.won ? C.teal : C.border, borderRadius: 3 }} />
-                    ))}
-                  </div>
-                  <div style={{ fontSize: 12, color: C.textMuted, marginTop: 6 }}>Points per station · teal = station won</div>
-                </>
+                // 2026-10-22 (Damon: "a place without numbers, the chart is not clear"): each bar shows its points on
+                // top and its letters underneath, oldest on the left; a dashed line marks the average; won = teal ★
+                (() => {
+                  const avg = p.last10.reduce((sum, st) => sum + st.points, 0) / p.last10.length;
+                  const H = 110;                                                   // the bars' area, px
+                  return (
+                    <>
+                      <div style={{ position: "relative", display: "flex", alignItems: "flex-end", gap: 6, height: H + 20, paddingTop: 4 }}>
+                        {/* the average */}
+                        <div style={{ position: "absolute", left: 0, right: 0, bottom: Math.round(avg / maxPts * H), borderTop: `1px dashed ${C.textMuted}`, opacity: 0.6 }} />
+                        {p.last10.map((st, i) => (
+                          <div key={i} title={`${st.letters.split("").join(" ")} · ${st.points} point${st.points === 1 ? "" : "s"}${st.won ? " · won the station" : ""} · ${new Date(st.atUtc).toLocaleDateString([], { day: "numeric", month: "short" })}`}
+                            style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: st.won ? C.teal : C.textSecond, marginBottom: 3 }}>{st.won ? "★" : ""}{st.points}</span>
+                            <div style={{ width: "100%", height: Math.max(3, Math.round(st.points / maxPts * H)), background: st.won ? C.teal : C.navy3 || C.border, border: `1px solid ${st.won ? C.teal : C.border}`, borderRadius: 4, boxSizing: "border-box" }} />
+                          </div>
+                        ))}
+                      </div>
+                      {/* the letters of each station, under its bar */}
+                      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                        {p.last10.map((st, i) => (
+                          <span key={i} style={{ flex: 1, minWidth: 0, textAlign: "center", fontSize: 11, color: C.textMuted, letterSpacing: "0.05em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{st.letters}</span>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, fontSize: 12, color: C.textMuted, marginTop: 8 }}>
+                        <span>← older · newer →</span>
+                        <span>Points per station · <span style={{ color: C.teal }}>★ teal = won</span> · dashed line = average ({avg.toFixed(1)})</span>
+                      </div>
+                    </>
+                  );
+                })()
               )}
             </Panel>
 
@@ -2310,25 +2375,46 @@ function Lobby() {
   const [newRoomName, setNewRoomName] = useState("");
   const [createError, setCreateError] = useState("");
 
-  async function doRegister() {
+  // The sign-in card's state: which tab ("new" = get a Sky Passport, "login"), its message, busy while sending
+  const [authMode, setAuthMode] = useState("new");
+  const [authMsg, setAuthMsg] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  // The server's answers, in friendly words (they used to pop up raw: "400: Username and password are required.")
+  const friendlyAuthError = (e, mode) => {
+    const m = String(e?.message || e || "");
+    if (/required/i.test(m)) return "Type a passenger name and a password.";
+    if (/3-20 chars/i.test(m)) return "Names are 3 to 20 letters, numbers or _ (no spaces).";
+    if (/already taken/i.test(m)) return "That name is already taken. If it's yours, choose \"I have a passport\".";
+    if (/invalid credentials/i.test(m)) return mode === "login" ? "That name and password don't match. Check the spelling, or choose \"I'm new\"." : m;
+    if (/too many/i.test(m)) return "Too many tries. Wait a minute and try again.";
+    if (/fetch|network|failed/i.test(m)) return "We can't reach the station right now. Try again in a moment.";
+    return m.replace(/^\d{3}:\s*/, "");
+  };
+  async function doAuth(mode) {
+    if (!username.trim() || !password) { setAuthMsg("Type a passenger name and a password."); return; }
+    setAuthBusy(true); setAuthMsg("");
     try {
-      const { register } = await import("./services/api");
-      const data = await register(username.trim(), password);
+      const api = await import("./services/api");
+      const data = await (mode === "new" ? api.register : api.login)(username.trim(), password);
       localStorage.setItem("acro.auth", JSON.stringify(data));
       authChanged();   // the station connection logs in too
       setAuth(data); setUsername(""); setPassword("");
-    } catch (e) { alert(e.message || e); }
+    } catch (e) { setAuthMsg(friendlyAuthError(e, mode)); }
+    setAuthBusy(false);
   }
-
-  async function doLogin() {
-    try {
-      const { login } = await import("./services/api");
-      const data = await login(username.trim(), password);
-      localStorage.setItem("acro.auth", JSON.stringify(data));
-      authChanged();   // the station connection logs in too
-      setAuth(data); setUsername(""); setPassword("");
-    } catch (e) { alert(e.message || e); }
-  }
+  // The latest Station Log post, for the Station Board
+  const [latestLog, setLatestLog] = useState("");
+  useEffect(() => {
+    fetch(`${API_URL}/api/log`).then(r => r.json()).then(d => setLatestLog(d.entries?.[0]?.title || "")).catch(() => { });
+  }, []);
+  // Who's around, for the welcome screen ("Right now: 3 passengers at the station")
+  const [liveNow, setLiveNow] = useState(null);
+  useEffect(() => {
+    if (auth) return;
+    const load = () => fetch(`${API_URL}/api/status`).then(r => r.json()).then(setLiveNow).catch(() => { });
+    load(); const iv = setInterval(load, 30000);
+    return () => clearInterval(iv);
+  }, [auth]);
 
   function doLogout() {
     localStorage.removeItem("acro.auth");
@@ -2436,6 +2522,16 @@ function Lobby() {
       <button data-hint="Leave the station: sign out on this computer" onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4, whiteSpace: "nowrap" }}>Leave the station</button>
     </>
   );
+  // The Station Board's news (2026-10-22): the Daily Express, the latest Station Log post, who's here, a tip
+  const dailyNow = nightExpress(Date.now(), roomList);
+  const boardNews = [
+    { icon: "🚂", text: dailyNow.status.text === "On the move" ? "The Daily Express is on the move: hop on!"
+        : dailyNow.status.text === "Running a little late 🚂" ? `The Daily Express is running a little late. Start it, or wait on the platform!`
+        : `Daily Express: every day at ${dailyNow.local} your time · next one ${dailyNow.mins < 0 ? untilText(dailyNow.mins) : "tomorrow"}` },
+    ...(latestLog ? [{ icon: "📰", text: `New on the Station Log: ${latestLog}`, onClick: () => navigate("/log") }] : []),
+    { icon: "👥", text: `${online.length} passenger${online.length === 1 ? "" : "s"} at the station · ${roomList.filter(r => r.gameOn).length} train${roomList.filter(r => r.gameOn).length === 1 ? "" : "s"} on the move` },
+    { icon: "💡", text: BOARD_TIPS[Math.floor(Date.now() / 3600000) % BOARD_TIPS.length] },   // a different tip every hour
+  ];
   // Departures: the trains, then free platforms so the board always shows 3 rows — and always at least one
   // free platform, the row where you start a new Sky Train
   const used = new Set(roomList.map(r => r.platform));
@@ -2459,27 +2555,84 @@ function Lobby() {
           <span data-hint="Colors: the look of the station and the big letters' font. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>
           {/* Sound at the station too (2026-10-20): button sounds and the message chime play here */}
           <span data-hint="Music: volume, button sounds, and your song while acros are written" style={{ display: "contents" }}><SoundControl /></span>
-          {/* the hover strip: explains what the mouse is over; otherwise the connection status */}
-          <HoverHint idle={status && <span style={{ color: status === "ok" ? C.success : C.brand, fontSize: 14, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>} />
+          {status && <span data-hint={status === "ok" ? "Our server is up and the live connection works" : "The connection dropped: it reconnects by itself"} style={{ color: status === "ok" ? C.success : C.brand, fontSize: 14, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>}
         </div>
       </div>
+      {/* The Station Board: the news, and the explanation of whatever the mouse is over */}
+      <StationBoard news={boardNews} />
 
       <div style={{ flex: fits ? 1 : "none", minHeight: 0, width: "100%", maxWidth: 1400, margin: "0 auto", boxSizing: "border-box", padding: phone ? "8px 10px 0" : "8px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
 
-        {/* Not signed in: the sign-in box */}
-        {!auth && (
-          <Panel style={{ padding: 16 }}>
-            <h2 style={{ margin: "0 0 12px", fontSize: 16, color: C.textPrimary, fontWeight: 600 }}>Sign in to play</h2>
-            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <Input placeholder="Passenger name" value={username} onChange={e => setUsername(e.target.value)} style={{ textAlign: "left" }} />
-              <Input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} style={{ textAlign: "left" }} />
+        {/* Not signed in: the welcome screen (2026-10-22) — what this is, how a station goes, when people play,
+            who's here now (left); the Sky Passport card (right). Phones: stacked, the card first */}
+        {!auth && (() => {
+          const daily = nightExpress(Date.now(), []);
+          const here = liveNow ? (liveNow.lobbyPlayers || 0) + (liveNow.playersInRooms || 0) : null;
+          const tab = (mode, label) => (
+            <button onClick={() => { setAuthMode(mode); setAuthMsg(""); }} aria-pressed={authMode === mode}
+              style={{ flex: 1, padding: "10px 8px", fontFamily: "inherit", fontSize: 15, fontWeight: authMode === mode ? 700 : 500, cursor: "pointer",
+                background: authMode === mode ? C.navy3 : "transparent", color: authMode === mode ? C.textPrimary : C.textMuted,
+                border: "none", borderBottom: `2px solid ${authMode === mode ? C.teal : "transparent"}` }}>{label}</button>
+          );
+          const step = (n, title, body) => (
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+              <span style={{ ...smallTitle, fontSize: 22, color: C.teal, minWidth: 22 }}>{n}</span>
+              <div><div style={{ fontWeight: 700, color: C.textPrimary }}>{title}</div><div style={{ color: C.textSecond, fontSize: 15 }}>{body}</div></div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <Btn onClick={doRegister} style={smallBtn}>Get your Sky Passport</Btn>
-              <BtnSecondary onClick={doLogin} style={smallBtn}>Log in</BtnSecondary>
+          );
+          return (
+            <div style={{ display: "grid", gap: 12, gridTemplateColumns: phone ? "minmax(0, 1fr)" : "minmax(0, 1.25fr) minmax(320px, 1fr)", alignItems: "start", maxWidth: 1100, width: "100%", margin: "8px auto 0" }}>
+              {/* What this is */}
+              <Panel style={{ padding: phone ? 18 : 26, display: "flex", flexDirection: "column", gap: 16, order: phone ? 2 : 0 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: phone ? 30 : 38, ...honkTitle }}>Welcome aboard!</h2>
+                  <p style={{ margin: "6px 0 0", color: C.textSecond, fontSize: 17, lineHeight: 1.45 }}>
+                    Acro Express is a word game for people with a sense of humour. You get a few letters, you make a funny
+                    phrase out of them, and everyone votes for their favourite. The first to {30} points wins the journey.
+                  </p>
+                </div>
+                {step("1", "The letters arrive", <>For example <b style={{ color: C.brand, letterSpacing: "0.15em" }}>B T V</b>, with a topic like "Holidays".</>)}
+                {step("2", "You write a phrase", <>One word per letter: <i style={{ color: C.textPrimary }}>"Bring The Volcano"</i>. You have about a minute.</>)}
+                {step("3", "Everyone votes", "All phrases are shown without names. The funniest wins points, and so does everyone who voted for it.")}
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, display: "flex", flexDirection: "column", gap: 6, fontSize: 15, color: C.textSecond }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="train" size={18} color={C.teal} /></span><span><b style={{ color: C.textPrimary }}>When we play:</b> every day at <b style={{ color: C.teal }}>{daily.local}</b> your time, the Daily Express. You can also start a train any time.</span></div>
+                  {here !== null && (
+                    <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="users" size={18} color={C.teal} /></span><span><b style={{ color: C.textPrimary }}>Right now:</b> {here === 0 ? "the station is quiet. Come back at " + daily.local + " for a full train!" : `${here} passenger${here === 1 ? "" : "s"} at the station.`}</span></div>
+                  )}
+                  <div>☁ Friendly regulars, no ads, nothing to download. We belong in the clouds™</div>
+                </div>
+              </Panel>
+              {/* The Sky Passport card */}
+              <Panel style={{ padding: 0, overflow: "hidden", order: phone ? 1 : 0 }}>
+                <div style={{ display: "flex", borderBottom: `1px solid ${C.border}` }}>
+                  {tab("new", "I'm new")}
+                  {tab("login", "I have a passport")}
+                </div>
+                <form onSubmit={e => { e.preventDefault(); doAuth(authMode); }} style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ color: C.textSecond, fontSize: 15 }}>
+                    {authMode === "new" ? "Get your free Sky Passport: just pick a passenger name and a password." : "Welcome back! Type your passenger name and password."}
+                  </div>
+                  <label style={{ fontSize: 13, color: C.textMuted }}>Passenger name
+                    <Input value={username} onChange={e => { setUsername(e.target.value); setAuthMsg(""); }} placeholder={authMode === "new" ? "e.g. SkyRider_7" : "Your passenger name"} style={{ textAlign: "left", marginTop: 4 }} autoFocus={!phone} />
+                  </label>
+                  {authMode === "new" && <div style={{ fontSize: 12, color: C.textMuted, marginTop: -4 }}>3 to 20 letters, numbers or _ · other players see it</div>}
+                  <label style={{ fontSize: 13, color: C.textMuted }}>Password
+                    <Input type="password" value={password} onChange={e => { setPassword(e.target.value); setAuthMsg(""); }} placeholder={authMode === "new" ? "Choose a password" : "Your password"} style={{ textAlign: "left", marginTop: 4 }} />
+                  </label>
+                  {authMsg && <div role="alert" style={{ color: C.brand, fontSize: 14 }}>{authMsg}</div>}
+                  <button type="submit" disabled={authBusy}
+                    style={{ marginTop: 4, padding: "12px 16px", borderRadius: 10, border: "none", background: C.brand, color: C.onBrand, fontFamily: "inherit", fontSize: 17, fontWeight: 700, cursor: authBusy ? "wait" : "pointer", opacity: authBusy ? 0.7 : 1 }}>
+                    {authBusy ? "One moment…" : authMode === "new" ? "Get my Sky Passport & board" : "Log in & board"}
+                  </button>
+                  <div style={{ fontSize: 12, color: C.textMuted, textAlign: "center" }}>
+                    {authMode === "new" ? <>Free · no email · takes 10 seconds · passwords are stored scrambled. By joining you accept the <a href="/rules" style={{ color: C.teal }}>House Rules</a>.</>
+                      : <>New here? Choose <button type="button" onClick={() => { setAuthMode("new"); setAuthMsg(""); }} style={{ background: "none", border: "none", padding: 0, color: C.teal, cursor: "pointer", fontFamily: "inherit", fontSize: 12, textDecoration: "underline" }}>I'm new</button>.</>}
+                  </div>
+                </form>
+              </Panel>
             </div>
-          </Panel>
-        )}
+          );
+        })()}
 
         {/* Welcome bar (one box, Damon): the greeting; your Sky Passport and leaving on the right */}
         {auth && !shortWin && (
@@ -2511,7 +2664,7 @@ function Lobby() {
                     const isMe = String(o.name).toLowerCase() === String(auth?.username).toLowerCase();
                     return (
                       // One rule everywhere: a click opens the player's Sky Passport card; Message is its main button
-                      <li key={o.name} onClick={() => openProfile(o.name)} title={`${o.name}: Sky Passport and Message`}
+                      <li key={o.name} onClick={e => openProfile(o.name, e.currentTarget)} title={`Message ${o.name} or see their Sky Passport`}
                         style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, background: isMe ? C.navy2 : "transparent", cursor: "pointer" }}>
                         <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.success, flexShrink: 0 }} />
                         <AvatarSquare name={o.name} size={32} />
@@ -2523,6 +2676,9 @@ function Lobby() {
                         </div>
                         {/* Unread private messages from them */}
                         {(pm.unread[o.name] || 0) > 0 && <span style={{ background: C.brand, color: C.onBrand, fontSize: 11, borderRadius: 999, padding: "1px 6px" }}>{pm.unread[o.name]}</span>}
+                        {/* one click straight to a private chat (2026-10-22) */}
+                        {!isMe && <button onClick={e => { e.stopPropagation(); openPm(o.name); }} title={`Message ${o.name}`} aria-label={`Message ${o.name}`} data-hint={`Send ${o.name} a private message`}
+                          style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, color: C.teal, cursor: "pointer", fontSize: 15, lineHeight: 1, padding: "5px 7px", flexShrink: 0 }}>✉</button>}
                       </li>
                     );
                   })}
@@ -2732,25 +2888,79 @@ function nightExpress(now, rooms) {
   else if (mins < 0) status = { text: "Boarding soon", color: C.brand };
   else if (mins < 10) status = { text: "Departing now", color: C.brand };
   else status = { text: "Running a little late 🚂", color: C.gold || C.brand };
-  return { local, status, room: playing && mins > -30 ? playing : null };
+  return { local, status, room: playing && mins > -30 ? playing : null, departs, mins };
 }
+
+// One tip on the Station Board, a different one every hour
+const BOARD_TIPS = [
+  "Tip: click a name to send that passenger a private message.",
+  "Tip: click the big letters on a train to change their font.",
+  "Tip: pick your song for the writing time in the Music menu. It switches at once.",
+  "Tip: in a Word > Chain topic, put > between the words: Fire > Truck > Driver.",
+  "Tip: identical acros are shown once, and everyone who wrote it shares the votes.",
+  "Tip: the winner of a station picks the next topic.",
+];
+// "in 3 h 20 min" / "in 12 min"
+const untilText = mins => { const m = Math.max(0, Math.round(-mins)); return m >= 60 ? `in ${Math.floor(m / 60)} h ${m % 60} min` : `in ${m} min`; };
 
 // The hover strip (Damon, 2026-10-22: "an area of the UI that tells you something when you hover on buttons"): one
 // quiet line in the header that explains whatever the mouse is over (anything inside an element with a data-hint),
 // and otherwise shows "idle" (at the station: the connection status). Always in the same place, a fixed width so
 // nothing moves, never covering anything. Mouse only: phones have no hover, so it is hidden on narrow screens.
-function HoverHint({ idle = null, width = 300 }) {
+// (2026-10-22: the first version sat in the header at a fixed width and cut longer hints off — Damon. Now the
+// station has the Station Board below, and the train a small bar at the bottom, see HoverBar.)
+function useHoverHint() {
   const [hint, setHint] = useState("");
   useEffect(() => {
     const over = e => { const el = e.target.closest?.("[data-hint]"); setHint(el ? el.getAttribute("data-hint") : ""); };
     document.addEventListener("mouseover", over);
     return () => document.removeEventListener("mouseover", over);
   }, []);
-  if (window.innerWidth < 700) return idle;
+  return hint;
+}
+
+// The Station Board (Damon, 2026-10-22; his "Departure Board" idea of 2026-10-12: one voice for the game). A slim
+// strip under the station's header, like the LED board of a real station. Normally it shows the news, one line at a
+// time, changing every 7 seconds with a soft fade (not a scrolling ticker: calmer, and every line can be read whole):
+// the Daily Express, what's new on the Station Log, who's here, a tip. When the mouse is over a button (anything
+// with a data-hint), it shows that button's explanation in full instead, and goes back to the news afterwards.
+// A news line can be clicked when it leads somewhere (onClick).
+function StationBoard({ news }) {
+  const hint = useHoverHint();
+  const [i, setI] = useState(0);
+  const [shown, setShown] = useState(true);                 // false during the fade between two lines
+  useEffect(() => {
+    if (news.length < 2) return;
+    const iv = setInterval(() => { setShown(false); setTimeout(() => { setI(x => x + 1); setShown(true); }, 350); }, 7000);
+    return () => clearInterval(iv);
+  }, [news.length]);
+  const item = news.length ? news[i % news.length] : null;
+  const line = hint ? { icon: "ⓘ", text: hint } : item;
+  if (!line) return null;
   return (
-    <span style={{ width, fontSize: 13, color: C.textSecond, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "right" }}>
-      {hint ? <>ⓘ {hint}</> : idle}
-    </span>
+    <div onClick={!hint ? line.onClick : undefined} role={line.onClick && !hint ? "button" : undefined}
+      style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, minHeight: 32, padding: "4px 24px", boxSizing: "border-box",
+        background: "var(--c-bgApp)", borderBottom: `1px solid ${C.border}`, cursor: line.onClick && !hint ? "pointer" : "default" }}>
+      {/* the board's lamp: teal for news, amber while explaining */}
+      <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: hint ? "var(--c-gold, #FFC24A)" : C.teal, boxShadow: `0 0 8px ${hint ? "var(--c-gold, #FFC24A)" : C.teal}` }} />
+      <span style={{ fontSize: 14, color: hint ? C.textPrimary : C.textSecond, letterSpacing: "0.02em", opacity: hint || shown ? 1 : 0, transition: hint ? "none" : "opacity 0.35s" }}>
+        {line.icon && <span style={{ marginRight: 6 }}>{line.icon}</span>}{line.text}
+        {line.onClick && !hint && <span style={{ color: C.teal, marginLeft: 6 }}>→</span>}
+      </span>
+    </div>
+  );
+}
+
+// On a train: the explanation of whatever the mouse is over, as a small bar at the bottom of the window, only
+// while hovering (the train's layout is measured to fill the window, so nothing may push it around)
+function HoverBar() {
+  const hint = useHoverHint();
+  if (!hint || window.innerWidth < 700) return null;
+  return (
+    <div style={{ position: "fixed", left: "50%", bottom: 10, transform: "translateX(-50%)", zIndex: 70, maxWidth: "min(720px, 92vw)",
+      background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 999, padding: "6px 16px", fontSize: 14, color: C.textPrimary, boxShadow: "0 6px 20px rgba(0,0,0,0.35)", pointerEvents: "none" }}>
+      <span style={{ color: "var(--c-gold, #FFC24A)", marginRight: 6 }}>ⓘ</span>{hint}
+    </div>
   );
 }
 
@@ -4068,8 +4278,7 @@ function Room() {
         {/* Gap between the buttons and the topic: 6px on short windows, 16px otherwise */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 4 : 8 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {/* "Express Colors" and "Sound" menus — change them any time, even mid-game */}
-            <HoverHint width={260} />
+            {/* "Colors" and "Music" menus — change them any time, even mid-game */}
             <span data-hint="Online: who is at the station and on the trains right now" style={{ display: "contents" }}><OnlineButton /></span>
             <span data-hint="How to play: the rules, the points and the special topics" style={{ display: "contents" }}><HowToPlay winScore={data.winScore || 30} /></span>
             <span data-hint="Colors: the look of the train and the big letters' font. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>
@@ -4336,11 +4545,11 @@ function Room() {
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
               {[...players].sort((a, b) => shownScore(b) - shownScore(a)).map(p => (
                 <li key={p.id}
-                  title={`${p.nickname}: Sky Passport and Message`}
+                  title={`Message ${p.nickname} or see their Sky Passport`}
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15, padding: "4px 8px", background: C.bgApp, borderRadius: 6, cursor: p.id !== auth?.userId ? "pointer" : "default" }}
                   // One click opens their Sky Passport card (Message is its main button), like everywhere else.
                   // Kicking is never mixed in here (Damon, 2026-10-18): only "/kick name" in Sky Train Chat
-                  onClick={() => openProfile(p.nickname)}>
+                  onClick={e => openProfile(p.nickname, e.currentTarget)}>
                   {/* Left side: a fixed tick column, then the name — the ✓ sits outside the name in its own
                       16px column, so names never move when someone submits (Damon's request) */}
                   <span style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
@@ -4414,7 +4623,8 @@ function Room() {
       </div>
       <PmToast />
         <RestartBanner />
-        <PassengerCard inTrain />   {/* the card a passenger click opens, without a link that leaves the train */}
+        <PassengerCard inTrain />
+        <HoverBar />   {/* the explanation of whatever the mouse is over, at the bottom while hovering */}   {/* the card a passenger click opens, without a link that leaves the train */}
     </div>
   );
 }
