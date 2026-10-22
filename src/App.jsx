@@ -1278,6 +1278,7 @@ function HowToPlay({ winScore = 30 }) {
                   <li><b style={{ color: C.textPrimary }}>The winning acro</b>: +1 for every letter (5 letters = +5).</li>
                   <li><b style={{ color: C.textPrimary }}>You voted for the winner</b>: +1.</li>
                   <li><b style={{ color: C.textPrimary }}>The fastest acro</b> with at least one vote: +1.</li>
+                  <li><b style={{ color: C.textPrimary }}>📖 Word of the week</b>: use it in your acro and get at least one vote: +1. A new word every Monday.</li>
                   <li>A tie? The acro sent first wins. The same acro twice? It's shown once and its writers share the votes.</li>
                 </ul>
               </RulesSection>
@@ -1676,6 +1677,7 @@ function NumbersPage() {
                     <th style={cell} title="Finished 2 or more games (so far)">2+ games</th>
                     <th style={cell} title="Everyone who played a station that week">Players</th>
                     <th style={cell} title="Games that reached the Final Stop">Games</th>
+                    <th style={cell} title="That week's Word of the Week: acros that used it (players)">📖 Word</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1688,6 +1690,7 @@ function NumbersPage() {
                       <td style={cell}>{w.newTwoGames}{pct(w.newTwoGames, w.newPlayed)}</td>
                       <td style={cell}>{w.activePlayers}</td>
                       <td style={cell}>{w.gamesFinished}</td>
+                      <td style={cell}>{w.word ? <>{w.word}: {w.wordUses}{w.wordPlayers ? ` (${w.wordPlayers})` : ""}</> : ""}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1797,10 +1800,13 @@ function startPracticeMusic(seconds) {
   audio.play().catch(() => { });
   return { stop() { audio.pause(); } };
 }
-function PracticeTrain() {
+// onClose: opened over the station (the station stays connected underneath); boarding: a train that is boarding now
+// ({ id, name }), shown as a bar so nobody misses it while practising
+function PracticeTrain({ onClose = null, boarding = null }) {
   const navigate = useNavigate();
+  const leave = () => { musicRef.current?.stop(); if (onClose) onClose(); else navigate("/"); };
   const [stations, setStations] = useState(null);       // the three stations from the server
-  const [err, setErr] = useState("");
+  const err = "";                                       // (the handpicked stations can't fail to load)
   const [n, setN] = useState(0);                         // which station (0–2); 3 = the end
   const [phase, setPhase] = useState("write");           // "write" → "reveal"
   const [left, setLeft] = useState(PRACTICE_SECONDS);
@@ -1840,14 +1846,26 @@ function PracticeTrain() {
   };
   const next = () => { setN(x => x + 1); setPhase("write"); };
   const shell = children => (
-    <div style={{ minHeight: "100vh", color: C.textPrimary, display: "flex", flexDirection: "column" }}>
+    <div style={onClose
+      ? { position: "fixed", inset: 0, zIndex: 86, overflowY: "auto", background: "var(--c-bgApp)", backgroundImage: "var(--c-bgGradient, none)", color: C.textPrimary, display: "flex", flexDirection: "column" }
+      : { minHeight: "100vh", color: C.textPrimary, display: "flex", flexDirection: "column" }}>
       <div style={{ borderBottom: `1px solid ${C.border}` }}>
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <span style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: 34, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15", lineHeight: 1.05 }}>Acro Express</span>
           <span style={{ color: C.teal, fontWeight: 700 }}>🚂 Practice ride{st && n < 3 ? ` · Station ${n + 1} of 3` : ""}</span>
-          <BtnSecondary onClick={() => { musicRef.current?.stop(); navigate("/"); }} style={{ padding: "6px 12px", fontSize: 14 }}>Leave the practice</BtnSecondary>
+          <BtnSecondary onClick={leave} style={{ padding: "6px 12px", fontSize: 14 }}>{onClose ? "Back to the station" : "Leave the practice"}</BtnSecondary>
         </div>
       </div>
+      {/* a train started boarding while you practise */}
+      {boarding && (
+        <div style={{ background: C.brand, color: C.onBrand }}>
+          <div style={{ maxWidth: 900, margin: "0 auto", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", fontWeight: 700 }}>
+            <span>🚂 A Sky Train is boarding: {boarding.name}</span>
+            <button onClick={() => { musicRef.current?.stop(); onClose?.(); navigate(`/room/${boarding.id}`); }}
+              style={{ background: C.onBrand, color: C.brand, border: "none", borderRadius: 8, padding: "6px 14px", fontFamily: "inherit", fontWeight: 800, cursor: "pointer" }}>Board now →</button>
+          </div>
+        </div>
+      )}
       <div style={{ flex: 1, width: "100%", maxWidth: 900, margin: "0 auto", padding: "16px", boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 14 }}>{children}</div>
     </div>
   );
@@ -1863,9 +1881,9 @@ function PracticeTrain() {
         {mine.map((m, i) => m && <div key={i} style={{ fontSize: 18 }}><span style={{ color: C.brand, letterSpacing: "0.1em", fontWeight: 800 }}>{stations[i].letters.split("").join(" ")}</span> · "{m}"</div>)}
         {/* Damon's closing message */}
         <p style={{ margin: "8px 0 0", fontSize: 19, color: C.textPrimary, fontWeight: 700 }}>Wonder how your acros would fare with the passengers?</p>
-        <p style={{ margin: 0, fontSize: 17, color: C.textSecond }}>Get your Sky Passport and join the Daily Express at 23:00 Cyprus time ({nightExpress(Date.now(), []).local} your time) to find out.</p>
+        <p style={{ margin: 0, fontSize: 17, color: C.textSecond }}>Join free (just a name and a password) and ride the Daily Express at 23:00 Cyprus time ({nightExpress(Date.now(), []).local} your time) to find out.</p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
-          <Btn onClick={() => navigate("/")}>{getAuth()?.token ? "Back to the Grand Sky Station" : "Get my Sky Passport"}</Btn>
+          <Btn onClick={leave}>{getAuth()?.token ? "Back to the Grand Sky Station" : "Join free"}</Btn>
           <BtnSecondary onClick={() => { setStations(practiceRide()); setMine([]); setN(0); setPhase("write"); }}>Another practice ride</BtnSecondary>
         </div>
       </Panel>
@@ -2636,6 +2654,8 @@ function Lobby() {
     } catch (e) { setAuthMsg(friendlyAuthError(e, mode)); }
     setAuthBusy(false);
   }
+  // The practice ride, open over the station (you stay on the platform while you practise)
+  const [practicing, setPracticing] = useState(false);
   // The latest Station Log post, for the Station Board
   const [latestLog, setLatestLog] = useState("");
   useEffect(() => {
@@ -2757,11 +2777,18 @@ function Lobby() {
           style={{ background: "none", border: "none", padding: 0, font: "inherit", fontWeight: 700, color: C.teal, cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(127,127,127,0.4)", textUnderlineOffset: 3 }}>
           {auth.username}</button>
       </div>
+      {/* the practice ride, for every player (Damon, 2026-10-22: "it's cool and reminds the players of past games"; not
+          under Departures, where it competed with the trains — its own button, explained) */}
+      <span data-hint="Three stations from our past games to write acros for, on your own: then see what the passengers wrote. No scores, just fun" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <BtnSecondary onClick={() => setPracticing(true)} style={smallBtn}>🚂 Practice ride</BtnSecondary>
+        {!phone && !shortWin && <span style={{ fontSize: 13, color: C.textMuted, whiteSpace: "nowrap" }}>warm up alone · 3 stations from past games</span>}
+      </span>
       <button data-hint="Log out on this computer" onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4, whiteSpace: "nowrap" }}>Log out</button>
     </>
   );
   // The Station Board's news (2026-10-22): the Daily Express, the latest Station Log post, who's here, a tip
   const dailyNow = nightExpress(Date.now(), roomList);
+  const boardWord = useWordOfWeek();   // for the Station Board
   const bdayAge = birthdayToday();
   // confetti once per birthday per browser: decided when the page opens, remembered once you're at the station
   const [bdayConfetti] = useState(() => { try { return bdayAge > 0 && localStorage.getItem("acro.birthday") !== String(bdayAge); } catch { return false; } });
@@ -2773,6 +2800,7 @@ function Lobby() {
         : `Daily Express: every day at ${dailyNow.local} your time · next one ${dailyNow.mins < 0 ? untilText(dailyNow.mins) : "tomorrow"}` },
     ...(latestLog ? [{ icon: "📰", text: `Station Log: ${latestLog}`, onClick: () => navigate("/log") }] : []),   // the only way to the Station Log from here (2026-10-22)
     { icon: "👥", text: `${online.length} passenger${online.length === 1 ? "" : "s"} at the station · ${roomList.filter(r => r.gameOn).length} train${roomList.filter(r => r.gameOn).length === 1 ? "" : "s"} on the move` },
+    ...(boardWord ? [{ icon: "📖", text: `Word of the week: ${boardWord.word.toUpperCase()}, ${boardWord.meaning}. Use it in an acro that gets a vote: +1!` }] : []),
     { icon: "💡", text: BOARD_TIPS[Math.floor(Date.now() / 3600000) % BOARD_TIPS.length] },   // a different tip every hour
   ];
   // Departures: the trains, then free platforms so the board always shows 3 rows — and always at least one
@@ -2876,7 +2904,7 @@ function Lobby() {
                 </div>
                 <form onSubmit={e => { e.preventDefault(); doAuth(authMode); }} style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
                   <div style={{ color: C.textSecond, fontSize: 15 }}>
-                    {authMode === "new" ? <>Get your free <b style={{ color: C.textPrimary }}>Sky Passport</b>: your player account, with your stats and best acros. Just pick a passenger name and a password.</> : "Welcome back! Type your passenger name and password."}
+                    {authMode === "new" ? <>Join free: just pick a passenger name and a password. (Your player profile, with your stats and best acros, is called your <b style={{ color: C.textPrimary }}>Sky Passport</b>.)</> : "Welcome back! Type your passenger name and password."}
                   </div>
                   <label style={{ fontSize: 13, color: C.textMuted }}>Passenger name
                     <Input id="welcomeName" value={username} onChange={e => { setUsername(e.target.value); setAuthMsg(""); }} placeholder={authMode === "new" ? "e.g. SkyRider_7" : "Your passenger name"} style={{ textAlign: "left", marginTop: 4 }} autoFocus={!phone} />
@@ -2888,7 +2916,7 @@ function Lobby() {
                   {authMsg && <div role="alert" style={{ color: C.brand, fontSize: 14 }}>{authMsg}</div>}
                   <button type="submit" disabled={authBusy}
                     style={{ marginTop: 4, padding: "12px 16px", borderRadius: 10, border: "none", background: C.brand, color: C.onBrand, fontFamily: "inherit", fontSize: 17, fontWeight: 700, cursor: authBusy ? "wait" : "pointer", opacity: authBusy ? 0.7 : 1 }}>
-                    {authBusy ? "One moment…" : authMode === "new" ? "Get my Sky Passport & board" : "Log in & board"}
+                    {authBusy ? "One moment…" : authMode === "new" ? "Join free & board" : "Log in & board"}
                   </button>
                   <div style={{ fontSize: 12, color: C.textMuted, textAlign: "center" }}>
                     {authMode === "new" ? <>Free · no email · takes 10 seconds · passwords are stored scrambled. By joining you accept the <a href="/rules" style={{ color: C.teal }}>House Rules</a>.</>
@@ -2993,9 +3021,7 @@ function Lobby() {
               <Icon name="train" size={30} color={C.teal} />
               <div>
                 <h2 style={boxTitle}>Departures</h2>
-                {/* the practice ride for everyone, always (Damon, 2026-10-22: "it's cool and reminds the players of past games") */}
-                <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}{" "}
-                  <button data-hint="Three stations from our past games to write acros for, on your own: see what the passengers wrote. No scores, just fun" onClick={() => navigate("/practice")} style={{ background: "none", border: "none", padding: 0, color: C.teal, fontFamily: "inherit", fontSize: 14, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Or warm up: 🚂 take a practice ride</button></div>
+                <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}</div>
               </div>
             </div>
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
@@ -3102,6 +3128,7 @@ function Lobby() {
         )}
 
         <Footer compact />   {/* © + House Rules + Privacy, a plain line under the station */}
+        {practicing && <PracticeTrain onClose={() => setPracticing(false)} boarding={roomList.find(r => !r.gameOn && (r.playingNames || []).length > 0) || roomList.find(r => r.gameOn) || null} />}
         <PmToast />
         <RestartBanner />
         <PassengerCard />
@@ -3133,6 +3160,20 @@ function StatusPill({ text, color }) {
 }
 
 // The platform number in a box, like a station sign ("01"); "free" = a quiet dashed box
+// The Word of the Week (2026-10-22, Damon): a fun, little-known word; an acro that uses it and gets at least one vote
+// earns +1. A new word every Monday (the server's list of 56, api/word). Asked once per page load.
+let wordOfWeekPromise = null;
+function useWordOfWeek() {
+  const [w, setW] = useState(null);
+  useEffect(() => {
+    if (!wordOfWeekPromise) wordOfWeekPromise = fetch(`${API_URL}/api/word`).then(r => (r.ok ? r.json() : null)).catch(() => null);
+    let on = true;
+    wordOfWeekPromise.then(d => { if (on) setW(d); });
+    return () => { on = false; };
+  }, []);
+  return w;   // { word, meaning } or null
+}
+
 // The welcome screen's live demo (2026-10-22, Damon: the front door should be "exciting" and say "what this is all
 // about"): real acros our passengers voted for (no names, nothing rude), played like a station — the topic, the
 // letters dropping in one by one, the phrase writing itself word by word (each word's first letter lit), then the
@@ -3541,6 +3582,7 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
     summary = <>
       <b style={{ color: C.textPrimary }}>{who}</b> won{winners.length > 1 ? " (same acro)" : ""} with {n} vote{n === 1 ? "" : "s"}: {parts.join(" + ")} = <b style={{ color: C.textPrimary }}>{w.score} points</b>.
       {details.speedBonus && !speedForWinner && <> Speed bonus +1: <b style={{ color: C.textPrimary }}>{details.speedBonus}</b>.</>}
+      {details.wordBonus?.length > 0 && <> 📖 Word of the week +1: <b style={{ color: C.textPrimary }}>{details.wordBonus.join(", ")}</b>.</>}
     </>;
   }
 
@@ -3760,6 +3802,7 @@ function Room() {
   const submittedAcroRef = useRef(null);
   const handleSubmitAcroRef = useRef(null);
   const audioRef = useRef(null);      // tune 1 — plays during submission
+  const weekWord = useWordOfWeek();   // the Word of the Week, shown under the topic (a hook: up here, before any early return)
   const audio2Ref = useRef(null);     // tune 2 — plays after submission until voting
   const votingAudioRef = useRef(null); // drumroll
   const songTimeoutRef = useRef(null); // delayed start of the writing song (long rounds)
@@ -4022,6 +4065,8 @@ function Room() {
         setScores(roundScores || {});
         setRoundVotes(roundVotesMap || null);
         setResultDetails(details || null);
+        // the Word of the Week, in the chat for everyone to see
+        if (details?.wordBonus?.length) postSystemMessage(`📖 ${details.wordBonus.join(" and ")} used the word of the week, "${details.word}": +1!`);
         setWinningAcro(winning);
         setPhase("Results");
         setTimer(null);
@@ -4543,6 +4588,10 @@ function Room() {
       <span style={{ fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginRight: 8 }}>Topic</span>
       {/* The topic in Honk (was Fredoka; Damon: a different font) */}
       <span style={{ fontSize: isShort ? 30 : 36, ...smallTitle, overflowWrap: "anywhere" }}>{currentTopic}</span>
+      {/* the Word of the Week, one slim line */}
+      {weekWord && <div data-hint={`Word of the week: use "${weekWord.word}" in your acro; if it gets at least one vote, you earn +1`}
+        style={{ fontSize: 13, color: C.textSecond, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        📖 Word of the week: <b style={{ color: C.gold || C.teal, letterSpacing: "0.03em" }}>{weekWord.word}</b> · {weekWord.meaning} · <b style={{ color: C.textPrimary }}>+1</b></div>}
     </div>
   );
   // Who chooses the first topic: whoever started the Sky Train, or the first passenger on board if
