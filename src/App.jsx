@@ -1879,7 +1879,10 @@ function PracticeTrain() {
         <div style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: C.textMuted }}>Topic</div>
         <div style={{ ...honkTitle, fontSize: 30, lineHeight: 1.15 }}>{st.topic}</div>
         {phase === "write" && (
-          <div style={{ fontSize: `calc(clamp(28px, 6vh, 46px) * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, lineHeight: "var(--tf-lh, 1)", color: left <= 10 ? C.brand : C.teal, marginTop: 6 }}>{left}</div>
+          <div style={{ fontSize: `calc(clamp(28px, 6vh, 46px) * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, lineHeight: "var(--tf-lh, 1)", color: left <= 10 ? C.brand : C.teal, marginTop: 6,
+            // as on the train: with Honk, the palette's colours (the letters' colours in the last 10 s), no shadow — without
+            // fontPalette Honk shows its own yellow-pink gradient (Damon spotted it, 2026-10-22)
+            fontPalette: left <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", fontVariantNumeric: "tabular-nums" }}>{left}</div>
         )}
         <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 6 }}>
           {letters.map((L, i) => (
