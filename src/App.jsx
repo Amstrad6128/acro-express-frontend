@@ -1464,7 +1464,7 @@ function StationLog() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 40, ...honkTitle }}>Station Log</h1>   {/* Honk, the size of the logo */}
-            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>What's new on the Acro Express, and what we fixed. Comment and react — we read everything.</p>
+            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>What's new on the Acro Express, and what we fixed. Comment and react — we read everything. On the rails since 16 August 2025.</p>
           </div>
           <BtnSecondary onClick={() => navigate("/")}>← Grand Sky Station</BtnSecondary>
         </div>
@@ -1718,7 +1718,16 @@ function NumbersPage() {
 const ADMIN_NAME = "TylerDurden";   // who players write to
 const LEGAL_UPDATED = "21 October 2026";   // change when the texts below change
 
-// "© 2026 Acro Express™ · House Rules · Privacy" — a plain line (no frame, Damon 2026-10-18) at the bottom of
+// Acro Express's birthday (Damon, 2026-10-22: "16/08/2025"): the first commit, 02:05 Cyprus time
+const BIRTHDAY = { year: 2025, month: 8, day: 16 };
+// Is it the birthday today in Cyprus? → how many years old it turns (or 0)
+function birthdayToday(now = new Date()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Nicosia", year: "numeric", month: "numeric", day: "numeric" })
+    .formatToParts(now).filter(x => x.type !== "literal").map(x => [x.type, Number(x.value)]));
+  return p.month === BIRTHDAY.month && p.day === BIRTHDAY.day && p.year > BIRTHDAY.year ? p.year - BIRTHDAY.year : 0;
+}
+
+// "© 2025–2026 Acro Express™ · House Rules · Privacy" — a plain line (no frame, Damon 2026-10-18) at the bottom of
 // the station, the Station Log and these pages. compact = less space around it (the station fills the window).
 function Footer({ compact }) {
   const navigate = useNavigate();
@@ -1726,7 +1735,7 @@ function Footer({ compact }) {
   return (
     // A soft shadow keeps the quiet text readable on every sky (Daybreak's pink horizon included)
     <footer style={{ flexShrink: 0, textAlign: "center", padding: compact ? "8px 16px 10px" : "24px 16px 28px", color: "var(--c-bgText)", fontSize: 13, textShadow: "0 1px 2px rgba(0,0,0,0.35)" }}>
-      © {new Date().getFullYear()} Acro Express™ · <button style={link} onClick={() => navigate("/rules")}>House Rules</button>
+      © {BIRTHDAY.year}–{new Date().getFullYear()} Acro Express™ · <button style={link} onClick={() => navigate("/rules")}>House Rules</button>
       {" · "}<button style={link} onClick={() => navigate("/privacy")}>Privacy</button>
     </footer>
   );
@@ -1755,7 +1764,7 @@ function LegalPage({ title, intro, children }) {
 
 function HouseRules() {
   return (
-    <LegalPage title="House Rules" intro="The rules of the ride, for every passenger.">
+    <LegalPage title="House Rules" intro="The rules of the ride, for every passenger. The Acro Express has been running since 16 August 2025.">
       <RulesSection icon="🎫" title="Your ticket">
         Acro Express is free to play. By riding you agree to these House Rules. Passengers should be 13 or older;
         younger passengers can ride with a parent's OK.
@@ -2545,7 +2554,12 @@ function Lobby() {
   );
   // The Station Board's news (2026-10-22): the Daily Express, the latest Station Log post, who's here, a tip
   const dailyNow = nightExpress(Date.now(), roomList);
+  const bdayAge = birthdayToday();
+  // confetti once per birthday per browser: decided when the page opens, remembered once you're at the station
+  const [bdayConfetti] = useState(() => { try { return bdayAge > 0 && localStorage.getItem("acro.birthday") !== String(bdayAge); } catch { return false; } });
+  useEffect(() => { if (auth && bdayConfetti) try { localStorage.setItem("acro.birthday", String(bdayAge)); } catch { /* private mode */ } }, [auth, bdayConfetti, bdayAge]);
   const boardNews = [
+    ...(bdayAge ? [{ icon: "🎂", text: `Acro Express turns ${bdayAge} today! On the rails since 16 August 2025. Thank you for riding with us!` }] : []),
     { icon: "🚂", text: dailyNow.status.text === "On the move" ? "The Daily Express is on the move: hop on!"
         : dailyNow.status.text === "Running a little late 🚂" ? `The Daily Express is running a little late. Start it, or wait on the platform!`
         : `Daily Express: every day at ${dailyNow.local} your time · next one ${dailyNow.mins < 0 ? untilText(dailyNow.mins) : "tomorrow"}` },
@@ -2590,6 +2604,8 @@ function Lobby() {
       </div>
       </div>
       {/* The Station Board: the news, and the explanation of whatever the mouse is over */}
+      {/* the birthday: confetti once, the first time you're at the station that day */}
+      {auth && bdayConfetti && <Confetti />}
       {auth && <StationBoard news={boardNews} status={status && <span data-hint={status === "ok" ? "Our server is up and the live connection works" : "The connection dropped: it reconnects by itself"} style={{ color: status === "ok" ? C.success : C.brand, fontSize: 13, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>} />}
 
       <div style={{ flex: fits ? 1 : "none", minHeight: 0, width: "100%", maxWidth: 1400, margin: "0 auto", boxSizing: "border-box", padding: phone ? "8px 10px 0" : "8px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
