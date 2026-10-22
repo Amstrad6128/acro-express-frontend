@@ -294,8 +294,11 @@ const EXTRA_FONTS = {
   trueno: { fam: "'Trueno'", lf: 1.07, tf: 0.97, w: 400 },        // capitals 71, digits 74
   nunito: { fam: "'Nunito'", lf: 1.055, tf: 0.99, w: 800 },       // capitals 72, digits 73
   righteous: { fam: "'Righteous'", lf: 1.07, tf: 0.96, w: 400 },  // capitals 71, digits 75
+  // 2026-10-22 (Damon: "Direction is Barrio, but it's not the one. Add Bricolage Grotesque and Dela Gothic One")
+  bricolage: { fam: "'Bricolage Grotesque'", lf: 1.12, tf: 1.03, w: 800 },   // capitals 68, digits 70
+  dela: { fam: "'Dela Gothic One'", lf: 1.01, tf: 0.95, w: 400 },           // capitals 75, digits 76
 };
-const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", trueno: "Trueno", nunito: "Nunito", righteous: "Righteous" };   // key → name shown in the menu
+const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", trueno: "Trueno", nunito: "Nunito", righteous: "Righteous", bricolage: "Bricolage", dela: "Dela Gothic" };   // key → name shown in the menu
 function loadLetterFont() {
   try { const k = localStorage.getItem("acro.letterFont"); return LETTER_FONTS[k] ? k : "bowlby"; } catch { return "bowlby"; }
 }
@@ -694,6 +697,8 @@ function ThemePicker() {
                     trueno: { fontFamily: "'Trueno', sans-serif", fontSize: 18, color: C.brand },
                     nunito: { fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.brand },
                     righteous: { fontFamily: "'Righteous', sans-serif", fontSize: 18, color: C.brand },
+                    bricolage: { fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 19, color: C.brand },
+                    dela: { fontFamily: "'Dela Gothic One', sans-serif", fontSize: 17, color: C.brand },
                   }[key]}>B T V</span>
                   <span style={{ fontSize: 13, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</span>
                 </button>
@@ -2391,7 +2396,12 @@ function Lobby() {
     return m.replace(/^\d{3}:\s*/, "");
   };
   async function doAuth(mode) {
-    if (!username.trim() || !password) { setAuthMsg("Type a passenger name and a password."); return; }
+    if (!username.trim() || !password) {
+      // (Damon: "get your sky passport is not working if you just land and click it") — go to the empty box
+      setAuthMsg(!username.trim() ? "First, pick a passenger name." : "Now choose a password.");
+      document.getElementById(!username.trim() ? "welcomeName" : "welcomePass")?.focus();
+      return;
+    }
     setAuthBusy(true); setAuthMsg("");
     try {
       const api = await import("./services/api");
@@ -2541,7 +2551,9 @@ function Lobby() {
   const boardCols = "76px minmax(0, 2.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) 132px";   // platform · train · aboard · status · button
 
   return (
-    <div style={{ height: "100vh", overflowY: fits ? "hidden" : "auto", overflowX: "hidden", color: C.textPrimary, display: "flex", flexDirection: "column" }}>
+    // Signed in on a big window: exactly one screen. Before signing in (the welcome screen) the page scrolls: on phones
+    // it was cut off below the first screen (2026-10-22)
+    <div style={{ height: auth || !phone ? "100vh" : undefined, minHeight: "100vh", overflowY: fits && auth ? "hidden" : "auto", overflowX: "hidden", color: C.textPrimary, display: "flex", flexDirection: "column" }}>
       {/* Header: the logo, then the menus (on phones the menus go under the logo) */}
       <div style={{ flexShrink: 0, borderBottom: `1px solid ${C.border}`, padding: phone ? "10px 16px" : "10px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 8, columnGap: shortWin ? 20 : 16 }}>
         <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : (shortWin ? 40 : 46), fontWeight: 400, margin: 0, lineHeight: 1.05, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
@@ -2550,16 +2562,18 @@ function Lobby() {
         {/* Short windows: the greeting and your buttons sit here, next to the logo, instead of in their own bar */}
         {shortWin && auth && <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginRight: "auto" }}>{welcomeParts}</div>}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span data-hint="Station Log: what's new on the Acro Express, and what we fixed" style={{ display: "contents" }}><StationLogButton /></span>
+          {/* Before signing in only How to play (2026-10-22, Damon: colors and music "shouldn't even be a part of that
+              screen"); the rest appears once you're aboard */}
+          {auth && <span data-hint="Station Log: what's new on the Acro Express, and what we fixed" style={{ display: "contents" }}><StationLogButton /></span>}
           <span data-hint="How to play: the rules, the points and the special topics" style={{ display: "contents" }}><HowToPlay winScore={roomList[0]?.winScore || 30} /></span>
-          <span data-hint="Colors: the look of the station and the big letters' font. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>
+          {auth && <span data-hint="Colors: the look of the station and the big letters' font. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>}
           {/* Sound at the station too (2026-10-20): button sounds and the message chime play here */}
-          <span data-hint="Music: volume, button sounds, and your song while acros are written" style={{ display: "contents" }}><SoundControl /></span>
-          {status && <span data-hint={status === "ok" ? "Our server is up and the live connection works" : "The connection dropped: it reconnects by itself"} style={{ color: status === "ok" ? C.success : C.brand, fontSize: 14, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>}
+          {auth && <span data-hint="Music: volume, button sounds, and your song while acros are written" style={{ display: "contents" }}><SoundControl /></span>}
+          {auth && status && <span data-hint={status === "ok" ? "Our server is up and the live connection works" : "The connection dropped: it reconnects by itself"} style={{ color: status === "ok" ? C.success : C.brand, fontSize: 14, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>}
         </div>
       </div>
       {/* The Station Board: the news, and the explanation of whatever the mouse is over */}
-      <StationBoard news={boardNews} />
+      {auth && <StationBoard news={boardNews} />}
 
       <div style={{ flex: fits ? 1 : "none", minHeight: 0, width: "100%", maxWidth: 1400, margin: "0 auto", boxSizing: "border-box", padding: phone ? "8px 10px 0" : "8px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
 
@@ -2583,17 +2597,23 @@ function Lobby() {
           return (
             <div style={{ display: "grid", gap: 12, gridTemplateColumns: phone ? "minmax(0, 1fr)" : "minmax(0, 1.25fr) minmax(320px, 1fr)", alignItems: "start", maxWidth: 1100, width: "100%", margin: "8px auto 0" }}>
               {/* What this is */}
-              <Panel style={{ padding: phone ? 18 : 26, display: "flex", flexDirection: "column", gap: 16, order: phone ? 2 : 0 }}>
+              <Panel style={{ padding: phone ? 18 : 26, display: "flex", flexDirection: "column", gap: 16 }}>
+                {/* phones: the explanation comes first (Damon: "nothing says what is this all about"); returning passengers jump down */}
+                {phone && <button type="button" onClick={() => { setAuthMode("login"); setAuthMsg(""); setTimeout(() => document.getElementById("welcomeName")?.focus(), 50); }}
+                  style={{ alignSelf: "flex-end", marginBottom: -8, background: "none", border: `1px solid ${C.border}`, borderRadius: 999, color: C.teal, fontFamily: "inherit", fontSize: 14, padding: "4px 12px", cursor: "pointer" }}>I have a passport · Log in ↓</button>}
                 <div>
-                  <h2 style={{ margin: 0, fontSize: phone ? 30 : 38, ...honkTitle }}>Welcome aboard!</h2>
+                  <h2 style={{ margin: 0, fontSize: phone ? 32 : 42, ...honkTitle }}>Welcome aboard!</h2>
                   <p style={{ margin: "6px 0 0", color: C.textSecond, fontSize: 17, lineHeight: 1.45 }}>
-                    Acro Express is a word game for people with a sense of humour. You get a few letters, you make a funny
-                    phrase out of them, and everyone votes for their favourite. The first to {30} points wins the journey.
+                    A word game for people with a sense of humour. You get a few letters, you turn them into the funniest
+                    phrase you can, and everyone votes. First to {30} points wins the journey.
                   </p>
                 </div>
-                {step("1", "The letters arrive", <>For example <b style={{ color: C.brand, letterSpacing: "0.15em" }}>B T V</b>, with a topic like "Holidays".</>)}
-                {step("2", "You write a phrase", <>One word per letter: <i style={{ color: C.textPrimary }}>"Bring The Volcano"</i>. You have about a minute.</>)}
-                {step("3", "Everyone votes", "All phrases are shown without names. The funniest wins points, and so does everyone who voted for it.")}
+                <AcroDemo />
+                <div style={{ display: "grid", gridTemplateColumns: phone ? "1fr" : "repeat(3, 1fr)", gap: 10 }}>
+                  {step("1", "Letters arrive", "And a topic.")}
+                  {step("2", "Write a phrase", "One word per letter, about a minute.")}
+                  {step("3", "Everyone votes", "No names shown. Funniest wins.")}
+                </div>
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, display: "flex", flexDirection: "column", gap: 6, fontSize: 15, color: C.textSecond }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="train" size={18} color={C.teal} /></span><span><b style={{ color: C.textPrimary }}>When we play:</b> every day at <b style={{ color: C.teal }}>{daily.local}</b> your time, the Daily Express. You can also start a train any time.</span></div>
                   {here !== null && (
@@ -2603,7 +2623,7 @@ function Lobby() {
                 </div>
               </Panel>
               {/* The Sky Passport card */}
-              <Panel style={{ padding: 0, overflow: "hidden", order: phone ? 1 : 0 }}>
+              <Panel style={{ padding: 0, overflow: "hidden" }}>
                 <div style={{ display: "flex", borderBottom: `1px solid ${C.border}` }}>
                   {tab("new", "I'm new")}
                   {tab("login", "I have a passport")}
@@ -2613,11 +2633,11 @@ function Lobby() {
                     {authMode === "new" ? "Get your free Sky Passport: just pick a passenger name and a password." : "Welcome back! Type your passenger name and password."}
                   </div>
                   <label style={{ fontSize: 13, color: C.textMuted }}>Passenger name
-                    <Input value={username} onChange={e => { setUsername(e.target.value); setAuthMsg(""); }} placeholder={authMode === "new" ? "e.g. SkyRider_7" : "Your passenger name"} style={{ textAlign: "left", marginTop: 4 }} autoFocus={!phone} />
+                    <Input id="welcomeName" value={username} onChange={e => { setUsername(e.target.value); setAuthMsg(""); }} placeholder={authMode === "new" ? "e.g. SkyRider_7" : "Your passenger name"} style={{ textAlign: "left", marginTop: 4 }} autoFocus={!phone} />
                   </label>
                   {authMode === "new" && <div style={{ fontSize: 12, color: C.textMuted, marginTop: -4 }}>3 to 20 letters, numbers or _ · other players see it</div>}
                   <label style={{ fontSize: 13, color: C.textMuted }}>Password
-                    <Input type="password" value={password} onChange={e => { setPassword(e.target.value); setAuthMsg(""); }} placeholder={authMode === "new" ? "Choose a password" : "Your password"} style={{ textAlign: "left", marginTop: 4 }} />
+                    <Input id="welcomePass" type="password" value={password} onChange={e => { setPassword(e.target.value); setAuthMsg(""); }} placeholder={authMode === "new" ? "Choose a password" : "Your password"} style={{ textAlign: "left", marginTop: 4 }} />
                   </label>
                   {authMsg && <div role="alert" style={{ color: C.brand, fontSize: 14 }}>{authMsg}</div>}
                   <button type="submit" disabled={authBusy}
@@ -2865,6 +2885,59 @@ function StatusPill({ text, color }) {
 }
 
 // The platform number in a box, like a station sign ("01"); "free" = a quiet dashed box
+// The welcome screen's live demo (2026-10-22, Damon: the front door should be "exciting" and say "what this is all
+// about"): real acros our passengers voted for (no names, nothing rude), played like a station — the topic, the
+// letters dropping in one by one, the phrase writing itself word by word (each word's first letter lit), then the
+// votes. One after another, forever. With "reduce motion" switched on, each one simply appears whole.
+const DEMO_ACROS = [
+  { topic: "Words on your tombstone", acro: "An Angel's Risen Skywards", votes: 3 },
+  { topic: "A + B = C", acro: "Winning + Ticket = Millions", votes: 4 },
+  { topic: "Once upon a time…", acro: "…dwarves were loving Snowhite!", votes: 3 },
+  { topic: "Rhyme", acro: "Clothes fold, Dad's old.", votes: 4 },
+  { topic: "Thank you", acro: "Love now playing Acro Express!", votes: 4 },
+];
+function AcroDemo() {
+  const calm = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const [n, setN] = useState(0);          // which acro
+  const [t, setT] = useState(calm ? 999 : 0);   // ticks of 150 ms into it
+  useEffect(() => {
+    if (calm) { const iv = setInterval(() => setN(x => x + 1), 5000); return () => clearInterval(iv); }
+    const iv = setInterval(() => setT(x => x + 1), 150);
+    return () => clearInterval(iv);
+  }, [calm]);
+  const d = DEMO_ACROS[n % DEMO_ACROS.length];
+  const words = d.acro.split(" ").filter(w => /[A-Za-z]/.test(w));          // the words that carry a letter ("+" doesn't)
+  const letters = words.map(w => w.replace(/^[^A-Za-z]+/, "")[0].toUpperCase());
+  const shownLetters = Math.min(letters.length, Math.floor(t / 2));          // a letter every 300 ms
+  const wordsStart = letters.length * 2 + 4;
+  const tokens = d.acro.split(" ");
+  const shownTokens = Math.max(0, Math.min(tokens.length, Math.floor((t - wordsStart) / 3)));   // a word every 450 ms
+  const votesAt = wordsStart + tokens.length * 3 + 3;
+  const end = votesAt + 20;                                                  // 3 s to enjoy it
+  useEffect(() => { if (!calm && t > end) { setT(0); setN(x => x + 1); } }, [t, end, calm]);
+  return (
+    <div aria-label={`Example: ${d.acro}`} style={{ background: "var(--c-bgApp)", border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px", minHeight: 170, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: C.teal }}>A real station · topic: <span style={{ color: C.textPrimary, textTransform: "none", letterSpacing: 0 }}>{d.topic}</span></div>
+      <div style={{ display: "flex", gap: 10, minHeight: 52 }}>
+        {letters.map((L, i) => (
+          <span key={n + "-" + i} style={{ fontFamily: "'Bowlby One SC', serif", fontSize: 44, lineHeight: 1, color: C.brand, textShadow: "0 3px 0 rgba(0,0,0,0.35)",
+            opacity: i < shownLetters ? 1 : 0, transform: i < shownLetters ? "none" : "translateY(-14px)", transition: "opacity .25s, transform .25s" }}>{L}</span>
+        ))}
+      </div>
+      <div style={{ fontSize: 22, color: C.textPrimary, minHeight: 30 }}>
+        {tokens.slice(0, shownTokens).map((w, i) => {
+          const k = w.search(/[A-Za-z]/);
+          return <span key={i}>{k >= 0 ? <>{w.slice(0, k)}<span style={{ color: C.brand, fontWeight: 800 }}>{w[k]}</span>{w.slice(k + 1)}</> : w} </span>;
+        })}
+        {shownTokens < tokens.length && t >= wordsStart && <span style={{ color: C.teal }}>▍</span>}
+      </div>
+      <div style={{ minHeight: 28 }}>
+        {t >= votesAt && <span style={{ display: "inline-block", background: C.teal, color: C.bgApp, fontWeight: 800, fontSize: 14, borderRadius: 999, padding: "4px 12px" }}>★ {d.votes} votes · won the station</span>}
+      </div>
+    </div>
+  );
+}
+
 // The Daily Express (Damon, 2026-10-22): "we need somewhere to announce that there is a game at 11 PM usually".
 // (First called "Night Express"; Damon: "it's not Night Express for people in the USA": 23:00 Limassol is the
 // afternoon there. So: Daily Express, "every day", no moon.)
