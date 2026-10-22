@@ -2583,9 +2583,10 @@ function Lobby() {
       {/* the line runs edge to edge; the logo and menus sit in the same column as the panels below (Damon, 2026-10-22) */}
       <div style={{ flexShrink: 0, borderBottom: `1px solid ${C.border}` }}>
       <div style={{ maxWidth: 1400, margin: "0 auto", boxSizing: "border-box", padding: phone ? "10px 10px" : "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", rowGap: 8, columnGap: shortWin ? 20 : 16 }}>
-        {/* marginLeft: Honk draws an outline in the box colour around the letters, almost invisible on the page, so the
-            visible A started ~3px right of the panels' edge (Damon, 2026-10-22): pulled back by that outline */}
-        <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : (shortWin ? 40 : 46), fontWeight: 400, margin: 0, marginLeft: "-0.065em", lineHeight: 1.05, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
+        {/* No margin: the logo's dark outline box lines up with the panels' edge. (A -3px nudge, 2026-10-22, lined up the
+            bright letter instead, but in most palettes the outline is visible and then stuck out to the left — Damon's
+            screenshot in Dusk) */}
+        <h1 style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: phone ? 38 : (shortWin ? 40 : 46), fontWeight: 400, margin: 0, lineHeight: 1.05, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15" }}>
           Acro Express<sup style={{ fontFamily: "'Nunito', sans-serif", fontSize: 12, color: "var(--c-bgText)", marginLeft: 3, verticalAlign: "super" }}>™</sup>
         </h1>
         {/* Short windows: the greeting and your buttons sit here, next to the logo, instead of in their own bar */}
