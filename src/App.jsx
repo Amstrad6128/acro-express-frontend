@@ -2990,7 +2990,9 @@ function Lobby() {
               <Icon name="train" size={30} color={C.teal} />
               <div>
                 <h2 style={boxTitle}>Departures</h2>
-                <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? <>Are you ready to play? Start a Sky Train! Quiet right now? <button data-hint="Three real past stations to write acros for, on your own: no scores, just practice" onClick={() => navigate("/practice")} style={{ background: "none", border: "none", padding: 0, color: C.teal, fontFamily: "inherit", fontSize: 14, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>🚂 Take a practice ride</button></> : "Pick a train and hop on, or start your own."}</div>
+                {/* the practice ride for everyone, always (Damon, 2026-10-22: "it's cool and reminds the players of past games") */}
+                <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}{" "}
+                  <button data-hint="Three stations from our past games to write acros for, on your own: see what the passengers wrote. No scores, just fun" onClick={() => navigate("/practice")} style={{ background: "none", border: "none", padding: 0, color: C.teal, fontFamily: "inherit", fontSize: 14, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Or warm up: 🚂 take a practice ride</button></div>
               </div>
             </div>
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
@@ -3215,6 +3217,7 @@ const BOARD_TIPS = [
   "Tip: in a Word > Chain topic, put > between the words: Fire > Truck > Driver.",
   "Tip: identical acros are shown once, and everyone who wrote it shares the votes.",
   "Tip: the winner of a station picks the next topic.",
+  "Tip: warm up with a practice ride: three stations from our past games, and what the passengers wrote.",
 ];
 // "in 3 h 20 min" / "in 12 min"
 const untilText = mins => { const m = Math.max(0, Math.round(-mins)); return m >= 60 ? `in ${Math.floor(m / 60)} h ${m % 60} min` : `in ${m} min`; };
