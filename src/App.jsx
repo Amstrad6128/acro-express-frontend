@@ -2585,12 +2585,12 @@ function Lobby() {
             <button onClick={() => navigate("/leaderboard")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏆 Sky Leaderboard</button></span>}
           <span data-hint="How to play: the rules, the points and the special topics" style={{ display: "contents" }}><HowToPlay winScore={roomList[0]?.winScore || 30} /></span>
           {auth && <span data-hint="Colors: the look of the station and the big letters' font. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>}
-          {auth && status && <span data-hint={status === "ok" ? "Our server is up and the live connection works" : "The connection dropped: it reconnects by itself"} style={{ color: status === "ok" ? C.success : C.brand, fontSize: 14, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>}
+          {/* ("All lines running" moved to the Station Board's right end, 2026-10-22: loose text broke the row of buttons) */}
         </div>
       </div>
       </div>
       {/* The Station Board: the news, and the explanation of whatever the mouse is over */}
-      {auth && <StationBoard news={boardNews} />}
+      {auth && <StationBoard news={boardNews} status={status && <span data-hint={status === "ok" ? "Our server is up and the live connection works" : "The connection dropped: it reconnects by itself"} style={{ color: status === "ok" ? C.success : C.brand, fontSize: 13, whiteSpace: "nowrap" }}>● {status === "ok" ? "All lines running" : "Delays, reconnecting…"}</span>} />}
 
       <div style={{ flex: fits ? 1 : "none", minHeight: 0, width: "100%", maxWidth: 1400, margin: "0 auto", boxSizing: "border-box", padding: phone ? "8px 10px 0" : "8px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
 
@@ -3017,7 +3017,8 @@ function useHoverHint() {
 // the Daily Express, what's new on the Station Log, who's here, a tip. When the mouse is over a button (anything
 // with a data-hint), it shows that button's explanation in full instead, and goes back to the news afterwards.
 // A news line can be clicked when it leads somewhere (onClick).
-function StationBoard({ news }) {
+// status: the connection lamp ("● All lines running"), at the board's right end, like the status light of a real board
+function StationBoard({ news, status = null }) {
   const hint = useHoverHint();
   const [i, setI] = useState(0);
   const [shown, setShown] = useState(true);                 // false during the fade between two lines
@@ -3042,6 +3043,7 @@ function StationBoard({ news }) {
         {line.icon && <span style={{ marginRight: 6 }}>{line.icon}</span>}{line.text}
         {line.onClick && !hint && <span style={{ color: C.teal, marginLeft: 6 }}>→</span>}
       </span>
+      {status && <span style={{ marginLeft: "auto", paddingLeft: 12, flexShrink: 0 }}>{status}</span>}
     </div>
     </div>
   );
