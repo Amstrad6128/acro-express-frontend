@@ -1212,7 +1212,8 @@ function NameLink({ name, style, gold = false }) {   // gold: golden names in go
 
 // "👥 Online 12 ▾" on a Sky Train: everyone online and where they are — at the Grand Sky Station or on
 // which train. Click a name to message them. Refreshes every 15 s (api/online).
-function OnlineButton() {
+// Who's online and where (api/online): { station: [names], trains: [{ name, players }] }, every 15 s
+function useOnlineNow() {
   const [data, setData] = useState(null);
   useEffect(() => {
     let stop = false;
@@ -1226,6 +1227,38 @@ function OnlineButton() {
     const iv = setInterval(load, 15000);
     return () => { stop = true; clearInterval(iv); };
   }, []);
+  return data;
+}
+
+// On a train, under the passengers: who's at the Grand Sky Station and on other trains, so you can message them in
+// one click (Damon, 2026-10-23: "message someone in the Grand Sky Station while they are on a Journey … easily")
+function ElsewhereList({ trainName }) {
+  const data = useOnlineNow();
+  const me = String(getAuth()?.username || "").toLowerCase();
+  if (!data) return null;
+  const groups = [["At the Grand Sky Station", data.station],
+    ...data.trains.filter(t => t.name !== trainName).map(t => [`🚆 ${t.name}`, t.players])]
+    .map(([title, names]) => [title, names.filter(n => n.toLowerCase() !== me)]).filter(([, names]) => names.length);
+  if (!groups.length) return null;
+  return (
+    <div style={{ marginTop: 14, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+      {groups.map(([title, names]) => (
+        <div key={title} style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>{title}</div>
+          {names.map(n => (
+            <button key={n} onClick={e => openProfile(n, e.currentTarget)} title={`Message ${n}`}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "transparent", border: "none", borderRadius: 6, padding: "3px 8px", color: C.textSecond, cursor: "pointer", fontFamily: "inherit", fontSize: 14, textAlign: "left" }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n}</span><span style={{ color: C.lavender }} aria-hidden>✉</span>
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function OnlineButton() {
+  const data = useOnlineNow();
   const me = String(getAuth()?.username || "").toLowerCase();
   const total = data ? new Set([...data.station, ...data.trains.flatMap(t => t.players)].map(n => n.toLowerCase())).size : null;
   const group = (title, names, close, big) => (
@@ -5504,6 +5537,8 @@ function Room() {
               ))}
             </ul>
           )}
+          {/* the Grand Sky Station and the other trains, a click away (2026-10-23) */}
+          <ElsewhereList trainName={data.name || roomNameRef.current} />
         </Panel>
 
         {/* Room chat */}
