@@ -3307,7 +3307,7 @@ function Lobby() {
                 {invite?.loaded && (
                   <div style={{ background: invite.gone ? C.bgPanel2 : C.brand, color: invite.gone ? C.textSecond : C.onBrand, padding: "12px 18px", fontWeight: 700, fontSize: 16 }}>
                     {invite.gone ? "That train has left the station, but there's always another one. Join free and ride!"
-                      : <>🎟️ You're invited aboard <span style={{ fontWeight: 900 }}>{invite.name}</span>! Join free and you'll board it straight away.</>}
+                      : <>🎟️ You're invited aboard Acro Express! Join free and you'll board your friend's Sky Train straight away.</>}
                   </div>
                 )}
                 <div style={{ display: "flex", borderBottom: `1px solid ${C.border}` }}>
@@ -3475,7 +3475,8 @@ function Lobby() {
                 {roomList.filter(room => room.id !== night.room?.id || !/^daily express$/i.test(String(room.name || "").trim())).map(room => {
                   const names = room.playingNames || [];
                   const away = room.awayNames || [];
-                  const pill = room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand };
+                  const isFull = names.length + away.length >= 16;   // 16 passengers at most, away ones included, as the server counts (2026-10-23)
+                  const pill = isFull ? { text: "Full", color: C.textMuted } : room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand };
                   const board = () => navigate(`/room/${room.id}`);
                   return (
                     <div key={room.id} data-hint={room.gameOn ? "A game is on: board now and join in from the next station" : "Waiting for passengers: board and the game starts with the first topic"} style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
@@ -3494,7 +3495,7 @@ function Lobby() {
                             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
                               <span style={{ fontSize: 14, color: C.textSecond, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="users" size={15} /> {names.length}</span>
                               <StatusPill {...pill} />
-                              <Btn onClick={board} style={smallBtn}>Board →</Btn>
+                              {!isFull && <Btn onClick={board} style={smallBtn}>Board →</Btn>}
                             </div>
                           )}
                         </div>
@@ -3502,7 +3503,7 @@ function Lobby() {
                       {!phone && <span style={{ fontSize: 14, color: C.textSecond, display: "inline-flex", alignItems: "center", gap: 6 }} title={[...names, ...away.map(a => `${a} (away)`)].join(", ")}>
                         <Icon name="users" size={16} /> {names.length}{away.length > 0 && <span style={{ color: C.textMuted }}>+{away.length}</span>}</span>}
                       {!phone && <span><StatusPill {...pill} /></span>}
-                      {!phone && <Btn onClick={board} style={{ ...smallBtn, justifyContent: "center" }}>{room.gameOn ? "Board now →" : "Board →"}</Btn>}
+                      {!phone && (isFull ? <span /> : <Btn onClick={board} style={{ ...smallBtn, justifyContent: "center" }}>{room.gameOn ? "Board now →" : "Board →"}</Btn>)}
                     </div>
                   );
                 })}
@@ -4059,11 +4060,11 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
 }
 
 // "🔗 Invite": a link to this train. Phones: the share sheet; elsewhere: copied, with "Link copied ✓" for a moment
-function InviteButton({ roomId, roomName }) {
+function InviteButton({ roomId }) {
   const [copied, setCopied] = useState(false);
   const invite = async () => {
     const url = `${window.location.origin}/?train=${roomId}&from=invite`;
-    const text = `Come aboard ${roomName || "my Sky Train"} on Acro Express! A free multiplayer acronym game.`;
+    const text = "Come aboard Acro Express! A free multiplayer acronym game.";   // the brand only (Damon, 2026-10-23)
     try {
       if (navigator.share && window.matchMedia?.("(pointer: coarse)").matches) { await navigator.share({ title: "Acro Express", text, url }); return; }
     } catch (e) { if (e?.name === "AbortError") return; }
@@ -4362,6 +4363,7 @@ function Room() {
   const [roomClosed, setRoomClosed] = useState(false);
   // Vote to kick: removed from this train by a passenger vote (back when the journey ends)
   const [kicked, setKicked] = useState(false);
+  const [full, setFull] = useState(false);              // the train has 16 passengers already (2026-10-23)
   const [kickVotes, setKickVotes] = useState({});      // targetId → { votes, needed } (shown in Passengers)
   const [myKicks, setMyKicks] = useState([]);           // targetIds I voted to kick
   // Last known room name, so the title never falls back to "Room #<id>"
@@ -4809,6 +4811,7 @@ function Room() {
     joinRoom(id, { id: auth.userId, nickname: auth.username, score: 0 }).catch(e => {
       console.warn(e);
       if (String(e?.message || "").includes("passenger vote")) { leavingRef.current = true; setKicked(true); }
+      if (String(e?.message || "").includes("is full")) { leavingRef.current = true; setFull(true); }   // 16 aboard
     });
   }, [id]);
 
@@ -4836,6 +4839,7 @@ function Room() {
         joinRoom(id, { id: me, nickname: auth.username, score: 0 }).catch(e => {
           console.warn("Re-join failed:", e);
           if (String(e?.message || "").includes("passenger vote")) { leavingRef.current = true; setKicked(true); return; }
+          if (String(e?.message || "").includes("is full")) { leavingRef.current = true; setFull(true); return; }
           // 401 = the server no longer knows our login (it restarted) — go to the login screen
           // instead of staying in a room we can't play in
           if (String(e?.message || "").startsWith("401")) { localStorage.removeItem("acro.auth"); authChanged(); navigate("/"); }
@@ -5061,6 +5065,15 @@ function Room() {
       </Panel>
     </div>
   );
+  if (full) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, color: C.textPrimary }}>
+      <Panel style={{ padding: 32, textAlign: "center", maxWidth: 480, borderColor: C.teal }}>
+        <h2 style={{ margin: "0 0 12px", fontSize: 30, ...smallTitle }}>This Sky Train is full</h2>
+        <p style={{ margin: "0 0 24px", color: C.textSecond, fontSize: 16 }}>16 passengers already aboard. Board another one, or start your own!</p>
+        <Btn onClick={() => navigate("/")}>← Grand Sky Station</Btn>
+      </Panel>
+    </div>
+  );
   if (roomClosed) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, color: C.textPrimary }}>
       <Panel style={{ padding: 32, textAlign: "center", maxWidth: 480, borderColor: C.teal }}>
@@ -5198,7 +5211,7 @@ function Room() {
             {/* Not while the first topic is being chosen: round 1 already exists then (currentRoundNumber > 0)
                 — clicking it gave "round already in progress" */}
             {/* No Start / New Game button: the first topic starts the journey (Damon, 2026-10-16) */}
-            <InviteButton roomId={id} roomName={data.name || roomNameRef.current} />
+            <InviteButton roomId={id} />
             <span data-hint="Leave this train and go back to the Grand Sky Station" style={{ display: "contents" }}><BtnSecondary onClick={handleLeaveRoom} style={{ border: `1px solid ${C.focusLine}` }}>← Grand Sky Station</BtnSecondary></span>
           </div>
           {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
