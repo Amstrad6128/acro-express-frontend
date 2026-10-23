@@ -3118,33 +3118,28 @@ function Lobby() {
   const movingTrains = roomList.filter(r => r.gameOn);
   const boardNews = [
     ...(bdayAge ? [{ key: "birthday", icon: "🎂", text: `Acro Express turns ${bdayAge} today! On the rails since 16 August 2025. Thank you for riding with us!`,
-      title: `Acro Express turns ${bdayAge} today!`, detail: "The first piece of Acro Express was written on 16 August 2025. Thank you for riding with us, every one of you!" }] : []),
+      title: `Acro Express turns ${bdayAge} today!`, detail: "Thank you for riding with us!" }] : []),
     { key: "daily", icon: "🚂", text: dailyNow.status.text === "On the move" ? "The Daily Express is on the move: hop on!"
         : dailyNow.status.text === "Running a little late 🚂" ? `The Daily Express is running a little late. Start it, or wait on the platform!`
         : `Daily Express: every day at ${dailyNow.local} your time · next one ${dailyNow.mins < 0 ? untilText(dailyNow.mins) : "tomorrow"}`,
       title: "The Daily Express",
-      detail: <>Our daily game: the regulars ride together every day at <b style={{ color: C.textPrimary }}>{dailyNow.local}</b> your time
-        {dailyNow.mins < 0 ? <>, the next one {untilText(dailyNow.mins)}</> : ""}. It's the first row of Departures, on platform 23: when it boards, press Board.
-        Come a few minutes early to say hello in the chat.</> },
+      detail: <>Every day at <b style={{ color: C.textPrimary }}>{dailyNow.local}</b>, with the regulars. Hop on!</> },
     ...(latestLog ? [{ key: "log", icon: "📰", text: `Station Log: ${latestLog.title}`, title: latestLog.title,
       // the post itself: its "- " lines as a list
       detail: <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {String(latestLog.body || "").split(/\r?\n/).filter(l => l.trim()).map((l, k) => l.startsWith("- ")
+        {String(latestLog.body || "").split(/\r?\n/).filter(l => l.trim()).slice(0, 3).map((l, k) => l.startsWith("- ")
           ? <div key={k} style={{ display: "flex", gap: 8 }}><span style={{ color: C.teal }}>•</span><span>{l.slice(2)}</span></div>
           : <div key={k}>{l}</div>)}
       </div>,
-      action: { label: "All Station Log posts →", onClick: () => navigate("/log") } }] : []),
+      action: { label: "Read it all →", onClick: () => navigate("/log") } }] : []),
     { key: "who", icon: "👥", text: `${online.length} passenger${online.length === 1 ? "" : "s"} at the station · ${movingTrains.length} train${movingTrains.length === 1 ? "" : "s"} on the move`,
       title: "Who's around",
-      detail: <>{online.length ? <>At the station: <b style={{ color: C.textPrimary }}>{online.map(o => o.name).join(", ")}</b>.</> : "Nobody at the station right now."}
-        {" "}{movingTrains.length ? <>On the move: {movingTrains.map(r => `${r.name} (${(r.playingNames || []).length} aboard)`).join(", ")}.</> : "No train on the move."}
-        {" "}Click a name in the list to send that passenger a message.</> },
+      detail: online.length ? online.map(o => o.name).join(", ") : "Nobody yet. Start a Sky Train!" },
     ...(boardWord ? [{ key: "word", icon: "📖", text: `Word of the week: ${boardWord.word.toUpperCase()}, ${boardWord.meaning}. Use it in an acro that gets a vote: +1!`,
       title: `Word of the week: ${boardWord.word}`,
-      detail: <><i>{boardWord.meaning}</i>. Use it (or a simple form of it, like {boardWord.word.toLowerCase()}s) in an acro: if your acro gets at least one vote, you earn <b style={{ color: C.textPrimary }}>+1 point</b>. A new word every Monday.</> }] : []),
+      detail: <><i>{boardWord.meaning}</i>. Use it in an acro that gets a vote: <b style={{ color: C.textPrimary }}>+1 point</b>.</> }] : []),
     { key: "tip", icon: "💡", text: BOARD_TIPS[Math.floor(Date.now() / 3600000) % BOARD_TIPS.length],   // a different tip every hour
-      title: "Tips",
-      detail: <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>{BOARD_TIPS.map((t, k) => <div key={k} style={{ display: "flex", gap: 8 }}><span style={{ color: C.teal }}>•</span><span>{t.replace(/^Tip: /, "")}</span></div>)}</div> },
+      title: "Tip", detail: BOARD_TIPS[Math.floor(Date.now() / 3600000) % BOARD_TIPS.length].replace(/^Tip: (.)/, (m, c) => c.toUpperCase()) },
   ];
   // Departures: the trains, then free platforms so the board always shows 3 rows — and always at least one
   // free platform, the row where you start a new Sky Train
