@@ -1369,7 +1369,7 @@ function HowToPlay({ winScore = 30 }) {
                 When someone reaches {winScore}, the highest score wins the journey. After a 30-second break the next journey starts by itself.
               </RulesSection>
               <RulesSection icon="🚂" title="When we play">
-                Every day at <b style={{ color: C.textPrimary }}>{nightExpress(Date.now(), []).local}</b> your time (23:00 in Cyprus) the regulars ride the <b style={{ color: C.textPrimary }}>Daily Express</b>: that's when the trains are fullest. You can start or join a train any other time too.
+                Every day at <b style={{ color: C.textPrimary }}>{nightExpress(Date.now(), []).local}</b> your time the regulars ride the <b style={{ color: C.textPrimary }}>Daily Express</b>: that's when the trains are fullest. You can start or join a train any other time too.
               </RulesSection>
               <RulesSection icon="💬" title="Tips">
                 <ul style={rulesList}>
@@ -1998,7 +1998,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
         {mine.map((m, i) => m && <div key={i} style={{ fontSize: 18 }}><span style={{ color: C.brand, letterSpacing: "0.1em", fontWeight: 800 }}>{stations[i].letters.split("").join(" ")}</span> · "{m}"</div>)}
         {/* Damon's closing message */}
         <p style={{ margin: "8px 0 0", fontSize: 19, color: C.textPrimary, fontWeight: 700 }}>Wonder how your acros would fare with the passengers?</p>
-        <p style={{ margin: 0, fontSize: 17, color: C.textSecond }}>Join free (just a name and a password) and ride the Daily Express at 23:00 Cyprus time ({nightExpress(Date.now(), []).local} your time) to find out.</p>
+        <p style={{ margin: 0, fontSize: 17, color: C.textSecond }}>Join free (just a name and a password) and ride the Daily Express, every day at {nightExpress(Date.now(), []).local} your time, to find out.</p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
           <Btn onClick={leave}>{getAuth()?.token ? "Back to the Grand Sky Station" : "Join free"}</Btn>
           <BtnSecondary onClick={() => { const ride = practiceRide(); setStations(ride); setMine([]); setN(0); setPhase(practiceStart(ride[0])); track("practice_start"); }}>Another practice ride</BtnSecondary>
@@ -2476,60 +2476,131 @@ function PassStat({ n, label }) {
   );
 }
 // ── The share card ──────────────────────────────────────────────
+// "Acro Express" in Honk, in OUR colours, as a picture for the card. A canvas can't recolour a colour font (it has
+// no font-palette), so the logo is drawn as a small SVG that carries the Honk font itself and the same palette the
+// site's logo uses ("mark": 0 shadow and 1 outline = the box colour, 2–7 fill = the button colour), then copied onto
+// the card like a photo.
+let honkFontData = null;                                   // Honk as base64, fetched once
+async function honkLogoImage(text, fill, edge, px) {
+  if (!honkFontData) {
+    const bytes = new Uint8Array(await (await fetch("/fonts/honk-v6-latin.woff2")).arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    honkFontData = btoa(bin);
+  }
+  const colors = [edge, edge, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ");
+  const w = Math.ceil(px * text.length * 0.8), h = Math.ceil(px * 1.45);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><style>` +
+    `@font-face{font-family:HonkCard;src:url(data:font/woff2;base64,${honkFontData}) format("woff2");}` +
+    `@font-palette-values --card{font-family:HonkCard;override-colors:${colors};}` +
+    `text{font-family:HonkCard;font-size:${px}px;font-palette:--card;font-variation-settings:'SHLN' 41,'MORF' 15;}` +
+    `</style><text x="50%" y="${Math.round(px * 1.05)}" text-anchor="middle">${text}</text></svg>`;
+  const img = new Image();
+  img.src = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+  await img.decode();
+  return img;
+}
 // A 1080 × 1080 picture of one acro, always in Golden Hour (the brand look, whatever the player's own colours are):
-// the logo, the letters, the topic, the acro, its votes, and where to play. Returns a PNG Blob.
-async function makeAcroCard({ letters, topic, acro, votes, won }) {
+// the logo, then a Sky Train ticket (station winner, the letters, the topic, a tear line, the acro with each word's
+// first letter in gold, the points in a badge), and where to play. No names, no times. Returns a PNG Blob.
+async function makeAcroCard({ letters, topic, acro, points, won }) {
   const W = 1080, c = document.createElement("canvas");
   c.width = W; c.height = W;
   const g = c.getContext("2d");
   // the fonts must be loaded before the canvas can draw with them
-  await Promise.all(["48px Honk", "48px 'Bowlby One SC'", "800 48px Nunito", "700 48px Nunito"].map(x => document.fonts.load(x).catch(() => { })));
+  await Promise.all(["48px 'Bowlby One SC'", "800 48px Nunito", "700 48px Nunito"].map(x => document.fonts.load(x).catch(() => { })));
   const P = THEMES.goldenhour;
   // the sky
   const sky = g.createLinearGradient(0, 0, 0, W);
   sky.addColorStop(0, "#B06F48"); sky.addColorStop(0.6, "#C4855A"); sky.addColorStop(1, "#D49C6C");
   g.fillStyle = sky; g.fillRect(0, 0, W, W);
-  // the plum box
-  const box = (x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
-  box(60, 190, W - 120, 700, 36); g.fillStyle = P.bgPanel; g.fill();
-  g.lineWidth = 3; g.strokeStyle = P.border; g.stroke();
+  // a few soft clouds behind everything
+  g.fillStyle = "rgba(255, 233, 204, 0.10)";
+  for (const [x, y, r] of [[70, 95, 62], [140, 72, 44], [880, 960, 80], [955, 975, 60], [95, 1000, 50]]) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
   g.textAlign = "center"; g.textBaseline = "alphabetic";
-  // the logo
-  g.font = "96px Honk, 'Bowlby One SC', sans-serif"; g.fillStyle = P.brand;
-  g.fillText("Acro Express", W / 2, 140);
-  // the letters, big and gold
-  const L = String(letters || "").toUpperCase().split("").filter(ch => /[A-Z]/.test(ch));
-  const lSize = L.length > 6 ? 96 : 120;
-  g.font = `${lSize}px 'Bowlby One SC', sans-serif`; g.fillStyle = P.brand;
-  g.fillText(L.join("  "), W / 2, 340);
-  // the topic
-  g.font = "700 30px Nunito, sans-serif"; g.fillStyle = P.textMuted;
-  g.fillText(`TOPIC · ${String(topic || "General Acro").toUpperCase()}`.slice(0, 60), W / 2, 410);
-  // the acro: as big as fits, up to four lines
-  const text = `“${String(acro || "").trim()}”`;
-  let size = 72, lines = [];
-  for (; size >= 36; size -= 4) {
-    g.font = `800 ${size}px Nunito, sans-serif`;
-    lines = []; let line = "";
-    for (const word of text.split(/\s+/)) {
-      const t = line ? line + " " + word : word;
-      if (g.measureText(t).width > W - 220 && line) { lines.push(line); line = word; } else line = t;
-    }
-    if (line) lines.push(line);
-    if (lines.length <= 4) break;
+
+  // the logo, as on the site (Golden Hour: gold, with a plum outline and shadow)
+  try {
+    const logo = await honkLogoImage("Acro Express", P.brand, P.bgPanel, 104);
+    g.drawImage(logo, (W - logo.width) / 2, 12);
+  } catch {
+    g.font = "96px 'Bowlby One SC', sans-serif"; g.fillStyle = P.brand; g.fillText("Acro Express", W / 2, 130);
   }
-  g.fillStyle = P.ivory;
-  const lh = size * 1.22, top = 560 - ((lines.length - 1) * lh) / 2;
-  lines.forEach((ln, i) => g.fillText(ln, W / 2, top + i * lh + size * 0.35));
-  // the votes
-  const n = Number(votes) || 0;
-  g.font = "700 34px Nunito, sans-serif"; g.fillStyle = P.teal;
-  g.fillText([n ? `★ ${n} vote${n === 1 ? "" : "s"}` : "", won ? "won the station" : ""].filter(Boolean).join(" · "), W / 2, 830);
+
+  // the ticket: a plum Sky Train ticket, with a notch on each side at the tear line
+  const X = 70, Y = 175, TW = W - 140, TH = 720, TEAR = 470;
+  g.beginPath(); g.roundRect(X, Y, TW, TH, 34);
+  g.fillStyle = P.bgPanel; g.fill();
+  g.lineWidth = 3; g.strokeStyle = P.border; g.stroke();
+  g.fillStyle = sky;                                       // the notches show the sky behind
+  for (const x of [X, X + TW]) { g.beginPath(); g.arc(x, TEAR, 26, 0, Math.PI * 2); g.fill(); }
+  g.save(); g.setLineDash([14, 12]); g.lineWidth = 3; g.strokeStyle = P.border;
+  g.beginPath(); g.moveTo(X + 44, TEAR); g.lineTo(X + TW - 44, TEAR); g.stroke(); g.restore();
+
+  // the top of the ticket: station winner, the letters, the topic
+  g.font = "800 28px Nunito, sans-serif"; g.fillStyle = P.teal;
+  g.fillText(won ? "🏆  STATION WINNER" : "🚂  SKY TRAIN TICKET", W / 2, 240);
+  const L = String(letters || "").toUpperCase().split("").filter(ch => /[A-Z]/.test(ch));
+  const lSize = L.length > 6 ? 100 : 124;
+  g.font = `${lSize}px 'Bowlby One SC', sans-serif`;
+  g.fillStyle = "rgba(0, 0, 0, 0.35)"; g.fillText(L.join("  "), W / 2 + 5, 375 + 5);   // the letters' shadow, as on a train
+  g.fillStyle = P.brand; g.fillText(L.join("  "), W / 2, 375);
+  g.font = "800 28px Nunito, sans-serif"; g.fillStyle = P.textMuted;
+  const tp = String(topic || "General Acro");
+  g.fillText(`TOPIC  ·  ${(tp.length > 44 ? tp.slice(0, 43) + "…" : tp).toUpperCase()}`, W / 2, 430);
+
+  // the acro: as big as fits, the first letter of each word lit in gold. A short acro stays on one line (down to
+  // 60 px); a longer one gets up to four lines
+  const words = String(acro || "").trim().split(/\s+/);
+  let size = 78, lines = [];
+  const fit = maxLines => {
+    for (size = 78; size >= (maxLines === 1 ? 60 : 38); size -= 2) {
+      g.font = `800 ${size}px Nunito, sans-serif`;
+      lines = []; let line = [];
+      for (const w of words) {
+        const t = [...line, w].join(" ");
+        if (g.measureText(`“${t}”`).width > TW - 120 && line.length) { lines.push(line); line = [w]; } else line.push(w);
+      }
+      if (line.length) lines.push(line);
+      if (lines.length <= maxLines) return true;
+    }
+    return false;
+  };
+  if (!fit(1)) fit(4);
+  g.font = `800 ${size}px Nunito, sans-serif`; g.textAlign = "left";
+  const lh = size * 1.2, mid = 655, top0 = mid - ((lines.length - 1) * lh) / 2 + size * 0.35;
+  lines.forEach((ln, li) => {
+    const pieces = [];                                     // [text, gold?]
+    if (li === 0) pieces.push(["“", false]);
+    ln.forEach((w, wi) => {
+      const k = w.search(/[A-Za-z0-9]/);
+      if (k < 0) pieces.push([w, false]);
+      else { if (k > 0) pieces.push([w.slice(0, k), false]); pieces.push([w[k], true]); pieces.push([w.slice(k + 1), false]); }
+      if (wi < ln.length - 1) pieces.push([" ", false]);
+    });
+    if (li === lines.length - 1) pieces.push(["”", false]);
+    const width = pieces.reduce((sum, [t]) => sum + g.measureText(t).width, 0);
+    let x = (W - width) / 2;
+    for (const [t, gold] of pieces) { g.fillStyle = gold ? P.brand : P.ivory; g.fillText(t, x, top0 + li * lh); x += g.measureText(t).width; }
+  });
+  g.textAlign = "center";
+
+  // the points, in a badge (what counts in the game)
+  const n = Number(points) || 0;
+  if (n) {
+    const label = `★  ${n} point${n === 1 ? "" : "s"}`;
+    g.font = "800 36px Nunito, sans-serif";
+    const bw = g.measureText(label).width + 64;
+    g.beginPath(); g.roundRect((W - bw) / 2, 800, bw, 62, 31);
+    g.fillStyle = P.brand; g.fill();
+    g.fillStyle = P.onBrand; g.fillText(label, W / 2, 843);
+  }
+
   // where to play
-  g.font = "800 40px Nunito, sans-serif"; g.fillStyle = P.textPrimary;
-  g.fillText("Play free at acro.express", W / 2, 975);
-  g.font = "700 28px Nunito, sans-serif"; g.fillStyle = P.textPrimary;
-  g.fillText("A multiplayer acronym game · Daily Express at 23:00 Cyprus time", W / 2, 1025);
+  g.font = "800 44px Nunito, sans-serif"; g.fillStyle = P.textPrimary;
+  g.fillText("Play free at acro.express", W / 2, 968);
+  g.font = "700 30px Nunito, sans-serif"; g.fillStyle = P.ivory;
+  g.fillText("The multiplayer acronym game. Can you beat this one?", W / 2, 1020);
   return new Promise(res => c.toBlob(res, "image/png"));
 }
 // Share it: the phone's share sheet (with the link, tagged so the Numbers page counts it), or a download
@@ -2567,7 +2638,7 @@ function AcroQuote({ a, big, share }) {
       <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: big ? 20 : 17, color: C.ivory }}>"{a.sentence}"</div>
       <div style={{ fontSize: 13, color: C.textMuted }}>
         {a.letters.split("").join(" ")} · {a.topic} · <span style={{ color: C.teal }}>{a.points != null ? `${a.points} point${a.points === 1 ? "" : "s"} · ` : ""}{a.votes} vote{a.votes === 1 ? "" : "s"}</span>{a.won ? " · won the station" : ""}
-        {share && <> <ShareAcroButton a={{ letters: a.letters, topic: a.topic, acro: a.sentence, votes: a.votes, won: a.won }} /></>}
+        {share && <> <ShareAcroButton a={{ letters: a.letters, topic: a.topic, acro: a.sentence, points: a.points, won: a.won }} /></>}
       </div>
     </div>
   );
@@ -3278,7 +3349,7 @@ function Lobby() {
               {/* Up to 3 rows show; more trains scroll inside the board */}
               <div style={{ maxHeight: fits ? 3 * 62 : undefined, overflowY: fits ? "auto" : "visible" }}>
                 {/* The Daily Express: the daily game (23:00 Limassol), always the first row, on platform 23 */}
-                <div data-hint="Our daily game: every day at the same time (23:00 in Cyprus), shown here in your own time"
+                <div data-hint="Our daily game: every day at the same time, shown here in your own time"
                   style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
                     gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
                   <PlatformBox n={23} />
@@ -3922,7 +3993,7 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
                     {entryByNickname[name] || "—"}
                     {isMyVote && <span style={{ marginLeft: 8, fontStyle: "normal", fontWeight: 700, fontSize: 11, color: C.teal, border: `1px solid ${C.teal}`, borderRadius: 999, padding: "0 6px", whiteSpace: "nowrap" }}>your vote</span>}
                     {/* the winning acro, as a picture to send to friends (2026-10-23) */}
-                    {isWinner && winners[0]?.name === name && <span style={{ marginLeft: 8 }}><ShareAcroButton a={{ letters: (letters || []).join(""), topic, acro: entryByNickname[name], votes: votes?.[name], won: true }} /></span>}
+                    {isWinner && winners[0]?.name === name && <span style={{ marginLeft: 8 }}><ShareAcroButton a={{ letters: (letters || []).join(""), topic, acro: entryByNickname[name], points: score, won: true }} /></span>}
                   </td>
                 </tr>
               );

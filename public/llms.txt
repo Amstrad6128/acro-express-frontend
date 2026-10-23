@@ -15,7 +15,7 @@
 - Sky Leaderboard: rankings for the week, the month and all time.
 - Colors: colour themes and a choice of fonts for the letters.
 - Music: a choice of songs for the writing time.
-- The Daily Express: the regulars play every day at 23:00 Cyprus time (Asia/Nicosia).
+- The Daily Express: the regulars play every day at the same time; the site shows it in each visitor's own time.
 - Free, no download, works on computers and phones.
 
 ## Links
