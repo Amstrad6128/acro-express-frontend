@@ -2515,20 +2515,31 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
   const sky = g.createLinearGradient(0, 0, 0, W);
   sky.addColorStop(0, "#B06F48"); sky.addColorStop(0.6, "#C4855A"); sky.addColorStop(1, "#D49C6C");
   g.fillStyle = sky; g.fillRect(0, 0, W, W);
-  // a bank of clouds along the bottom, behind the ticket: two layers of puffy clouds (bumps on top, flat below), the
-  // back one warmer and see-through, the front one cream; the "Play free" line sits on the front one
-  const cloudLayer = (baseY, puffs, color) => {
-    g.fillStyle = color;
+  // Clouds, all behind the ticket (Damon, 2026-10-23). A cloud = a cumulus: a big dome in the middle, smaller puffs on
+  // its shoulders, a flat base; white on top, warm underneath, soft at the edges. size = half its width.
+  const cloud = (cx, baseY, size, alpha = 1) => {
+    const puffs = [[-0.78, -0.18, 0.34], [-0.42, -0.42, 0.46], [0.02, -0.62, 0.6], [0.45, -0.38, 0.44], [0.8, -0.16, 0.3]];
+    g.save();
+    g.globalAlpha = alpha;
+    g.filter = "blur(1.5px)";                                // soft edges
+    const shade = g.createLinearGradient(0, baseY - size * 1.25, 0, baseY);
+    shade.addColorStop(0, "#FFF8F0"); shade.addColorStop(0.65, "#FCE6D2"); shade.addColorStop(1, "#F2C9A6");
+    g.fillStyle = shade;
     g.beginPath();
-    for (const [x, dy, r] of puffs) { g.moveTo(x + r, baseY - dy); g.arc(x, baseY - dy, r, 0, Math.PI * 2); }
-    g.rect(0, baseY, W, W - baseY);
+    for (const [x, y, r] of puffs) { const px = cx + x * size, py = baseY + y * size; g.moveTo(px + r * size, py); g.arc(px, py, r * size, 0, Math.PI * 2); }
+    g.rect(cx - size * 0.95, baseY - size * 0.3, size * 1.9, size * 0.3);   // the flat base
     g.fill();
+    g.restore();
   };
-  // the back layer, behind the ticket: rises high at the sides
-  cloudLayer(900, [[-10, 120, 110], [120, 80, 90], [250, 20, 90], [400, 20, 85], [540, 15, 100], [690, 20, 85], [820, 20, 95], [960, 80, 90], [1090, 120, 110]],
-    "rgba(255, 214, 178, 0.55)");
-  // the front layer (drawn after the ticket, see below): x, height above its base, radius
-  const frontPuffs = [[20, 40, 120], [170, 30, 110], [320, 10, 90], [450, 0, 85], [600, 0, 85], [740, 10, 90], [890, 30, 110], [1050, 40, 120]];
+  // two small clouds drifting high up, half behind the ticket
+  cloud(55, 420, 70, 0.75);
+  cloud(1030, 300, 85, 0.75);
+  // tall clouds climbing both sides
+  cloud(40, 905, 175);
+  cloud(1045, 920, 160);
+  // the bank along the bottom: its tops stay below the ticket, with sky between
+  for (const [x, y, sz] of [[120, 1045, 125], [300, 1055, 115], [490, 1042, 130], [690, 1056, 115], [880, 1045, 125]]) cloud(x, y, sz);
+  g.fillStyle = "#F7DCC4"; g.fillRect(0, 1040, W, W - 1040);   // the bank's floor
   g.textAlign = "center"; g.textBaseline = "alphabetic";
 
   // the logo, as on the site (Golden Hour: gold, with a plum outline and shadow)
@@ -2540,7 +2551,7 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
   }
 
   // the ticket: a plum Sky Train ticket, with a notch on each side at the tear line
-  const X = 70, Y = 175, TW = W - 140, TH = 700, TEAR = 470;   // ends at 875, the cream puffs peeking out below
+  const X = 95, Y = 175, TW = W - 190, TH = 690, TEAR = 470;   // ends at 865; the side clouds show beside it
   g.beginPath(); g.roundRect(X, Y, TW, TH, 34);
   g.fillStyle = P.bgPanel; g.fill();
   g.lineWidth = 3; g.strokeStyle = P.border; g.stroke();
@@ -2612,15 +2623,11 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
     g.fillStyle = P.onBrand; g.fillText(label, W / 2, 823);
   }
 
-  // the cream clouds in front of the ticket's lower edge (with a warm rim under them for depth)
-  cloudLayer(962, frontPuffs, "rgba(226, 160, 120, 0.45)");
-  cloudLayer(950, frontPuffs, "#FFF1E3");
-
   // where to play: plum on the cream clouds
   g.font = "800 44px Nunito, sans-serif"; g.fillStyle = P.bgPanel;
-  g.fillText("Play free at acro.express", W / 2, 982);
+  g.fillText("Play free at acro.express", W / 2, 990);
   g.font = "700 30px Nunito, sans-serif"; g.fillStyle = P.navy3;
-  g.fillText("The multiplayer acronym game. Can you beat this one?", W / 2, 1032);
+  g.fillText("The multiplayer acronym game. Can you beat this one?", W / 2, 1038);
   return new Promise(res => c.toBlob(res, "image/png"));
 }
 // Share it: the phone's share sheet (with the link, tagged so the Numbers page counts it), or a download
