@@ -3060,6 +3060,21 @@ function Lobby() {
     setCreating(false); setNewRoomName(""); setCreateError("");
   }
 
+  // The Daily Express row's "Start it →": a Sky Train named "Daily Express" (if someone started it a moment ago, the
+  // name is taken: then board theirs)
+  async function startDaily() {
+    try {
+      const data = await createRoom("Daily Express");
+      const id = data?.id || data?.roomId;
+      if (!id) throw new Error("No room id");
+      navigate(`/room/${encodeURIComponent(id)}`);
+    } catch {
+      const theirs = roomList.find(r => /^daily express$/i.test(String(r.name || "").trim()));
+      if (theirs) navigate(`/room/${encodeURIComponent(theirs.id)}`);
+      else setCreateError("Couldn't start the Daily Express. Try again in a moment.");
+    }
+  }
+
   async function handleCreate() {
     const name = newRoomName.trim();
     if (!name) { setCreateError("Give your Sky Train a name."); return; }
@@ -3411,14 +3426,16 @@ function Lobby() {
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Daily Express</div>
                       <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Every day · departs {night.local} your time</div>
-                      {phone && <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}><StatusPill {...night.status} />{night.room && <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={smallBtn}>Board →</Btn>}</div>}
+                      {phone && <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}><StatusPill {...night.status} />{night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={smallBtn}>Board →</Btn> : night.canStart && <Btn onClick={startDaily} style={smallBtn}>Start it →</Btn>}</div>}
                     </div>
                   </div>
                   {!phone && <span />}
                   {!phone && <span><StatusPill {...night.status} /></span>}
-                  {!phone && (night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>Board now →</Btn> : <span />)}
+                  {!phone && (night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>Board now →</Btn>
+                    : night.canStart ? <span data-hint="Start the Daily Express: everyone boards it from this row" style={{ display: "contents" }}><Btn onClick={startDaily} style={{ ...smallBtn, justifyContent: "center" }}>Start it →</Btn></span> : <span />)}
                 </div>
-                {roomList.map(room => {
+                {/* the Daily Express train has its own row above */}
+                {roomList.filter(room => room.id !== night.room?.id || !/^daily express$/i.test(String(room.name || "").trim())).map(room => {
                   const names = room.playingNames || [];
                   const away = room.awayNames || [];
                   const pill = room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand };
@@ -3643,14 +3660,20 @@ function nightExpress(now, rooms) {
   const departs = Date.UTC(parts.year, parts.month - 1, parts.day + dayShift, 23, 0) - offset;
   const mins = (now - departs) / 60000;                                     // minutes since 23:00 (negative = before)
   const local = new Date(departs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const playing = rooms.find(r => r.gameOn);
+  // 2026-10-23: the train itself is a Sky Train named "Daily Express", started from this row from 30 minutes before
+  // (open: until the row moves on to the next night at 00:30 Limassol time)
+  const open = mins > -30;
+  const daily = rooms.find(r => /^daily express$/i.test(String(r.name || "").trim()));
+  const playing = daily?.gameOn ? daily : rooms.find(r => r.gameOn);
   let status;
-  if (playing && mins > -30) status = { text: "On the move", color: C.success };
+  if (daily && !daily.gameOn) status = { text: "Boarding now", color: C.brand };
+  else if (playing && mins > -30) status = { text: "On the move", color: C.success };
   else if (mins < -20) status = { text: "Today", color: C.teal };
   else if (mins < 0) status = { text: "Boarding soon", color: C.brand };
   else if (mins < 10) status = { text: "Departing now", color: C.brand };
   else status = { text: "Running a little late 🚂", color: C.gold || C.brand };
-  return { local, status, room: playing && mins > -30 ? playing : null, departs, mins };
+  const room = daily || (playing && open ? playing : null);   // the train to board
+  return { local, status, room, canStart: open && !room, departs, mins };
 }
 
 // One tip on the Station Board, a different one every hour
