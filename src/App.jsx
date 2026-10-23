@@ -3137,7 +3137,9 @@ function Lobby() {
       detail: online.length ? online.map(o => o.name).join(", ") : "Nobody yet. Start a Sky Train!" },
     ...(boardWord ? [{ key: "word", icon: "📖", text: `Word of the week: ${boardWord.word.toUpperCase()}, ${boardWord.meaning}. Use it in an acro that gets a vote: +1!`,
       title: `Word of the week: ${boardWord.word}`,
-      detail: <><i>{boardWord.meaning}</i>. Use it in an acro that gets a vote: <b style={{ color: C.textPrimary }}>+1 point</b>.</> }] : []),
+      // short on the board's line, longer in the card (Damon, 2026-10-23)
+      detail: <><span>{boardWord.more || `${boardWord.meaning[0].toUpperCase()}${boardWord.meaning.slice(1)}.`}</span>
+        <div style={{ marginTop: 8 }}>Use it in an acro that gets a vote: <b style={{ color: C.textPrimary }}>+1 point</b>.</div></> }] : []),
     // news itself (Damon, 2026-10-23): the board's lines can be clicked. On the board until 6 November, then a tip
     ...(Date.now() < Date.UTC(2026, 10, 6) ? [{ key: "clickme", icon: "🆕", text: "New: click any line on this board to read more.", title: "Click the board", detail: "Every line on the Station Board opens like this." }] : []),
     { key: "tip", icon: "💡", text: BOARD_TIPS[Math.floor(Date.now() / 3600000) % BOARD_TIPS.length],   // a different tip every hour
