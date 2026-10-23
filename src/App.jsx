@@ -2515,26 +2515,30 @@ async function makeAcroCard({ letters, topic, acro, points, won, by }) {
   const sky = g.createLinearGradient(0, 0, 0, W);
   sky.addColorStop(0, "#B06F48"); sky.addColorStop(0.6, "#C4855A"); sky.addColorStop(1, "#D49C6C");
   g.fillStyle = sky; g.fillRect(0, 0, W, W);
-  // Clouds, as in Damon's mock-up (2026-10-23): a soft sea of clouds behind the ticket, rising high up both sides and
-  // white below it. Many round puffs, painted from the back (high up, warmer) to the front (low, whiter); each puff is
-  // lit from above and shaded underneath, so where puffs overlap their rounded edges show.
-  let seed = 7;
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;   // the same "random" clouds every time
-  // the top of the cloud sea at x: high at both sides (the right a little higher), low in the middle, behind the ticket
-  const topAt = x => { const l = Math.max(0, 1 - x / 360), r = Math.max(0, 1 - (W - x) / 360); return 860 - 250 * l * l - 280 * r * r; };
-  for (let y = 600; y <= 1140; y += 40) {
-    for (let x = -40; x <= W + 40; x += 62) {
-      const px = x + (rnd() - 0.5) * 44, py = y + (rnd() - 0.5) * 18, r = 50 + rnd() * 40;
-      if (py < topAt(px) + 24) continue;
-      const front = Math.min(1, Math.max(0, (py - 640) / 420));            // 0 = at the back … 1 = at the front
-      const lit = g.createLinearGradient(0, py - r, 0, py + r);
-      lit.addColorStop(0, "#FFF8F1");
-      lit.addColorStop(0.5, front > 0.55 ? "#FDEBDB" : "#FCE4CF");
-      lit.addColorStop(1, front > 0.55 ? "#EEC5A5" : "#E9BB97");
-      g.fillStyle = lit;
-      g.beginPath(); g.arc(px, py, r, 0, Math.PI * 2); g.fill();
-    }
-  }
+  // The clouds: Damon's own picture (2026-10-23: "copy them if you can't draw them"), public/share/card-clouds.webp,
+  // drawn under the logo (the sky above it stays ours). It is the card as he drew it, so our ticket and words cover
+  // its own; its "Play free" words are first covered with patches of its clouds from just above them, soft-edged.
+  try {
+    const img = new Image();
+    img.src = "/share/card-clouds.webp";
+    await img.decode();
+    const t = document.createElement("canvas"); t.width = img.width; t.height = img.height;
+    const tg = t.getContext("2d");
+    tg.drawImage(img, 0, 0);
+    const p = document.createElement("canvas"); p.width = 560; p.height = 60;      // the patch: clouds under the ticket
+    const pg = p.getContext("2d");
+    pg.drawImage(t, 75, 566, 560, 60, 0, 0, 560, 60);
+    pg.globalCompositeOperation = "destination-in";                               // soft top and bottom edges
+    const fade = pg.createLinearGradient(0, 0, 0, 60);
+    fade.addColorStop(0, "rgba(0,0,0,0)"); fade.addColorStop(0.1, "#000"); fade.addColorStop(0.9, "#000"); fade.addColorStop(1, "rgba(0,0,0,0)");
+    pg.fillStyle = fade; pg.fillRect(0, 0, 560, 60);
+    const side = pg.createLinearGradient(0, 0, 560, 0);                            // and soft sides
+    side.addColorStop(0, "rgba(0,0,0,0)"); side.addColorStop(0.08, "#000"); side.addColorStop(0.92, "#000"); side.addColorStop(1, "rgba(0,0,0,0)");
+    pg.fillStyle = side; pg.fillRect(0, 0, 560, 60);
+    tg.drawImage(p, 75, 622); tg.drawImage(p, 75, 650);                           // over its words (rows 627–680)
+    const sy = 111, k = W / t.height;                                             // from just under its logo
+    g.drawImage(t, 0, sy, t.width, t.height - sy, 0, sy * k, W, W - sy * k);
+  } catch { /* without the picture: the plain sky */ }
   g.textAlign = "center"; g.textBaseline = "alphabetic";
 
   // the logo, as on the site (Golden Hour: gold, with a plum outline and shadow)
@@ -2546,7 +2550,8 @@ async function makeAcroCard({ letters, topic, acro, points, won, by }) {
   }
 
   // the ticket: a plum Sky Train ticket, with a notch on each side at the tear line
-  const X = 95, Y = 175, TW = W - 190, TH = 690, TEAR = 470;   // ends at 865; the side clouds show beside it
+  // a few pixels bigger than the ticket in Damon's cloud picture, so its edge never shows around ours
+  const X = 91, Y = 170, TW = W - 182, TH = 698, TEAR = 470;
   g.beginPath(); g.roundRect(X, Y, TW, TH, 34);
   g.fillStyle = P.bgPanel; g.fill();
   g.lineWidth = 3; g.strokeStyle = P.border; g.stroke();
