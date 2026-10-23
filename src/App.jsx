@@ -2972,9 +2972,9 @@ function Lobby() {
   // The practice ride, open over the station (you stay on the platform while you practise)
   const [practicing, setPracticing] = useState(false);
   // The latest Station Log post, for the Station Board
-  const [latestLog, setLatestLog] = useState("");
+  const [latestLog, setLatestLog] = useState(null);       // { title, body } (the body for the news card)
   useEffect(() => {
-    fetch(`${API_URL}/api/log`).then(r => r.json()).then(d => setLatestLog(d.entries?.[0]?.title || "")).catch(() => { });
+    fetch(`${API_URL}/api/log`).then(r => r.json()).then(d => setLatestLog(d.entries?.[0] || null)).catch(() => { });
   }, []);
   // Who's around, for the welcome screen ("Right now: 3 passengers at the station")
   const [liveNow, setLiveNow] = useState(null);
@@ -3115,15 +3115,36 @@ function Lobby() {
   // confetti once per birthday per browser: decided when the page opens, remembered once you're at the station
   const [bdayConfetti] = useState(() => { try { return bdayAge > 0 && localStorage.getItem("acro.birthday") !== String(bdayAge); } catch { return false; } });
   useEffect(() => { if (auth && bdayConfetti) try { localStorage.setItem("acro.birthday", String(bdayAge)); } catch { /* private mode */ } }, [auth, bdayConfetti, bdayAge]);
+  const movingTrains = roomList.filter(r => r.gameOn);
   const boardNews = [
-    ...(bdayAge ? [{ icon: "🎂", text: `Acro Express turns ${bdayAge} today! On the rails since 16 August 2025. Thank you for riding with us!` }] : []),
-    { icon: "🚂", text: dailyNow.status.text === "On the move" ? "The Daily Express is on the move: hop on!"
+    ...(bdayAge ? [{ key: "birthday", icon: "🎂", text: `Acro Express turns ${bdayAge} today! On the rails since 16 August 2025. Thank you for riding with us!`,
+      title: `Acro Express turns ${bdayAge} today!`, detail: "The first piece of Acro Express was written on 16 August 2025. Thank you for riding with us, every one of you!" }] : []),
+    { key: "daily", icon: "🚂", text: dailyNow.status.text === "On the move" ? "The Daily Express is on the move: hop on!"
         : dailyNow.status.text === "Running a little late 🚂" ? `The Daily Express is running a little late. Start it, or wait on the platform!`
-        : `Daily Express: every day at ${dailyNow.local} your time · next one ${dailyNow.mins < 0 ? untilText(dailyNow.mins) : "tomorrow"}` },
-    ...(latestLog ? [{ icon: "📰", text: `Station Log: ${latestLog}`, onClick: () => navigate("/log") }] : []),   // the only way to the Station Log from here (2026-10-22)
-    { icon: "👥", text: `${online.length} passenger${online.length === 1 ? "" : "s"} at the station · ${roomList.filter(r => r.gameOn).length} train${roomList.filter(r => r.gameOn).length === 1 ? "" : "s"} on the move` },
-    ...(boardWord ? [{ icon: "📖", text: `Word of the week: ${boardWord.word.toUpperCase()}, ${boardWord.meaning}. Use it in an acro that gets a vote: +1!` }] : []),
-    { icon: "💡", text: BOARD_TIPS[Math.floor(Date.now() / 3600000) % BOARD_TIPS.length] },   // a different tip every hour
+        : `Daily Express: every day at ${dailyNow.local} your time · next one ${dailyNow.mins < 0 ? untilText(dailyNow.mins) : "tomorrow"}`,
+      title: "The Daily Express",
+      detail: <>Our daily game: the regulars ride together every day at <b style={{ color: C.textPrimary }}>{dailyNow.local}</b> your time
+        {dailyNow.mins < 0 ? <>, the next one {untilText(dailyNow.mins)}</> : ""}. It's the first row of Departures, on platform 23: when it boards, press Board.
+        Come a few minutes early to say hello in the chat.</> },
+    ...(latestLog ? [{ key: "log", icon: "📰", text: `Station Log: ${latestLog.title}`, title: latestLog.title,
+      // the post itself: its "- " lines as a list
+      detail: <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {String(latestLog.body || "").split(/\r?\n/).filter(l => l.trim()).map((l, k) => l.startsWith("- ")
+          ? <div key={k} style={{ display: "flex", gap: 8 }}><span style={{ color: C.teal }}>•</span><span>{l.slice(2)}</span></div>
+          : <div key={k}>{l}</div>)}
+      </div>,
+      action: { label: "All Station Log posts →", onClick: () => navigate("/log") } }] : []),
+    { key: "who", icon: "👥", text: `${online.length} passenger${online.length === 1 ? "" : "s"} at the station · ${movingTrains.length} train${movingTrains.length === 1 ? "" : "s"} on the move`,
+      title: "Who's around",
+      detail: <>{online.length ? <>At the station: <b style={{ color: C.textPrimary }}>{online.map(o => o.name).join(", ")}</b>.</> : "Nobody at the station right now."}
+        {" "}{movingTrains.length ? <>On the move: {movingTrains.map(r => `${r.name} (${(r.playingNames || []).length} aboard)`).join(", ")}.</> : "No train on the move."}
+        {" "}Click a name in the list to send that passenger a message.</> },
+    ...(boardWord ? [{ key: "word", icon: "📖", text: `Word of the week: ${boardWord.word.toUpperCase()}, ${boardWord.meaning}. Use it in an acro that gets a vote: +1!`,
+      title: `Word of the week: ${boardWord.word}`,
+      detail: <><i>{boardWord.meaning}</i>. Use it (or a simple form of it, like {boardWord.word.toLowerCase()}s) in an acro: if your acro gets at least one vote, you earn <b style={{ color: C.textPrimary }}>+1 point</b>. A new word every Monday.</> }] : []),
+    { key: "tip", icon: "💡", text: BOARD_TIPS[Math.floor(Date.now() / 3600000) % BOARD_TIPS.length],   // a different tip every hour
+      title: "Tips",
+      detail: <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>{BOARD_TIPS.map((t, k) => <div key={k} style={{ display: "flex", gap: 8 }}><span style={{ color: C.teal }}>•</span><span>{t.replace(/^Tip: /, "")}</span></div>)}</div> },
   ];
   // Departures: the trains, then free platforms so the board always shows 3 rows — and always at least one
   // free platform, the row where you start a new Sky Train
@@ -3649,35 +3670,78 @@ function useHoverHint() {
 // time, changing every 7 seconds with a soft fade (not a scrolling ticker: calmer, and every line can be read whole):
 // the Daily Express, what's new on the Station Log, who's here, a tip. When the mouse is over a button (anything
 // with a data-hint), it shows that button's explanation in full instead, and goes back to the news afterwards.
-// A news line can be clicked when it leads somewhere (onClick).
+// 2026-10-23 (Damon: "switch slower … click on the news to open a card with these news in more detail"): a line every
+// 12 seconds; a click opens the news card under the board (that line in full at the top, then the rest of the news,
+// each one clickable), and the board waits while the card is open.
+// A news item: { key, icon, text (the board line), title, detail (the card's text), action: { label, onClick } }.
 // status: the connection lamp ("● All lines running"), at the board's right end, like the status light of a real board
 function StationBoard({ news, status = null }) {
   const hint = useHoverHint();
   const [i, setI] = useState(0);
   const [shown, setShown] = useState(true);                 // false during the fade between two lines
+  const [open, setOpen] = useState(null);                   // the key of the news shown in the card, or null
   useEffect(() => {
-    if (news.length < 2) return;
-    const iv = setInterval(() => { setShown(false); setTimeout(() => { setI(x => x + 1); setShown(true); }, 350); }, 7000);
+    if (news.length < 2 || open) return;                    // waits while the card is open
+    const iv = setInterval(() => { setShown(false); setTimeout(() => { setI(x => x + 1); setShown(true); }, 350); }, 12000);
     return () => clearInterval(iv);
-  }, [news.length]);
+  }, [news.length, open]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = e => { if (e.key === "Escape") setOpen(null); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
   const item = news.length ? news[i % news.length] : null;
   const line = hint ? { icon: "ⓘ", text: hint } : item;
   if (!line) return null;
+  const top = open ? news.find(n => n.key === open) || null : null;
   return (
-    <div style={{ flexShrink: 0, background: "var(--c-bgApp)", borderBottom: `1px solid ${C.border}` }}>
+    <div style={{ flexShrink: 0, background: "var(--c-bgApp)", borderBottom: `1px solid ${C.border}`, position: "relative", zIndex: 60 }}>
     {/* the board's text sits in the same column as the panels (Damon, 2026-10-22) */}
-    <div onClick={!hint ? line.onClick : undefined} role={line.onClick && !hint ? "button" : undefined}
+    <div onClick={!hint && item ? () => setOpen(o => (o ? null : item.key)) : undefined} role={!hint ? "button" : undefined}
       style={{ maxWidth: 1400, margin: "0 auto", display: "flex", alignItems: "center", gap: 10, minHeight: 32, padding: window.innerWidth < 600 ? "4px 10px" : "4px 16px", boxSizing: "border-box",
-        cursor: line.onClick && !hint ? "pointer" : "default" }}>
+        cursor: !hint ? "pointer" : "default" }}>
       {/* the board's lamp: teal for news, amber while explaining */}
       {/* its glow only to the right, so its left edge lines up with the panels (Damon, 2026-10-22) */}
       <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: hint ? "var(--c-gold, #FFC24A)" : C.teal, boxShadow: `4px 0 8px -2px ${hint ? "var(--c-gold, #FFC24A)" : C.teal}` }} />
       <span style={{ fontSize: 14, color: hint ? C.textPrimary : C.textSecond, letterSpacing: "0.02em", opacity: hint || shown ? 1 : 0, transition: hint ? "none" : "opacity 0.35s" }}>
         {line.icon && <span style={{ marginRight: 6 }}>{line.icon}</span>}{line.text}
-        {line.onClick && !hint && <span style={{ color: C.teal, marginLeft: 6 }}>→</span>}
+        {!hint && <span style={{ color: C.teal, marginLeft: 8, fontSize: 13, whiteSpace: "nowrap" }}>{open ? "close ▴" : "more ▾"}</span>}
       </span>
       {status && <span style={{ marginLeft: "auto", paddingLeft: 12, flexShrink: 0 }}>{status}</span>}
     </div>
+    {/* the news card: the clicked news in full, then the rest */}
+    {top && (
+      <>
+        <div onPointerDown={() => setOpen(null)} style={{ position: "fixed", inset: 0, zIndex: 1 }} />
+        <div style={{ position: "absolute", left: 0, right: 0, top: "100%", zIndex: 2, pointerEvents: "none" }}>
+          <div style={{ maxWidth: 1400, margin: "0 auto", padding: window.innerWidth < 600 ? "6px 10px" : "6px 16px", boxSizing: "border-box" }}>
+            <div role="dialog" aria-label="Station Board news" style={{ pointerEvents: "auto", width: "min(600px, 100%)", maxHeight: "70vh", overflowY: "auto", background: C.bgPanel, border: `1px solid ${C.teal}`, borderRadius: 14, boxShadow: "0 16px 48px rgba(0,0,0,0.5)", padding: 16, boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <span style={{ fontSize: 26, lineHeight: 1 }}>{top.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ ...smallTitle, fontSize: 24, lineHeight: 1.15 }}>{top.title || top.text}</div>
+                  <div style={{ color: C.textSecond, fontSize: 15, marginTop: 6, lineHeight: 1.45 }}>{top.detail || top.text}</div>
+                  {top.action && <div style={{ marginTop: 10 }}><Btn onClick={() => { setOpen(null); top.action.onClick(); }} style={{ padding: "6px 14px", fontSize: 14 }}>{top.action.label}</Btn></div>}
+                </div>
+                <button onClick={() => setOpen(null)} aria-label="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 20, lineHeight: 1 }}>✕</button>
+              </div>
+              {news.length > 1 && (
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, display: "flex", flexDirection: "column", gap: 2 }}>
+                  <div style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: C.textMuted, marginBottom: 2 }}>More on the board</div>
+                  {news.filter(n => n.key !== top.key).map(n => (
+                    <button key={n.key} onClick={() => setOpen(n.key)}
+                      style={{ display: "flex", gap: 8, alignItems: "baseline", textAlign: "left", background: "none", border: "none", borderRadius: 8, padding: "6px 8px", color: C.textSecond, cursor: "pointer", fontFamily: "inherit", fontSize: 14 }}>
+                      <span>{n.icon}</span><span style={{ flex: 1 }}>{n.title || n.text}</span><span style={{ color: C.teal }}>›</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </>
+    )}
     </div>
   );
 }
