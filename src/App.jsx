@@ -2481,7 +2481,8 @@ function PassStat({ n, label }) {
 // site's logo uses ("mark": 0 shadow and 1 outline = the box colour, 2–7 fill = the button colour), then copied onto
 // the card like a photo.
 let honkFontData = null;                                   // Honk as base64, fetched once
-async function honkLogoImage(text, fill, edge, px) {
+// shln: Honk's shadow length (the logo 41; the big letters 0, as on a train)
+async function honkLogoImage(text, fill, edge, px, shln = 41) {
   if (!honkFontData) {
     const bytes = new Uint8Array(await (await fetch("/fonts/honk-v6-latin.woff2")).arrayBuffer());
     let bin = "";
@@ -2493,7 +2494,7 @@ async function honkLogoImage(text, fill, edge, px) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><style>` +
     `@font-face{font-family:HonkCard;src:url(data:font/woff2;base64,${honkFontData}) format("woff2");}` +
     `@font-palette-values --card{font-family:HonkCard;override-colors:${colors};}` +
-    `text{font-family:HonkCard;font-size:${px}px;font-palette:--card;font-variation-settings:'SHLN' 41,'MORF' 15;}` +
+    `text{font-family:HonkCard;font-size:${px}px;font-palette:--card;font-variation-settings:'SHLN' ${shln},'MORF' 15;}` +
     `</style><text x="50%" y="${Math.round(px * 1.05)}" text-anchor="middle">${text}</text></svg>`;
   const img = new Image();
   img.src = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
@@ -2541,10 +2542,14 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
   g.font = "800 28px Nunito, sans-serif"; g.fillStyle = P.teal;
   g.fillText(won ? "🏆  STATION WINNER" : "🚂  SKY TRAIN TICKET", W / 2, 240);
   const L = String(letters || "").toUpperCase().split("").filter(ch => /[A-Z]/.test(ch));
-  const lSize = L.length > 6 ? 100 : 124;
-  g.font = `${lSize}px 'Bowlby One SC', sans-serif`;
-  g.fillStyle = "rgba(0, 0, 0, 0.35)"; g.fillText(L.join("  "), W / 2 + 5, 375 + 5);   // the letters' shadow, as on a train
-  g.fillStyle = P.brand; g.fillText(L.join("  "), W / 2, 375);
+  // the big letters in Honk (Damon, 2026-10-23), gold with a plum outline, as on a train
+  const lSize = L.length > 6 ? 150 : 190;                // Honk's capitals are small: bigger than Bowlby was
+  try {
+    const big = await honkLogoImage(L.join(" "), P.brand, P.bgPanel, lSize, 0);
+    g.drawImage(big, (W - big.width) / 2, 375 - lSize * 1.05);
+  } catch {
+    g.font = `${Math.round(lSize * 0.82)}px 'Bowlby One SC', sans-serif`; g.fillStyle = P.brand; g.fillText(L.join("  "), W / 2, 375);
+  }
   g.font = "800 28px Nunito, sans-serif"; g.fillStyle = P.textMuted;
   const tp = String(topic || "General Acro");
   g.fillText(`TOPIC  ·  ${(tp.length > 44 ? tp.slice(0, 43) + "…" : tp).toUpperCase()}`, W / 2, 430);
