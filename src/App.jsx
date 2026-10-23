@@ -3954,11 +3954,11 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
               <div style={{ fontSize: 34, ...smallTitle, overflowWrap: "anywhere" }}>{topic}</div>   {/* Honk (Damon, 2026-10-18) */}
             </div>
           )}
-          {selected && selected !== "blank" && !submitted && (
-            <p style={{ margin: "6px 0 0", fontSize: 13, color: C.textMuted }}>
-              You can change your vote until you click "Done Voting".
-            </p>
-          )}
+          {/* Always takes its line, shown only once you picked one: before, it appeared on the first pick, the box grew,
+              and (centred on the screen) all the acros jumped (Damon, 2026-10-23) */}
+          <p style={{ margin: "6px 0 0", fontSize: 13, color: C.textMuted, visibility: selected && selected !== "blank" && !submitted ? "visible" : "hidden" }}>
+            You can change your vote until you click "Done Voting".
+          </p>
         </div>
 
         {/* Entry list */}
