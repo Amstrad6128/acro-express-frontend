@@ -2503,8 +2503,8 @@ async function honkLogoImage(text, fill, edge, px, shln = 41) {
 }
 // A 1080 × 1080 picture of one acro, always in Golden Hour (the brand look, whatever the player's own colours are):
 // the logo, then a Sky Train ticket (station winner, the letters, the topic, a tear line, the acro with each word's
-// first letter in gold, the points in a badge), and where to play. No names, no times. Returns a PNG Blob.
-async function makeAcroCard({ letters, topic, acro, points, won }) {
+// first letter in gold, who wrote it, the points in a badge), and where to play. No times. Returns a PNG Blob.
+async function makeAcroCard({ letters, topic, acro, points, won, by }) {
   const W = 1080, c = document.createElement("canvas");
   c.width = W; c.height = W;
   const g = c.getContext("2d");
@@ -2515,28 +2515,26 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
   const sky = g.createLinearGradient(0, 0, 0, W);
   sky.addColorStop(0, "#B06F48"); sky.addColorStop(0.6, "#C4855A"); sky.addColorStop(1, "#D49C6C");
   g.fillStyle = sky; g.fillRect(0, 0, W, W);
-  // Clouds, all behind the ticket (Damon, 2026-10-23). A cloud = a cumulus: a big dome in the middle, smaller puffs on
-  // its shoulders, a flat base; white on top, warm underneath, soft at the edges. size = half its width.
-  const cloud = (cx, baseY, size, alpha = 1) => {
-    const puffs = [[-0.78, -0.18, 0.34], [-0.42, -0.42, 0.46], [0.02, -0.62, 0.6], [0.45, -0.38, 0.44], [0.8, -0.16, 0.3]];
-    g.save();
-    g.globalAlpha = alpha;
-    g.filter = "blur(1.5px)";                                // soft edges
-    const shade = g.createLinearGradient(0, baseY - size * 1.25, 0, baseY);
-    shade.addColorStop(0, "#FFF8F0"); shade.addColorStop(0.65, "#FCE6D2"); shade.addColorStop(1, "#F8DCC4");   // ends in the floor's colour
-    g.fillStyle = shade;
-    g.beginPath();
-    for (const [x, y, r] of puffs) { const px = cx + x * size, py = baseY + y * size; g.moveTo(px + r * size, py); g.arc(px, py, r * size, 0, Math.PI * 2); }
-    g.rect(cx - size * 0.95, baseY - size * 0.3, size * 1.9, size * 0.3);   // the flat base
-    g.fill();
-    g.restore();
-  };
-  // tall clouds climbing both sides
-  cloud(40, 905, 175);
-  cloud(1045, 920, 160);
-  // the bank along the bottom, rising behind the ticket: white straight under it, no sky between (Damon, 2026-10-23)
-  g.fillStyle = "#F8DCC4"; g.fillRect(0, 905, W, W - 905);   // the bank's floor first, the clouds over it (no seam)
-  for (const [x, y, sz] of [[90, 960, 140], [250, 950, 135], [410, 958, 140], [570, 950, 135], [730, 958, 140], [890, 952, 135]]) cloud(x, y, sz);
+  // Clouds, as in Damon's mock-up (2026-10-23): a soft sea of clouds behind the ticket, rising high up both sides and
+  // white below it. Many round puffs, painted from the back (high up, warmer) to the front (low, whiter); each puff is
+  // lit from above and shaded underneath, so where puffs overlap their rounded edges show.
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;   // the same "random" clouds every time
+  // the top of the cloud sea at x: high at both sides (the right a little higher), low in the middle, behind the ticket
+  const topAt = x => { const l = Math.max(0, 1 - x / 360), r = Math.max(0, 1 - (W - x) / 360); return 860 - 250 * l * l - 280 * r * r; };
+  for (let y = 600; y <= 1140; y += 40) {
+    for (let x = -40; x <= W + 40; x += 62) {
+      const px = x + (rnd() - 0.5) * 44, py = y + (rnd() - 0.5) * 18, r = 50 + rnd() * 40;
+      if (py < topAt(px) + 24) continue;
+      const front = Math.min(1, Math.max(0, (py - 640) / 420));            // 0 = at the back … 1 = at the front
+      const lit = g.createLinearGradient(0, py - r, 0, py + r);
+      lit.addColorStop(0, "#FFF8F1");
+      lit.addColorStop(0.5, front > 0.55 ? "#FDEBDB" : "#FCE4CF");
+      lit.addColorStop(1, front > 0.55 ? "#EEC5A5" : "#E9BB97");
+      g.fillStyle = lit;
+      g.beginPath(); g.arc(px, py, r, 0, Math.PI * 2); g.fill();
+    }
+  }
   g.textAlign = "center"; g.textBaseline = "alphabetic";
 
   // the logo, as on the site (Golden Hour: gold, with a plum outline and shadow)
@@ -2592,7 +2590,7 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
   };
   if (!fit(1)) fit(4);
   g.font = `800 ${size}px Nunito, sans-serif`; g.textAlign = "left";
-  const lh = size * 1.2, mid = 650, top0 = mid - ((lines.length - 1) * lh) / 2 + size * 0.35;
+  const lh = size * 1.2, mid = 625, top0 = mid - ((lines.length - 1) * lh) / 2 + size * 0.35;
   lines.forEach((ln, li) => {
     const pieces = [];                                     // [text, gold?]
     if (li === 0) pieces.push(["“", false]);
@@ -2609,15 +2607,21 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
   });
   g.textAlign = "center";
 
+  // who wrote it
+  if (by) {
+    g.font = "800 36px Nunito, sans-serif"; g.fillStyle = P.teal;
+    g.fillText(`— ${by}`, W / 2, 750);
+  }
+
   // the points, in a badge (what counts in the game)
   const n = Number(points) || 0;
   if (n) {
     const label = `★  ${n} point${n === 1 ? "" : "s"}`;
     g.font = "800 36px Nunito, sans-serif";
     const bw = g.measureText(label).width + 64;
-    g.beginPath(); g.roundRect((W - bw) / 2, 780, bw, 62, 31);
+    g.beginPath(); g.roundRect((W - bw) / 2, 786, bw, 58, 29);
     g.fillStyle = P.brand; g.fill();
-    g.fillStyle = P.onBrand; g.fillText(label, W / 2, 823);
+    g.fillStyle = P.onBrand; g.fillText(label, W / 2, 827);
   }
 
   // where to play: plum on the cream clouds
@@ -2649,20 +2653,20 @@ function ShareAcroButton({ a, label = "Share" }) {
   const [busy, setBusy] = useState(false);
   return (
     <button onClick={async e => { e.stopPropagation(); setBusy(true); try { await shareAcroCard(a); } finally { setBusy(false); } }}
-      data-hint="A picture of this acro, to send to friends (no names on it)" disabled={busy}
+      data-hint="A picture of this acro, to send to friends" disabled={busy}
       style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 999, color: C.teal, cursor: busy ? "wait" : "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "1px 9px", whiteSpace: "nowrap", fontStyle: "normal" }}>
       📤 {busy ? "…" : label}
     </button>
   );
 }
 
-function AcroQuote({ a, big, share }) {
+function AcroQuote({ a, big, share, by }) {
   return (
     <div style={{ borderLeft: `3px solid ${C.teal}`, padding: "2px 0 2px 12px" }}>
       <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: big ? 20 : 17, color: C.ivory }}>"{a.sentence}"</div>
       <div style={{ fontSize: 13, color: C.textMuted }}>
         {a.letters.split("").join(" ")} · {a.topic} · <span style={{ color: C.teal }}>{a.points != null ? `${a.points} point${a.points === 1 ? "" : "s"} · ` : ""}{a.votes} vote{a.votes === 1 ? "" : "s"}</span>{a.won ? " · won the station" : ""}
-        {share && <> <ShareAcroButton a={{ letters: a.letters, topic: a.topic, acro: a.sentence, points: a.points, won: a.won }} /></>}
+        {share && <> <ShareAcroButton a={{ letters: a.letters, topic: a.topic, acro: a.sentence, points: a.points, won: a.won, by }} /></>}
       </div>
     </div>
   );
@@ -2842,7 +2846,7 @@ function PassengerPage() {
             <Panel style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
               <h2 style={{ margin: 0, fontSize: 28, ...smallTitle }}>Top acros</h2>   {/* Honk (2026-10-18) */}
               {p.topAcros.length === 0 ? <p style={{ margin: 0, color: C.textMuted }}>No votes yet — the best acros show here.</p>
-                : p.topAcros.map((a, i) => <AcroQuote key={i} a={a} big={i === 0} share />)}
+                : p.topAcros.map((a, i) => <AcroQuote key={i} a={a} big={i === 0} share={me} by={p.name} />)}   {/* your own acros only */}
             </Panel>
 
             <Panel style={{ padding: 20 }}>
@@ -4081,7 +4085,8 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
                     {entryByNickname[name] || "—"}
                     {isMyVote && <span style={{ marginLeft: 8, fontStyle: "normal", fontWeight: 700, fontSize: 11, color: C.teal, border: `1px solid ${C.teal}`, borderRadius: 999, padding: "0 6px", whiteSpace: "nowrap" }}>your vote</span>}
                     {/* the winning acro, as a picture to send to friends (2026-10-23) */}
-                    {isWinner && winners[0]?.name === name && <span style={{ marginLeft: 8 }}><ShareAcroButton a={{ letters: (letters || []).join(""), topic, acro: entryByNickname[name], points: score, won: true }} /></span>}
+                    {/* only for the winner themselves: the card carries their name (Damon, 2026-10-23: "just the one who asks") */}
+                    {isWinner && myName && String(name).toLowerCase() === String(myName).toLowerCase() && <span style={{ marginLeft: 8 }}><ShareAcroButton a={{ letters: (letters || []).join(""), topic, acro: entryByNickname[name], points: score, won: true, by: name }} /></span>}
                   </td>
                 </tr>
               );
