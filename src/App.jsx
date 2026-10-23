@@ -3138,6 +3138,8 @@ function Lobby() {
     ...(boardWord ? [{ key: "word", icon: "📖", text: `Word of the week: ${boardWord.word.toUpperCase()}, ${boardWord.meaning}. Use it in an acro that gets a vote: +1!`,
       title: `Word of the week: ${boardWord.word}`,
       detail: <><i>{boardWord.meaning}</i>. Use it in an acro that gets a vote: <b style={{ color: C.textPrimary }}>+1 point</b>.</> }] : []),
+    // news itself (Damon, 2026-10-23): the board's lines can be clicked. On the board until 6 November, then a tip
+    ...(Date.now() < Date.UTC(2026, 10, 6) ? [{ key: "clickme", icon: "🆕", text: "New: click any line on this board to read more.", title: "Click the board", detail: "Every line on the Station Board opens like this." }] : []),
     { key: "tip", icon: "💡", text: BOARD_TIPS[Math.floor(Date.now() / 3600000) % BOARD_TIPS.length],   // a different tip every hour
       title: "Tip", detail: BOARD_TIPS[Math.floor(Date.now() / 3600000) % BOARD_TIPS.length].replace(/^Tip: (.)/, (m, c) => c.toUpperCase()) },
   ];
@@ -3634,6 +3636,7 @@ function nightExpress(now, rooms) {
 // One tip on the Station Board, a different one every hour
 const BOARD_TIPS = [
   "Tip: click a name to send that passenger a private message.",
+  "Tip: click a line on the Station Board to read more.",
   "Tip: click the big letters on a train to change their font.",
   "Tip: pick your song for the writing time in the Music menu. It switches at once.",
   "Tip: in a Word > Chain topic, put > between the words: Fire > Truck > Driver.",
