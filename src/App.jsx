@@ -2523,7 +2523,7 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
     g.globalAlpha = alpha;
     g.filter = "blur(1.5px)";                                // soft edges
     const shade = g.createLinearGradient(0, baseY - size * 1.25, 0, baseY);
-    shade.addColorStop(0, "#FFF8F0"); shade.addColorStop(0.65, "#FCE6D2"); shade.addColorStop(1, "#F2C9A6");
+    shade.addColorStop(0, "#FFF8F0"); shade.addColorStop(0.65, "#FCE6D2"); shade.addColorStop(1, "#F8DCC4");   // ends in the floor's colour
     g.fillStyle = shade;
     g.beginPath();
     for (const [x, y, r] of puffs) { const px = cx + x * size, py = baseY + y * size; g.moveTo(px + r * size, py); g.arc(px, py, r * size, 0, Math.PI * 2); }
@@ -2531,15 +2531,12 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
     g.fill();
     g.restore();
   };
-  // two small clouds drifting high up, half behind the ticket
-  cloud(55, 420, 70, 0.75);
-  cloud(1030, 300, 85, 0.75);
   // tall clouds climbing both sides
   cloud(40, 905, 175);
   cloud(1045, 920, 160);
-  // the bank along the bottom: its tops stay below the ticket, with sky between
-  for (const [x, y, sz] of [[120, 1045, 125], [300, 1055, 115], [490, 1042, 130], [690, 1056, 115], [880, 1045, 125]]) cloud(x, y, sz);
-  g.fillStyle = "#F7DCC4"; g.fillRect(0, 1040, W, W - 1040);   // the bank's floor
+  // the bank along the bottom, rising behind the ticket: white straight under it, no sky between (Damon, 2026-10-23)
+  g.fillStyle = "#F8DCC4"; g.fillRect(0, 905, W, W - 905);   // the bank's floor first, the clouds over it (no seam)
+  for (const [x, y, sz] of [[90, 960, 140], [250, 950, 135], [410, 958, 140], [570, 950, 135], [730, 958, 140], [890, 952, 135]]) cloud(x, y, sz);
   g.textAlign = "center"; g.textBaseline = "alphabetic";
 
   // the logo, as on the site (Golden Hour: gold, with a plum outline and shadow)
