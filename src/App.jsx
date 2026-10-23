@@ -2515,9 +2515,19 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
   const sky = g.createLinearGradient(0, 0, 0, W);
   sky.addColorStop(0, "#B06F48"); sky.addColorStop(0.6, "#C4855A"); sky.addColorStop(1, "#D49C6C");
   g.fillStyle = sky; g.fillRect(0, 0, W, W);
-  // a few soft clouds behind everything
-  g.fillStyle = "rgba(255, 233, 204, 0.10)";
-  for (const [x, y, r] of [[70, 95, 62], [140, 72, 44], [880, 960, 80], [955, 975, 60], [95, 1000, 50]]) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+  // a bank of clouds along the bottom, behind the ticket: two layers of puffy clouds (bumps on top, flat below), the
+  // back one warmer and see-through, the front one cream; the "Play free" line sits on the front one
+  const cloudLayer = (baseY, puffs, color) => {
+    g.fillStyle = color;
+    g.beginPath();
+    for (const [x, dy, r] of puffs) { g.moveTo(x + r, baseY - dy); g.arc(x, baseY - dy, r, 0, Math.PI * 2); }
+    g.rect(0, baseY, W, W - baseY);
+    g.fill();
+  };
+  cloudLayer(900, [[0, 70, 115], [150, 25, 85], [300, 0, 75], [460, 15, 80], [620, 0, 75], [780, 25, 85], [930, 55, 100], [1080, 90, 120]],
+    "rgba(255, 222, 192, 0.6)");
+  cloudLayer(965, [[30, 15, 90], [180, 45, 80], [330, 20, 85], [480, 50, 75], [630, 20, 90], [780, 45, 80], [930, 15, 90], [1070, 35, 85]],
+    "#FFF1E3");
   g.textAlign = "center"; g.textBaseline = "alphabetic";
 
   // the logo, as on the site (Golden Hour: gold, with a plum outline and shadow)
@@ -2529,7 +2539,7 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
   }
 
   // the ticket: a plum Sky Train ticket, with a notch on each side at the tear line
-  const X = 70, Y = 175, TW = W - 140, TH = 720, TEAR = 470;
+  const X = 70, Y = 175, TW = W - 140, TH = 650, TEAR = 470;   // ends at 825: the cloud tops show below it
   g.beginPath(); g.roundRect(X, Y, TW, TH, 34);
   g.fillStyle = P.bgPanel; g.fill();
   g.lineWidth = 3; g.strokeStyle = P.border; g.stroke();
@@ -2573,7 +2583,7 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
   };
   if (!fit(1)) fit(4);
   g.font = `800 ${size}px Nunito, sans-serif`; g.textAlign = "left";
-  const lh = size * 1.2, mid = 655, top0 = mid - ((lines.length - 1) * lh) / 2 + size * 0.35;
+  const lh = size * 1.2, mid = 630, top0 = mid - ((lines.length - 1) * lh) / 2 + size * 0.35;
   lines.forEach((ln, li) => {
     const pieces = [];                                     // [text, gold?]
     if (li === 0) pieces.push(["“", false]);
@@ -2596,16 +2606,16 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
     const label = `★  ${n} point${n === 1 ? "" : "s"}`;
     g.font = "800 36px Nunito, sans-serif";
     const bw = g.measureText(label).width + 64;
-    g.beginPath(); g.roundRect((W - bw) / 2, 800, bw, 62, 31);
+    g.beginPath(); g.roundRect((W - bw) / 2, 735, bw, 62, 31);
     g.fillStyle = P.brand; g.fill();
-    g.fillStyle = P.onBrand; g.fillText(label, W / 2, 843);
+    g.fillStyle = P.onBrand; g.fillText(label, W / 2, 778);
   }
 
-  // where to play
-  g.font = "800 44px Nunito, sans-serif"; g.fillStyle = P.textPrimary;
-  g.fillText("Play free at acro.express", W / 2, 968);
-  g.font = "700 30px Nunito, sans-serif"; g.fillStyle = P.ivory;
-  g.fillText("The multiplayer acronym game. Can you beat this one?", W / 2, 1020);
+  // where to play: plum on the cream clouds
+  g.font = "800 44px Nunito, sans-serif"; g.fillStyle = P.bgPanel;
+  g.fillText("Play free at acro.express", W / 2, 975);
+  g.font = "700 30px Nunito, sans-serif"; g.fillStyle = P.navy3;
+  g.fillText("The multiplayer acronym game. Can you beat this one?", W / 2, 1027);
   return new Promise(res => c.toBlob(res, "image/png"));
 }
 // Share it: the phone's share sheet (with the link, tagged so the Numbers page counts it), or a download
