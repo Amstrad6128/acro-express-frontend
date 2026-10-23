@@ -2997,7 +2997,7 @@ function Lobby() {
   // Who's around, for the welcome screen ("Right now: 3 passengers at the station")
   const [liveNow, setLiveNow] = useState(null);
   useEffect(() => {
-    if (auth) return;
+    // also signed in: the Daily Express row needs to know if tonight's game was played (lastStationUtc)
     const load = () => fetch(`${API_URL}/api/status`).then(r => r.json()).then(setLiveNow).catch(() => { });
     load(); const iv = setInterval(load, 30000);
     return () => clearInterval(iv);
@@ -3142,7 +3142,7 @@ function Lobby() {
     </>
   );
   // The Station Board's news (2026-10-22): the Daily Express, the latest Station Log post, who's here, a tip
-  const dailyNow = nightExpress(Date.now(), roomList);
+  const dailyNow = nightExpress(Date.now(), roomList, liveNow?.lastStationUtc);
   const boardWord = useWordOfWeek();   // for the Station Board
   const bdayAge = birthdayToday();
   // confetti once per birthday per browser: decided when the page opens, remembered once you're at the station
@@ -3182,7 +3182,7 @@ function Lobby() {
   // free platform, the row where you start a new Sky Train
   const used = new Set(roomList.map(r => r.platform));
   const freeRows = shortWin ? 1 : Math.max(1, 2 - roomList.length);   // short windows: just the New Sky Train row (the Daily Express row counts as one of the 3)
-  const night = nightExpress(Date.now(), roomList);                    // tonight's game (re-worked out on every refresh of the list)
+  const night = nightExpress(Date.now(), roomList, liveNow?.lastStationUtc);   // tonight's game (re-worked out on every refresh of the list)
   const freeNumbers = []; for (let n = 1; freeNumbers.length < freeRows; n++) if (!used.has(n)) freeNumbers.push(n);
   const boardCols = "76px minmax(0, 2.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) 132px";   // platform · train · aboard · status · button
 
@@ -3652,7 +3652,8 @@ function AcroDemo() {
 // "Boarding soon", "Departing now" for the first 10 minutes, then "Running a little late 🚂" while no game is on
 // (Damon chose this over "Delayed"); "On the move" as soon as any train is playing. After 00:30 Limassol time it
 // shows the next night.
-function nightExpress(now, rooms) {
+// lastStationUtc (api/status): when the last station was played anywhere; played tonight → "Arrived 🏁"
+function nightExpress(now, rooms, lastStationUtc = null) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Nicosia", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })
     .formatToParts(now).filter(p => p.type !== "literal").map(p => [p.type, Number(p.value)]));
   const offset = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) - Math.floor(now / 1000) * 1000;   // Limassol's lead on UTC
@@ -3665,9 +3666,11 @@ function nightExpress(now, rooms) {
   const open = mins > -30;
   const daily = rooms.find(r => /^daily express$/i.test(String(r.name || "").trim()));
   const playing = daily?.gameOn ? daily : rooms.find(r => r.gameOn);
+  const ranTonight = !!lastStationUtc && new Date(lastStationUtc).getTime() >= departs - 30 * 60000;
   let status;
   if (daily && !daily.gameOn) status = { text: "Boarding now", color: C.brand };
   else if (playing && mins > -30) status = { text: "On the move", color: C.success };
+  else if (ranTonight && mins >= 0) status = { text: "Arrived 🏁", color: C.success };   // tonight's game was played
   else if (mins < -20) status = { text: "Today", color: C.teal };
   else if (mins < 0) status = { text: "Boarding soon", color: C.brand };
   else if (mins < 10) status = { text: "Departing now", color: C.brand };
