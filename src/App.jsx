@@ -2475,12 +2475,99 @@ function PassStat({ n, label }) {
     </div>
   );
 }
-function AcroQuote({ a, big }) {
+// ── The share card ──────────────────────────────────────────────
+// A 1080 × 1080 picture of one acro, always in Golden Hour (the brand look, whatever the player's own colours are):
+// the logo, the letters, the topic, the acro, its votes, and where to play. Returns a PNG Blob.
+async function makeAcroCard({ letters, topic, acro, votes, won }) {
+  const W = 1080, c = document.createElement("canvas");
+  c.width = W; c.height = W;
+  const g = c.getContext("2d");
+  // the fonts must be loaded before the canvas can draw with them
+  await Promise.all(["48px Honk", "48px 'Bowlby One SC'", "800 48px Nunito", "700 48px Nunito"].map(x => document.fonts.load(x).catch(() => { })));
+  const P = THEMES.goldenhour;
+  // the sky
+  const sky = g.createLinearGradient(0, 0, 0, W);
+  sky.addColorStop(0, "#B06F48"); sky.addColorStop(0.6, "#C4855A"); sky.addColorStop(1, "#D49C6C");
+  g.fillStyle = sky; g.fillRect(0, 0, W, W);
+  // the plum box
+  const box = (x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
+  box(60, 190, W - 120, 700, 36); g.fillStyle = P.bgPanel; g.fill();
+  g.lineWidth = 3; g.strokeStyle = P.border; g.stroke();
+  g.textAlign = "center"; g.textBaseline = "alphabetic";
+  // the logo
+  g.font = "96px Honk, 'Bowlby One SC', sans-serif"; g.fillStyle = P.brand;
+  g.fillText("Acro Express", W / 2, 140);
+  // the letters, big and gold
+  const L = String(letters || "").toUpperCase().split("").filter(ch => /[A-Z]/.test(ch));
+  const lSize = L.length > 6 ? 96 : 120;
+  g.font = `${lSize}px 'Bowlby One SC', sans-serif`; g.fillStyle = P.brand;
+  g.fillText(L.join("  "), W / 2, 340);
+  // the topic
+  g.font = "700 30px Nunito, sans-serif"; g.fillStyle = P.textMuted;
+  g.fillText(`TOPIC · ${String(topic || "General Acro").toUpperCase()}`.slice(0, 60), W / 2, 410);
+  // the acro: as big as fits, up to four lines
+  const text = `“${String(acro || "").trim()}”`;
+  let size = 72, lines = [];
+  for (; size >= 36; size -= 4) {
+    g.font = `800 ${size}px Nunito, sans-serif`;
+    lines = []; let line = "";
+    for (const word of text.split(/\s+/)) {
+      const t = line ? line + " " + word : word;
+      if (g.measureText(t).width > W - 220 && line) { lines.push(line); line = word; } else line = t;
+    }
+    if (line) lines.push(line);
+    if (lines.length <= 4) break;
+  }
+  g.fillStyle = P.ivory;
+  const lh = size * 1.22, top = 560 - ((lines.length - 1) * lh) / 2;
+  lines.forEach((ln, i) => g.fillText(ln, W / 2, top + i * lh + size * 0.35));
+  // the votes
+  const n = Number(votes) || 0;
+  g.font = "700 34px Nunito, sans-serif"; g.fillStyle = P.teal;
+  g.fillText([n ? `★ ${n} vote${n === 1 ? "" : "s"}` : "", won ? "won the station" : ""].filter(Boolean).join(" · "), W / 2, 830);
+  // where to play
+  g.font = "800 40px Nunito, sans-serif"; g.fillStyle = P.textPrimary;
+  g.fillText("Play free at acro.express", W / 2, 975);
+  g.font = "700 28px Nunito, sans-serif"; g.fillStyle = P.textPrimary;
+  g.fillText("A multiplayer acronym game · Daily Express at 23:00 Cyprus time", W / 2, 1025);
+  return new Promise(res => c.toBlob(res, "image/png"));
+}
+// Share it: the phone's share sheet (with the link, tagged so the Numbers page counts it), or a download
+async function shareAcroCard(a) {
+  const blob = await makeAcroCard(a);
+  if (!blob) return;
+  const name = `acro-express-${String(a.letters || "acro").replace(/[^A-Za-z]/g, "").toUpperCase() || "acro"}.png`;
+  const file = new File([blob], name, { type: "image/png" });
+  try {
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], text: "An acro from Acro Express. Can you beat it? https://acro.express/?from=share" });
+      return;
+    }
+  } catch (e) { if (e?.name === "AbortError") return; }   // closed the share sheet: nothing more to do
+  const url = URL.createObjectURL(blob);
+  const link = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+// The small "Share" button next to an acro
+function ShareAcroButton({ a, label = "Share" }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button onClick={async e => { e.stopPropagation(); setBusy(true); try { await shareAcroCard(a); } finally { setBusy(false); } }}
+      data-hint="A picture of this acro, to send to friends (no names on it)" disabled={busy}
+      style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 999, color: C.teal, cursor: busy ? "wait" : "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "1px 9px", whiteSpace: "nowrap", fontStyle: "normal" }}>
+      📤 {busy ? "…" : label}
+    </button>
+  );
+}
+
+function AcroQuote({ a, big, share }) {
   return (
     <div style={{ borderLeft: `3px solid ${C.teal}`, padding: "2px 0 2px 12px" }}>
       <div style={{ fontFamily: "Fredoka, sans-serif", fontSize: big ? 20 : 17, color: C.ivory }}>"{a.sentence}"</div>
       <div style={{ fontSize: 13, color: C.textMuted }}>
         {a.letters.split("").join(" ")} · {a.topic} · <span style={{ color: C.teal }}>{a.points != null ? `${a.points} point${a.points === 1 ? "" : "s"} · ` : ""}{a.votes} vote{a.votes === 1 ? "" : "s"}</span>{a.won ? " · won the station" : ""}
+        {share && <> <ShareAcroButton a={{ letters: a.letters, topic: a.topic, acro: a.sentence, votes: a.votes, won: a.won }} /></>}
       </div>
     </div>
   );
@@ -2660,7 +2747,7 @@ function PassengerPage() {
             <Panel style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
               <h2 style={{ margin: 0, fontSize: 28, ...smallTitle }}>Top acros</h2>   {/* Honk (2026-10-18) */}
               {p.topAcros.length === 0 ? <p style={{ margin: 0, color: C.textMuted }}>No votes yet — the best acros show here.</p>
-                : p.topAcros.map((a, i) => <AcroQuote key={i} a={a} big={i === 0} />)}
+                : p.topAcros.map((a, i) => <AcroQuote key={i} a={a} big={i === 0} share />)}
             </Panel>
 
             <Panel style={{ padding: 20 }}>
@@ -3741,7 +3828,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
 }
 
 // ── Results Screen ─────────────────────────────────────────────
-function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote, votes, myName, details }) {
+function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote, votes, myName, details, letters }) {
   const sorted = Object.entries(scores || {}).sort((a, b) => b[1] - a[1]);
   const anyPoints = sorted.some(([, s]) => s > 0);
 
@@ -3834,6 +3921,8 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
                   <td style={td({ color: isWinner ? C.ivory : C.textSecond, fontStyle: "italic", fontWeight: isWinner ? 700 : 400 }, false, true)}>
                     {entryByNickname[name] || "—"}
                     {isMyVote && <span style={{ marginLeft: 8, fontStyle: "normal", fontWeight: 700, fontSize: 11, color: C.teal, border: `1px solid ${C.teal}`, borderRadius: 999, padding: "0 6px", whiteSpace: "nowrap" }}>your vote</span>}
+                    {/* the winning acro, as a picture to send to friends (2026-10-23) */}
+                    {isWinner && winners[0]?.name === name && <span style={{ marginLeft: 8 }}><ShareAcroButton a={{ letters: (letters || []).join(""), topic, acro: entryByNickname[name], votes: votes?.[name], won: true }} /></span>}
                   </td>
                 </tr>
               );
@@ -4883,7 +4972,7 @@ function Room() {
             <div>
             <ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players}
               round={currentRound} topic={currentTopic} onClose={() => setResultsClosed(true)} myVote={myVote}
-              votes={roundVotes} myName={auth?.username} details={resultDetails} />
+              votes={roundVotes} myName={auth?.username} details={resultDetails} letters={letters} />
             </div>
           )}
           {topicRequested && (
