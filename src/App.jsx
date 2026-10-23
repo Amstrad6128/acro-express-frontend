@@ -2524,11 +2524,11 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
     g.rect(0, baseY, W, W - baseY);
     g.fill();
   };
-  const backPuffs = [[-10, 10, 90], [120, 40, 80], [250, 10, 95], [400, 45, 85], [540, 15, 100], [690, 50, 80], [820, 15, 95], [960, 40, 85], [1090, 10, 90]];
-  const frontPuffs = [[40, 0, 85], [170, 25, 95], [320, 0, 80], [450, 30, 100], [600, 5, 85], [740, 30, 95], [880, 0, 85], [1020, 25, 95]];
-  cloudLayer(890, backPuffs, "rgba(255, 214, 178, 0.55)");
-  cloudLayer(962, frontPuffs, "rgba(226, 160, 120, 0.45)");   // the warm rim: the cream layer's shadow, a little lower
-  cloudLayer(950, frontPuffs, "#FFF1E3");
+  // the back layer, behind the ticket: rises high at the sides
+  cloudLayer(900, [[-10, 120, 110], [120, 80, 90], [250, 20, 90], [400, 20, 85], [540, 15, 100], [690, 20, 85], [820, 20, 95], [960, 80, 90], [1090, 120, 110]],
+    "rgba(255, 214, 178, 0.55)");
+  // the front layer (drawn after the ticket, see below): x, height above its base, radius
+  const frontPuffs = [[20, 40, 120], [170, 30, 110], [320, 10, 90], [450, 0, 85], [600, 0, 85], [740, 10, 90], [890, 30, 110], [1050, 40, 120]];
   g.textAlign = "center"; g.textBaseline = "alphabetic";
 
   // the logo, as on the site (Golden Hour: gold, with a plum outline and shadow)
@@ -2611,6 +2611,10 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
     g.fillStyle = P.brand; g.fill();
     g.fillStyle = P.onBrand; g.fillText(label, W / 2, 823);
   }
+
+  // the cream clouds in front of the ticket's lower edge (with a warm rim under them for depth)
+  cloudLayer(962, frontPuffs, "rgba(226, 160, 120, 0.45)");
+  cloudLayer(950, frontPuffs, "#FFF1E3");
 
   // where to play: plum on the cream clouds
   g.font = "800 44px Nunito, sans-serif"; g.fillStyle = P.bgPanel;
