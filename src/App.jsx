@@ -2524,10 +2524,11 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
     g.rect(0, baseY, W, W - baseY);
     g.fill();
   };
-  cloudLayer(900, [[0, 70, 115], [150, 25, 85], [300, 0, 75], [460, 15, 80], [620, 0, 75], [780, 25, 85], [930, 55, 100], [1080, 90, 120]],
-    "rgba(255, 222, 192, 0.6)");
-  cloudLayer(965, [[30, 15, 90], [180, 45, 80], [330, 20, 85], [480, 50, 75], [630, 20, 90], [780, 45, 80], [930, 15, 90], [1070, 35, 85]],
-    "#FFF1E3");
+  const backPuffs = [[-10, 10, 90], [120, 40, 80], [250, 10, 95], [400, 45, 85], [540, 15, 100], [690, 50, 80], [820, 15, 95], [960, 40, 85], [1090, 10, 90]];
+  const frontPuffs = [[40, 0, 85], [170, 25, 95], [320, 0, 80], [450, 30, 100], [600, 5, 85], [740, 30, 95], [880, 0, 85], [1020, 25, 95]];
+  cloudLayer(890, backPuffs, "rgba(255, 214, 178, 0.55)");
+  cloudLayer(962, frontPuffs, "rgba(226, 160, 120, 0.45)");   // the warm rim: the cream layer's shadow, a little lower
+  cloudLayer(950, frontPuffs, "#FFF1E3");
   g.textAlign = "center"; g.textBaseline = "alphabetic";
 
   // the logo, as on the site (Golden Hour: gold, with a plum outline and shadow)
@@ -2539,7 +2540,7 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
   }
 
   // the ticket: a plum Sky Train ticket, with a notch on each side at the tear line
-  const X = 70, Y = 175, TW = W - 140, TH = 650, TEAR = 470;   // ends at 825: the cloud tops show below it
+  const X = 70, Y = 175, TW = W - 140, TH = 700, TEAR = 470;   // ends at 875, the cream puffs peeking out below
   g.beginPath(); g.roundRect(X, Y, TW, TH, 34);
   g.fillStyle = P.bgPanel; g.fill();
   g.lineWidth = 3; g.strokeStyle = P.border; g.stroke();
@@ -2583,7 +2584,7 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
   };
   if (!fit(1)) fit(4);
   g.font = `800 ${size}px Nunito, sans-serif`; g.textAlign = "left";
-  const lh = size * 1.2, mid = 630, top0 = mid - ((lines.length - 1) * lh) / 2 + size * 0.35;
+  const lh = size * 1.2, mid = 650, top0 = mid - ((lines.length - 1) * lh) / 2 + size * 0.35;
   lines.forEach((ln, li) => {
     const pieces = [];                                     // [text, gold?]
     if (li === 0) pieces.push(["“", false]);
@@ -2606,16 +2607,16 @@ async function makeAcroCard({ letters, topic, acro, points, won }) {
     const label = `★  ${n} point${n === 1 ? "" : "s"}`;
     g.font = "800 36px Nunito, sans-serif";
     const bw = g.measureText(label).width + 64;
-    g.beginPath(); g.roundRect((W - bw) / 2, 735, bw, 62, 31);
+    g.beginPath(); g.roundRect((W - bw) / 2, 780, bw, 62, 31);
     g.fillStyle = P.brand; g.fill();
-    g.fillStyle = P.onBrand; g.fillText(label, W / 2, 778);
+    g.fillStyle = P.onBrand; g.fillText(label, W / 2, 823);
   }
 
   // where to play: plum on the cream clouds
   g.font = "800 44px Nunito, sans-serif"; g.fillStyle = P.bgPanel;
-  g.fillText("Play free at acro.express", W / 2, 975);
+  g.fillText("Play free at acro.express", W / 2, 982);
   g.font = "700 30px Nunito, sans-serif"; g.fillStyle = P.navy3;
-  g.fillText("The multiplayer acronym game. Can you beat this one?", W / 2, 1027);
+  g.fillText("The multiplayer acronym game. Can you beat this one?", W / 2, 1032);
   return new Promise(res => c.toBlob(res, "image/png"));
 }
 // Share it: the phone's share sheet (with the link, tagged so the Numbers page counts it), or a download
