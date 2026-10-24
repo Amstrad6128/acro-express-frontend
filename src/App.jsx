@@ -4238,17 +4238,15 @@ function AnswersAccepted({ count, total, children, twoLines }) {
 
 // ── The topic desk (2026-10-24, after GPT's mock-up Damon liked) ─────────────
 // One wide panel for choosing a topic (the creator's first topic and the winner's next one): quick topics on the
-// left, the box and the big button in the middle, the topic as it will look on the right, thin dividers with a dot
-// between them. Behind it, Damon's picture (2026-10-24, public/art/topic-desk-2.webp, transparent sky): clouds, a platform and
+// left, the box and the big button in the middle, the topic as it will look on the right (the thin
+// dividers between them went, Damon 2026-10-24). Behind it, Damon's picture (2026-10-24, public/art/topic-desk-2.webp, transparent sky): clouds, a platform and
 // a station shelter with a lamp and the "0 STATION" sign. It spans the panel's full width, bottom-aligned (2026-10-24, Damon:
 // "you didn't place it well" — the first try fitted it to the height and faded the clouds); the panel is tall enough for
 // the shelter's roof and sign (the picture is 3:1, shown whole), the content left of the shelter.
 function TopicDesk({ left, center, right, narrow, station }) {
-  const divider = (
-    <div aria-hidden style={{ alignSelf: "stretch", width: 1, position: "relative", background: `linear-gradient(transparent, ${C.border} 25%, ${C.border} 75%, transparent)` }}>
-      <span style={{ position: "absolute", top: "50%", left: -2, width: 5, height: 5, marginTop: -2.5, borderRadius: "50%", background: C.border }} />
-    </div>
-  );
+  // no lines between the parts any more (Damon, 2026-10-24: "We don't need these"); the empty 1px columns stay so the
+  // layout doesn't move
+  const divider = <div aria-hidden />;
   const layer = { position: "relative", zIndex: 1 };
   return (
     <div style={{
@@ -4371,10 +4369,10 @@ function DeskButton({ children, onClick, disabled }) {
 }
 
 // ── Results Screen ─────────────────────────────────────────────
-function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote, votes, myName, details, letters }) {
+// The station's results: everyone by points, each passenger's acro, and the winners (the authors of the winning acro
+// who scored; several when identical acros were merged)
+function stationResults(scores, winningAcro, entries, players) {
   const sorted = Object.entries(scores || {}).sort((a, b) => b[1] - a[1]);
-  const anyPoints = sorted.some(([, s]) => s > 0);
-
   const entryByNickname = {};
   (entries || []).forEach(e => {
     // All authors of this entry (several when identical acros were merged)
@@ -4385,6 +4383,29 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
     });
   });
   const winners = sorted.filter(([name, score]) => !!winningAcro && entryByNickname[name] === winningAcro && score > 0).map(([n, sc]) => ({ name: n, score: sc }));
+  return { sorted, entryByNickname, winners };
+}
+
+// Damon's five lines for the station winner (2026-10-24), word for word; only the station number and the name change.
+// The name always comes last, so each line is the words before it.
+const STATION_CHEERS = ["applauds", "cheers for", "tips its hat to", "bows to", "is in awe of"];
+
+// Left of the results, centred on them: "Station 1 applauds" and the winner's name in Honk. One line at random per
+// station (the train page gives it a new key each station, so it picks again)
+function StationCheer({ round, names }) {
+  const [cheer] = useState(() => STATION_CHEERS[Math.floor(Math.random() * STATION_CHEERS.length)]);
+  if (!names.length) return null;
+  return (
+    <div style={{ textAlign: "center", padding: "8px 4px" }}>
+      <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.teal }}>Station {round} {cheer}</div>
+      <div style={{ ...smallTitle, fontSize: 34, lineHeight: 1.15, color: C.brand, marginTop: 4, overflowWrap: "anywhere" }}>{names.join(" & ")}!</div>
+    </div>
+  );
+}
+
+function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote, votes, myName, details, letters }) {
+  const { sorted, entryByNickname, winners } = stationResults(scores, winningAcro, entries, players);
+  const anyPoints = sorted.some(([, s]) => s > 0);
   const votedWinner = new Set(details?.votedWinner || []);
   const iVoted = !!myVote;
 
@@ -5568,6 +5589,10 @@ function Room() {
             // lined up with the panels below: from the Sky Train Chat's left edge to the right edge (Damon's markup, 2026-10-24),
             // using the same columns as those panels
             <div style={{ display: "grid", gap: 16, gridTemplateColumns: isNarrow ? "1fr" : (pm.active ? "minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.4fr)" : "1fr 3fr") }}>
+            {/* the station winner, left of the results and centred on them (Damon, 2026-10-24) */}
+            <div style={{ gridColumn: "1", alignSelf: "center", minWidth: 0 }}>
+              <StationCheer key={currentRound} round={currentRound} names={stationResults(scores, winningAcro, entries, players).winners.map(w => w.name)} />
+            </div>
             <div style={{ gridColumn: isNarrow ? "1" : "2 / -1", minWidth: 0 }}>
             <ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players}
               round={currentRound} topic={currentTopic} onClose={() => setResultsClosed(true)} myVote={myVote}
