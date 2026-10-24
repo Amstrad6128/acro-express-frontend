@@ -3176,9 +3176,13 @@ function Lobby() {
     }
   }
 
+// Names for a Sky Train started without a name (Damon's list, 2026-10-24)
+const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limited", "The Daydream", "The Nightliner", "The Cloudliner", "The Wanderer"];
   async function handleCreate() {
-    const name = newRoomName.trim();
-    if (!name) { setCreateError("Give your Sky Train a name."); return; }
+    // No name (just Enter): one of Damon's train names, one that isn't in use (2026-10-24)
+    const taken = new Set(roomList.map(r => String(r.name || "").trim().toLowerCase()));
+    const free = TRAIN_NAMES.filter(n => !taken.has(n.toLowerCase()));
+    const name = newRoomName.trim() || (free.length ? free[Math.floor(Math.random() * free.length)] : `${TRAIN_NAMES[Math.floor(Math.random() * TRAIN_NAMES.length)]} ${taken.size + 1}`);
     try {
       const data = await createRoom(name);
       const id = data?.id || data?.roomId;
@@ -3537,7 +3541,7 @@ function Lobby() {
                         // Naming the new train, right here on its platform
                         <div style={{ gridColumn: phone ? "2" : "2 / 4", minWidth: 0 }}>
                           <div style={{ display: "flex", gap: 8 }}>
-                            <input autoFocus maxLength={80} placeholder="Name your Sky Train..." value={newRoomName}
+                            <input autoFocus maxLength={80} placeholder="Name your Sky Train, or just press Enter" value={newRoomName}
                               onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
                               onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
                               style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
