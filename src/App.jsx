@@ -2944,23 +2944,6 @@ function PassengerPage() {
 }
 
 // ── Lobby ──────────────────────────────────────────────────────
-// The invite in the address (?train=<id>), kept for this tab while the visitor joins (sessionStorage), then taken
-// out of the address so a copied link doesn't carry it on
-function readInvite() {
-  try {
-    const url = new URL(window.location.href);
-    const fromUrl = url.searchParams.get("train");
-    if (fromUrl) {
-      url.searchParams.delete("train");
-      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
-    }
-    const id = fromUrl || sessionStorage.getItem("acro.invite");
-    if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return null;
-    sessionStorage.setItem("acro.invite", id);
-    return { id, loaded: false, name: null, gone: false };
-  } catch { return null; }
-}
-
 function Lobby() {
   const [status, setStatus] = useState("");   // "ok" / "down" once checked
   const [myPass, setMyPass] = useState(null);   // my Sky Passport, for the line under the greeting
@@ -3037,19 +3020,6 @@ function Lobby() {
     } catch (e) { setAuthMsg(friendlyAuthError(e, mode)); }
     setAuthBusy(false);
   }
-  // An invite to a train (2026-10-23): its name for the welcome screen, then straight aboard once signed in
-  const [invite, setInvite] = useState(readInvite);
-  useEffect(() => {
-    if (!invite?.id || invite.loaded) return;
-    fetch(`${API_URL}/api/room/${invite.id}`).then(r => (r.ok ? r.json() : null)).catch(() => null)
-      .then(d => setInvite(v => v && { ...v, loaded: true, name: d?.name || null, gone: !d }));
-  }, [invite?.id, invite?.loaded]);
-  useEffect(() => {
-    if (!auth || !invite?.loaded) return;
-    try { sessionStorage.removeItem("acro.invite"); } catch { /* private mode */ }
-    if (!invite.gone) navigate(`/room/${invite.id}`);
-    else setInvite(null);
-  }, [auth, invite?.loaded]);   // eslint-disable-line react-hooks/exhaustive-deps
   // The practice ride, open over the station (you stay on the platform while you practise)
   const [practicing, setPracticing] = useState(false);
   // The latest Station Log post, for the Station Board
@@ -3336,13 +3306,6 @@ function Lobby() {
               </Panel>
               {/* The Sky Passport card */}
               <Panel style={{ padding: 0, overflow: "hidden" }}>
-                {/* an invite to a train */}
-                {invite?.loaded && (
-                  <div style={{ background: invite.gone ? C.bgPanel2 : C.brand, color: invite.gone ? C.textSecond : C.onBrand, padding: "12px 18px", fontWeight: 700, fontSize: 16 }}>
-                    {invite.gone ? "That train has left the station, but there's always another one. Join free and ride!"
-                      : <>🎟️ You're invited aboard Acro Express! Join free and you'll board your friend's Sky Train straight away.</>}
-                  </div>
-                )}
                 <div style={{ display: "flex", borderBottom: `1px solid ${C.border}` }}>
                   {tab("new", "I'm new")}
                   {tab("login", "I have a passport")}
@@ -4089,25 +4052,6 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
         </div>
       </div>
     </div>
-  );
-}
-
-// "🔗 Invite": a link to this train. Phones: the share sheet; elsewhere: copied, with "Link copied ✓" for a moment
-function InviteButton({ roomId }) {
-  const [copied, setCopied] = useState(false);
-  const invite = async () => {
-    const url = `${window.location.origin}/?train=${roomId}&from=invite`;
-    const text = "Come aboard Acro Express! A free multiplayer acronym game.";   // the brand only (Damon, 2026-10-23)
-    try {
-      if (navigator.share && window.matchMedia?.("(pointer: coarse)").matches) { await navigator.share({ title: "Acro Express", text, url }); return; }
-    } catch (e) { if (e?.name === "AbortError") return; }
-    try { await navigator.clipboard.writeText(url); } catch { window.prompt("Copy this link:", url); return; }
-    setCopied(true); setTimeout(() => setCopied(false), 2000);
-  };
-  return (
-    <span data-hint="Invite a friend: a link that brings them straight onto this train" style={{ display: "contents" }}>
-      <BtnSecondary onClick={invite}>{copied ? "Link copied ✓" : "🔗 Invite"}</BtnSecondary>
-    </span>
   );
 }
 
@@ -5244,7 +5188,6 @@ function Room() {
             {/* Not while the first topic is being chosen: round 1 already exists then (currentRoundNumber > 0)
                 — clicking it gave "round already in progress" */}
             {/* No Start / New Game button: the first topic starts the journey (Damon, 2026-10-16) */}
-            <InviteButton roomId={id} />
             <span data-hint="Leave this train and go back to the Grand Sky Station" style={{ display: "contents" }}><BtnSecondary onClick={handleLeaveRoom} style={{ border: `1px solid ${C.focusLine}` }}>← Grand Sky Station</BtnSecondary></span>
           </div>
           {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
