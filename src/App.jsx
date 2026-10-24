@@ -5681,8 +5681,9 @@ function Room() {
               </div>
               <DeskInput id="firstTopicInput" value={firstTopicDraft} placeholder="Write a direction, or pick one"
                 onChange={v => { setFirstTopicDraft(v); setFirstTopicError(""); }} onEnter={startDeparture} />
-              <DeskButton onClick={startDeparture}>START</DeskButton>
-              <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Press START to begin the journey</div>
+              {/* "Highball!": the railway signal to go (Damon, 2026-10-24: "It doesn't say start, it says Highball!") */}
+              <DeskButton onClick={startDeparture}>Highball!</DeskButton>
+              <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Press Highball! to begin the journey</div>
               {firstTopicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{firstTopicError}</p>}
             </div>
           )}
