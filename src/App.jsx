@@ -3493,6 +3493,46 @@ function Lobby() {
               )}
               {/* Up to 3 rows show; more trains scroll inside the board */}
               <div style={{ maxHeight: fits ? 3 * 62 : undefined, overflowY: fits ? "auto" : "visible" }}>
+                {/* Start your own: the first row (Damon, 2026-10-24: "Start your own should be on top"), then the scheduled
+                    trains, then the others */}
+                {/* Free platforms. The first one is where you start a new Sky Train: its button opens the name
+                    box right in the row. The others are quiet placeholders, so the board always has 3 rows */}
+                {freeNumbers.map((n, i) => {
+                  const rowStyle = { display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
+                    gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols };
+                  if (i > 0) return (
+                    <div key={`free-${n}`} style={{ ...rowStyle, opacity: 0.5 }}>
+                      <PlatformBox n={n} free />
+                      <div style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform</div>
+                    </div>
+                  );
+                  return (
+                    <div key={`free-${n}`} style={{ ...rowStyle, gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : "76px minmax(0, 1fr) auto" }}>
+                      <PlatformBox n={n} free />
+                      {creating ? (
+                        // Naming the new train, right here on its platform
+                        <div style={{ gridColumn: phone ? "2" : "2 / 4", minWidth: 0 }}>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <input autoFocus maxLength={80} placeholder="Name your Sky Train..." value={newRoomName}
+                              onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
+                              onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
+                              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
+                            <Btn onClick={handleCreate} style={smallBtn}>Create</Btn>
+                            <BtnSecondary onClick={cancelCreate} style={smallBtn}>Cancel</BtnSecondary>
+                          </div>
+                          {createError && <div style={{ marginTop: 4, fontSize: 13, color: C.brand }}>{createError}</div>}
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform · start your own Sky Train here</div>
+                          <span data-hint="Start your own Sky Train on this platform and name it" style={{ display: "contents" }}><Btn onClick={() => setCreating(true)} style={{ ...smallBtn, justifyContent: "center", gridColumn: phone ? "2" : undefined, justifySelf: phone ? "start" : undefined }}>
+                            <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> New Sky Train
+                          </Btn></span>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
                 {/* The scheduled trains, The Continental and the Daily Express, always the first rows (the next to leave
                     first), on platforms TC and DX */}
                 {scheduled.map(night => (
@@ -3547,44 +3587,6 @@ function Lobby() {
                         <Icon name="users" size={16} /> {names.length}{away.length > 0 && <span style={{ color: C.textMuted }}>+{away.length}</span>}</span>}
                       {!phone && <span><StatusPill {...pill} /></span>}
                       {!phone && (isFull ? <span /> : <Btn onClick={board} style={{ ...smallBtn, justifyContent: "center" }}>{room.gameOn ? "Board now →" : "Board →"}</Btn>)}
-                    </div>
-                  );
-                })}
-                {/* Free platforms. The first one is where you start a new Sky Train: its button opens the name
-                    box right in the row. The others are quiet placeholders, so the board always has 3 rows */}
-                {freeNumbers.map((n, i) => {
-                  const rowStyle = { display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
-                    gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols };
-                  if (i > 0) return (
-                    <div key={`free-${n}`} style={{ ...rowStyle, opacity: 0.5 }}>
-                      <PlatformBox n={n} free />
-                      <div style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform</div>
-                    </div>
-                  );
-                  return (
-                    <div key={`free-${n}`} style={{ ...rowStyle, gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : "76px minmax(0, 1fr) auto" }}>
-                      <PlatformBox n={n} free />
-                      {creating ? (
-                        // Naming the new train, right here on its platform
-                        <div style={{ gridColumn: phone ? "2" : "2 / 4", minWidth: 0 }}>
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <input autoFocus maxLength={80} placeholder="Name your Sky Train..." value={newRoomName}
-                              onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
-                              onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
-                              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
-                            <Btn onClick={handleCreate} style={smallBtn}>Create</Btn>
-                            <BtnSecondary onClick={cancelCreate} style={smallBtn}>Cancel</BtnSecondary>
-                          </div>
-                          {createError && <div style={{ marginTop: 4, fontSize: 13, color: C.brand }}>{createError}</div>}
-                        </div>
-                      ) : (
-                        <>
-                          <div style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform · start your own Sky Train here</div>
-                          <span data-hint="Start your own Sky Train on this platform and name it" style={{ display: "contents" }}><Btn onClick={() => setCreating(true)} style={{ ...smallBtn, justifyContent: "center", gridColumn: phone ? "2" : undefined, justifySelf: phone ? "start" : undefined }}>
-                            <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> New Sky Train
-                          </Btn></span>
-                        </>
-                      )}
                     </div>
                   );
                 })}
