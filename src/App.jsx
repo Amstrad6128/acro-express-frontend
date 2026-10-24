@@ -5548,7 +5548,15 @@ function Room() {
         </div>
         {/* right of the letters: the topic */}
         {/* centred in the space right of the letters, on the letters' middle (Damon's marked-up screenshot, 2026-10-24) */}
-        {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>{showTopic && topicBlock("left")}</div>}
+        {/* (2026-10-24, Damon's second markup) the topic fills the band of the letters' height, at most 400 px wide (two
+            lines if needed), with "TOPIC" just above it */}
+        {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>{showTopic && (
+          <div style={{ position: "relative", maxWidth: 400, textAlign: "left" }}>
+            <div style={{ position: "absolute", bottom: "100%", left: 0, marginBottom: 4, fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", whiteSpace: "nowrap" }}>Topic</div>
+            <TopicText size={isShort ? 28 : 34}>{currentTopic}</TopicText>
+            {specialTopicNote(currentTopic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2 }}>🎭 {specialTopicNote(currentTopic)}</div>}
+          </div>
+        )}</div>}
         </div>
       )}
 
