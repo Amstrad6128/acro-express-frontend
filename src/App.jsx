@@ -169,17 +169,19 @@ const THEMES = {
   },
   meadow: {  // Afternoon (was Meadow). Redone 2026-10-24 from Damon's Grand Sky Station picture (nobody used the old green
              // one): the sky from deep blue through lilac and pink clouds to a peach sunset, dark navy boxes like the
-             // "AE 30" sign and the logo's outline, cream text like the logo, gold buttons like the loading bar, pink titles
+             // "AE 30" sign and the logo's outline, cream text like the logo, gold buttons like the loading bar, pink titles.
+             // Same day (Damon: "too much contrast between the panels and the background"): the boxes mid-tone dusky
+             // blue-violet, like the shadowed clouds and towers, so the whole looks as soft as the picture
     name: "Afternoon",
-    bgApp: "#3B64A6", bgPanel: "#1F2A44", bgPanel2: "#26345A", border: "#4A5F92",
-    textPrimary: "#FFF4DC", textSecond: "#E6DCF0", textMuted: "#B9B6D8", bgText: "#FFF4DC",
+    bgApp: "#3F62A3", bgPanel: "#4E5C93", bgPanel2: "#58679D", border: "#7E8CC2",
+    textPrimary: "#FFF6E2", textSecond: "#EDE4F5", textMuted: "#D2CCEA", bgText: "#FFF4DC",
     brand: "#F6C46A", brandHover: "#FFD486", onBrand: "#1F2A44",
-    teal: "#F7B2CF", tealLight: "#FFC7DD", lavender: "#C9B6F2", ivory: "#FFF1C4",
-    success: "#9FE0B0", navy2: "#2A3A62", navy3: "#33467A",
-    bgGradient: "linear-gradient(180deg, #2C5596 0%, #5B7CC4 38%, #C58DC0 72%, #F2A98A 100%)",
+    teal: "#FFC2DA", tealLight: "#FFD3E4", lavender: "#C9B6F2", ivory: "#FFF1C4",
+    success: "#9FE0B0", navy2: "#5A69A0", navy3: "#6473AA",
+    bgGradient: "linear-gradient(180deg, #3A62A6 0%, #6A86C6 38%, #C998C4 72%, #F0B092 100%)",
     pattern: "none",
     danger: "#C2414B", dangerHover: "#D4525C",
-    fieldLine: "#4A5F92", focusLine: "#F6C46A",
+    fieldLine: "#8A97CA", focusLine: "#F6C46A",
   },
 };
 // The order in the Express Colors menu: the new mid-tone palettes follow Daybreak
