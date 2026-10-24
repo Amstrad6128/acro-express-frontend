@@ -294,6 +294,10 @@ function applyTheme(key) {
   for (const p of ["logo", "mark", "letters", "gold", "dark"]) root.style.setProperty(`--fp-${p}`, `--acro-${p}-${key}`);   // which ones are in use
   // the topic desk's picture: Golden Hour shows its own colours, every other palette tints it (2026-10-24)
   root.style.setProperty("--art-tint", key === "goldenhour" ? "0" : "0.9");
+  // top and bottom of the tint: lavender into the main colour; Afternoon one plum all over (its gold at the bottom
+  // looked strange, Damon)
+  root.style.setProperty("--art-top", key === "meadow" ? t.bgApp : t.lavender);
+  root.style.setProperty("--art-bottom", key === "meadow" ? t.bgApp : t.brand);
   currentThemeKey = key;
   currentTheme = t;                // for setBigLetterSky
   setBigLetterSky(bigLetterSpot);  // the big letters' outline in this palette's sky colour
@@ -938,6 +942,9 @@ const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, st
     </button>
   );
 };
+
+// Countdowns always show two digits: 35 … 09 … 00 (Damon, 2026-10-24: "the 00 format. Everywhere like that")
+const two = n => String(Math.max(0, Math.floor(Number(n) || 0))).padStart(2, "0");
 
 const BtnSecondary = ({ children, onClick, style = {} }) => {
   const [hovered, setHovered] = useState(false);
@@ -2142,7 +2149,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
           <div style={{ fontSize: `calc(clamp(28px, 6vh, 46px) * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, lineHeight: "var(--tf-lh, 1)", color: left <= 10 ? C.brand : C.teal, marginTop: 6,
             // as on the train: with Honk, the palette's colours (the letters' colours in the last 10 s), no shadow — without
             // fontPalette Honk shows its own yellow-pink gradient (Damon spotted it, 2026-10-22)
-            fontPalette: left <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", fontVariantNumeric: "tabular-nums" }}>{left}</div>
+            fontPalette: left <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", fontVariantNumeric: "tabular-nums" }}>{two(left)}</div>
         )}
         <div title="Click to change the letters' font" onClick={() => { cycleLetterFont(); inputRef.current?.focus(); }}
           style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 6, cursor: "pointer", userSelect: "none" }}>
@@ -4040,7 +4047,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
     const pairs = [
       { title: "🗳️ Which one is your favorite?" },
       { title: "🗳️ The platform is open for voting" },
-      { title: "🗳️ Now presenting the entries" },
+      { title: "🗳️ Now presenting the Expressions" },
     ];
     return pairs[Math.floor(Math.random() * pairs.length)];
   });
@@ -4119,7 +4126,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
         {/* maxHeight follows the screen height (was a fixed 380px, which only fit ~4 entries) */}
         <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 8, maxHeight: "60vh", overflowY: "auto" }}>
           {visibleEntries.length === 0 ? (
-            <p style={{ color: C.textMuted, fontSize: 15, textAlign: "center" }}>No entries to vote on at this station...</p>
+            <p style={{ color: C.textMuted, fontSize: 15, textAlign: "center" }}>No expressions to vote on at this station...</p>
           ) : (
             visibleEntries.map((entry) => {
               // sameId() returns false for missing ids, so only the clicked entry lights up
@@ -4163,15 +4170,15 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
         {/* Footer */}
         <div style={{ padding: "12px 24px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "center", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
 
-          {/* Voting countdown — number only (no bar), red in the last 10 seconds. In Honk, and it stays on 00 when the
-              time is up instead of disappearing (Damon, 2026-10-24) */}
-          {timer !== null && (
-            // a fixed-width slot: the buttons beside it never move as the number changes (Damon, 2026-10-24)
-            <span style={{ ...honkTitle, display: "inline-block", width: 72, textAlign: "center", fontSize: 40, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.teal, fontPalette: timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15" }}>{timer > 0 ? timer : "00"}</span>
-          )}
-
-          {/* Done voting button */}
-          <BtnSecondary onClick={handleDoneVoting}>Done Voting</BtnSecondary>
+          {/* Done Voting with the voting clock inside its frame, on the right (Damon, 2026-10-24). The clock: number only,
+              red in the last 10 seconds, in Honk, two digits, stays on 00 when the time is up */}
+          <BtnSecondary onClick={handleDoneVoting} style={{ display: "inline-flex", alignItems: "center", gap: 12, padding: "4px 10px 4px 16px" }}>
+            Done Voting
+            {timer !== null && (
+              // a fixed-width slot: the button never changes size as the number changes
+              <span style={{ ...honkTitle, display: "inline-block", width: 48, textAlign: "center", fontSize: 30, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.teal, fontPalette: timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15" }}>{two(timer)}</span>
+            )}
+          </BtnSecondary>
         </div>
       </div>
     </div>
@@ -4207,19 +4214,24 @@ function TopicText({ children, size }) {
   );
 }
 
-// "Answers accepted" left of the letters (after Acrophobia, 2026-10-24): how many acros are in. Each new one stretches
-// the number in from zero width; under it a light per passenger, lit for each acro in (Damon didn't like a ticket).
-function AnswersAccepted({ count, total }) {
+// "Expressions accepted" left of the letters (after Acrophobia, 2026-10-24): a light per passenger, lit for each acro in
+// (Damon didn't like a ticket; no number, "the lights are enough"). It mirrors the DIRECTION on the other side of the
+// letters: the label just above, right-aligned towards the letters, the lights in the letters' band.
+function AnswersAccepted({ count, total, children, twoLines }) {
   const lights = Math.min(16, Math.max(total, count));
   return (
-    <div style={{ textAlign: "center", visibility: count > 0 ? "visible" : "hidden" }} aria-live="polite">
-      <span key={`n${count}`} className="acro-stretch" style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 52, lineHeight: 1, color: C.teal, fontVariantNumeric: "tabular-nums" }}>{count}</span>
-      <div style={{ display: "flex", gap: 5, justifyContent: "center", flexWrap: "wrap", maxWidth: 140, margin: "6px auto 0" }} aria-hidden>
+    <div style={{ position: "relative", maxWidth: 400 }} aria-label={`${count} of ${lights} expressions accepted`} aria-live="polite">
+      {/* children: an invisible copy of the direction, so this box is exactly as wide as the direction box opposite */}
+      <div aria-hidden style={{ height: 0, overflow: "hidden", visibility: "hidden" }}>{children}</div>
+      <div style={{ position: "absolute", bottom: "100%", right: 0, marginBottom: 4, fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", whiteSpace: "nowrap", textAlign: "right", lineHeight: 1.3 }}>
+        {/* two lines on smaller screens, where one long line ran off the left edge */}
+        Expressions{twoLines ? <br /> : " "}accepted
+      </div>
+      <div style={{ display: "flex", gap: 7, justifyContent: "flex-end", flexWrap: "wrap", maxWidth: 200, marginLeft: "auto" }} aria-hidden>
         {Array.from({ length: lights }, (_, i) => (
-          <span key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: i < count ? C.teal : "transparent", border: `1.5px solid ${i < count ? C.teal : C.border}`, boxShadow: i < count ? `0 0 6px ${C.teal}` : "none", transition: "all 0.3s" }} />
+          <span key={i} style={{ width: 14, height: 14, borderRadius: "50%", background: i < count ? C.teal : "transparent", border: `1.5px solid ${i < count ? C.teal : C.border}`, boxShadow: i < count ? `0 0 6px ${C.teal}` : "none", transition: "all 0.3s" }} />
         ))}
       </div>
-      <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginTop: 4 }}>{count === 1 ? "Answer accepted" : "Answers accepted"}</div>
     </div>
   );
 }
@@ -4255,7 +4267,7 @@ function TopicDesk({ left, center, right, narrow }) {
           hue ("color" blending keeps the picture's light and shading), drawn only where the picture is (masked by it).
           Golden Hour, the picture's own palette, keeps the original (--art-tint 0) */}
       <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", mixBlendMode: "color", opacity: narrow ? 0 : "var(--art-tint, 0.9)",
-        background: `linear-gradient(180deg, ${C.lavender} 20%, ${C.brand} 85%)`,
+        background: "linear-gradient(180deg, var(--art-top) 20%, var(--art-bottom) 85%)",
         WebkitMaskImage: "url(/art/topic-desk-2.webp)", maskImage: "url(/art/topic-desk-2.webp)", WebkitMaskSize: "100% auto", maskSize: "100% auto",
         WebkitMaskPosition: "center bottom", maskPosition: "center bottom", WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat" }} />
       <div style={{ ...layer, minWidth: 0, order: narrow ? 2 : 0 }}>{left}</div>
@@ -4298,13 +4310,30 @@ function QuickTopics({ ideas, selected, onPick }) {
   );
 }
 // Right: "TOPIC" and the topic as it will look
-function TopicPreview({ topic, size }) {
+function TopicPreview({ topic, size, empty = "Yours shows here" }) {
   return (
     <div style={{ maxWidth: 360, margin: "0 auto" }}>
       <div style={{ ...deskEyebrow, marginBottom: 6 }}>Direction</div>
-      {topic ? <TopicText size={size}>{topic}</TopicText> : <span style={{ fontSize: 16, color: C.textMuted, fontStyle: "italic" }}>Yours shows here</span>}
+      {topic ? <TopicText size={size}>{topic}</TopicText> : <span style={{ fontSize: 16, color: C.textMuted, fontStyle: "italic" }}>{empty}</span>}
       {topic && specialTopicNote(topic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 6 }}>🎭 {specialTopicNote(topic)}</div>}
     </div>
+  );
+}
+// The desk the other passengers see while someone chooses (2026-10-24): the same picture, who is choosing, the clock
+// (none before the first station: the creator presses START), and the direction's place on the right
+function WatchDesk({ name, eyebrow, timer, first, narrow, short }) {
+  return (
+    <TopicDesk narrow={narrow}
+      left={null}
+      center={<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <div style={deskEyebrow}>{eyebrow}</div>
+        <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 24, color: C.textPrimary }}>
+          <span style={{ color: C.brand }}>{name || "Someone"}</span> is choosing the {first ? "first " : ""}direction…
+        </div>
+        {timer != null && <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 56, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: timer <= 5 ? C.brand : C.teal, visibility: timer > 0 ? "visible" : "hidden" }}>{two(timer)}</div>}
+        <div style={{ fontSize: 13, color: C.textMuted }}>Get ready to write!</div>
+      </div>}
+      right={<TopicPreview topic="" size={short ? 28 : 32} empty="Coming up…" />} />
   );
 }
 // The topic box: wide, a gold line, a pencil at its right end
@@ -4393,7 +4422,7 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
               <th style={cell}>Name</th>
               {votes && <th style={{ ...cell, textAlign: "center", width: 64 }}>Votes</th>}
               <th style={{ ...cell, textAlign: "center", width: 70 }}>Points</th>
-              <th style={cell}>Acro</th>
+              <th style={cell}>Expressions</th>
             </tr>
           </thead>
           <tbody>
@@ -4506,6 +4535,8 @@ function Room() {
   const [topicDraft, setTopicDraft] = useState("");
   // Waits 8 s after the results appear before opening the winner's topic prompt
   const topicPromptTimerRef = useRef(null);
+  // The others watch the desk while someone chooses: { id, first } (first = the first station of a new game)
+  const [watchChooser, setWatchChooser] = useState(null);
   // Error from the server when the topic is refused (e.g. too short)
   const [topicError, setTopicError] = useState("");
   const [topicTimer, setTopicTimer] = useState(null);
@@ -4776,6 +4807,7 @@ function Room() {
       setAcroError("");
       setMyVote(null); // new round — forget last round's vote
       clearTimeout(topicPromptTimerRef.current); // a round started — no topic prompt pending any more
+      setWatchChooser(null);
       setNextGameIn(null); // a round has started — no game-over countdown any more
       setSubmittedIds([]); // nobody has submitted yet in the new round
       // Show this round's topic next to the acro input.
@@ -4844,6 +4876,8 @@ function Room() {
         setTopicTimer(35);
       } else {
         postSystemMessage("Waiting for the host to set a direction...");
+        setWatchChooser({ id: creatorUserId, first: true });
+        setTopicTimer(35);
       }
     }, [auth]),
 
@@ -4887,6 +4921,12 @@ function Room() {
             topicRequestedRef.current = true;
             setTopicTimer(35);
           }, 8000);
+        } else if (winnerPlayerId) {
+          clearTimeout(topicPromptTimerRef.current);
+          topicPromptTimerRef.current = setTimeout(() => {
+            setWatchChooser({ id: winnerPlayerId, first: false });
+            setTopicTimer(35);
+          }, 8000);
         }
       }, 4180);
     }, [auth]),
@@ -4894,6 +4934,7 @@ function Room() {
     // winners (2nd argument, new 2026-10-20): everyone tied at the top. One name = one winner; more = co-winners.
     onGameOver: useCallback((winner, winners) => {
       const names = Array.isArray(winners) && winners.length > 0 ? winners : [winner];
+      setWatchChooser(null);
       // Stop all audio
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
@@ -4920,6 +4961,7 @@ function Room() {
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
       setPhase("Paused");
+      setWatchChooser(null);
       setTimer(null);
       setLetters([]);
       setFrozenScores(null);
@@ -4936,6 +4978,7 @@ function Room() {
       topicRequestedRef.current = false;
       setTopicDraft("");
       setTopicTimer(null);
+      setWatchChooser(null);
       setCurrentTopic(topic);
       // No chat line here — RoundStarted (sent right after this) posts the round and topic together
     }, []),
@@ -5396,11 +5439,13 @@ function Room() {
   // Compact (Sandy, 2026-10-15: use the space above the letters and in the acro box for more chat lines).
   // The letters keep their size.
   const stagePad = isShort ? "clamp(2px, 0.5vh, 10px)" : "clamp(4px, 1vh, 16px)";      // space above and below the letters
+  // between the letters and the acro box (Damon, 2026-10-24: "this is too little")
+  const letterGap = isShort ? "clamp(8px, 2vh, 18px)" : "clamp(12px, 3vh, 28px)";
   const timerGap = "clamp(2px, 0.8vh, 8px)";                                            // between the timer and the letters
   const ACRO_BOX = 76;                                                                   // the acro box + its line + margin (no panel)
   const timerSize = isShort ? "clamp(28px, 5vh, 46px)" : "clamp(28px, 6vh, 46px)";     // countdown number
   const letterSize = isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters
-  const stageHeight = `calc(2 * ${stagePad} + ${timerSize} + ${timerGap} + ${letterSize} + ${ACRO_BOX}px)`;
+  const stageHeight = `calc(${stagePad} + ${letterGap} + ${timerSize} + ${timerGap} + ${letterSize} + ${ACRO_BOX}px)`;
   // Results showing: the stage may grow to fit all passengers (option C, Damon 2026-10-16)
   // The stage grows for the results, and for the Final Stop celebration (the winner panel is taller than the letters)
   // Topic: label and topic on one line (compact header)
@@ -5422,7 +5467,7 @@ function Room() {
   const showFirstTopic = !topicRequested && ((phase === "Waiting" && !(data.currentRoundNumber > 0)) || phase === "Paused"
     || (phase === "GameOver" && nextGameIn !== null && nextGameIn <= -10));
   // The stage grows for the results, the Final Stop and both topic desks (2026-10-24: they were cut off)
-  const resultsGrow = (phase === "Results" && !resultsClosed && !topicRequested) || (phase === "GameOver" && !!gameWinner) || topicRequested || (showFirstTopic && iAmConductor);
+  const resultsGrow = (phase === "Results" && !resultsClosed && !topicRequested) || (phase === "GameOver" && !!gameWinner) || topicRequested || !!watchChooser || (showFirstTopic && !!conductor);
 
   return (
     // Wide side margins on desktop (like AcroChallenge), tighter on phones
@@ -5508,9 +5553,9 @@ function Room() {
       {/* Round results and the winner's topic prompt — inside the stage, where the letters are
           (like Acrophobia). Before, they floated over the page and covered "Round N" in the header.
           Never both at once: results first; for the round winner the topic prompt replaces them. */}
-      {((phase === "Results" && !resultsClosed) || topicRequested) && (
+      {((phase === "Results" && !resultsClosed) || topicRequested || watchChooser) && (
         <div style={{ marginBottom: 4 }}>
-          {phase === "Results" && !resultsClosed && !topicRequested && (
+          {phase === "Results" && !resultsClosed && !topicRequested && !watchChooser && (
             // lined up with the panels below: from the Sky Train Chat's left edge to the right edge (Damon's markup, 2026-10-24),
             // using the same columns as those panels
             <div style={{ display: "grid", gap: 16, gridTemplateColumns: isNarrow ? "1fr" : (pm.active ? "minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.4fr)" : "1fr 3fr") }}>
@@ -5520,6 +5565,11 @@ function Room() {
               votes={roundVotes} myName={auth?.username} details={resultDetails} letters={letters} />
             </div>
             </div>
+          )}
+          {watchChooser && !topicRequested && (
+            <WatchDesk narrow={isNarrow} name={onBoard.find(p => sameId(p.id, watchChooser.id))?.nickname}
+              eyebrow={`Next up · Station ${watchChooser.first ? 1 : currentRound + 1} · ${watchChooser.first ? 3 : 3 + (currentRound % 5)} letters`}
+              timer={topicTimer} short={isShort} />
           )}
           {topicRequested && (
         <div>
@@ -5531,7 +5581,7 @@ function Room() {
           center={<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             {/* The topic is chosen BEFORE the station it belongs to — the station starts with the countdown */}
             <div style={deskEyebrow}>Next up · Station {nextStation} · {topicForFirstRound ? 3 : 3 + (currentRound % 5)} letters</div>
-            <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 56, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: topicTimer !== null && topicTimer <= 5 ? C.brand : C.teal, visibility: topicTimer > 0 ? "visible" : "hidden" }}>{topicTimer > 0 ? topicTimer : 0}</div>
+            <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 56, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: topicTimer !== null && topicTimer <= 5 ? C.brand : C.teal, visibility: topicTimer > 0 ? "visible" : "hidden" }}>{two(topicTimer)}</div>
             {topicSetValue ? (
               // Set, not started: change it, or GO! now
               <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
@@ -5568,13 +5618,16 @@ function Room() {
       )}
 
       {/* The first topic starts the journey — no Start button (Damon, 2026-10-16) */}
-      {showFirstTopic && (!iAmConductor ? (
-        <Panel style={{ padding: 16, marginBottom: 8, borderColor: C.teal, textAlign: "center" }}>
-          <p style={{ color: C.textMuted, margin: 0, fontSize: 16 }}>
-            {conductor ? <>Waiting for <b style={{ color: C.textPrimary }}>{conductor.nickname}</b> to choose the first direction…</> : "Waiting for passengers…"}
-          </p>
-        </Panel>
+      {showFirstTopic && (!iAmConductor ? (conductor ? (
+        <div style={{ marginBottom: 8 }}>
+          <WatchDesk narrow={isNarrow} name={conductor.nickname} short={isShort} first
+            eyebrow={phase === "Paused" ? "Ready to continue?" : "Everyone on board?"} />
+        </div>
       ) : (
+        <Panel style={{ padding: 16, marginBottom: 8, borderColor: C.teal, textAlign: "center" }}>
+          <p style={{ color: C.textMuted, margin: 0, fontSize: 16 }}>Waiting for passengers…</p>
+        </Panel>
+      )) : (
         // the topic desk (GPT's structure, Damon 2026-10-24): a quick topic or your own, then START: a countdown from
         // 5, the horn, the first station. Choosing a topic doesn't start anything by itself.
         <div style={{ marginBottom: 8 }}>
@@ -5583,7 +5636,7 @@ function Room() {
           center={departIn !== null ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
               <div style={deskEyebrow}>The journey begins in</div>
-              <div key={departIn} className="acro-stretch" style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 64, lineHeight: 1, color: C.brand, fontVariantNumeric: "tabular-nums" }}>{Math.max(departIn, 0)}</div>
+              <div key={departIn} className="acro-stretch" style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 64, lineHeight: 1, color: C.brand, fontVariantNumeric: "tabular-nums" }}>{two(departIn)}</div>
               <BtnSecondary onClick={() => { setDepartIn(null); setFirstTopicDraft(departTopic); }}>Change the direction</BtnSecondary>
             </div>
           ) : (
@@ -5605,9 +5658,13 @@ function Room() {
 
       {/* Letters */}
       {letters.length > 0 && !topicRequested && phase !== "Results" && phase !== "GameOver" && (
-        <div style={{ padding: `${stagePad} 0`, display: isNarrow ? "block" : "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", alignItems: "center", columnGap: 32 }}>
+        <div style={{ padding: `${stagePad} 0 ${letterGap}`, display: isNarrow ? "block" : "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", alignItems: "center", columnGap: 32 }}>
         {/* left of the letters: how many acros are in (2026-10-24) */}
-        {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>{phase === "Submitting" && <AnswersAccepted count={submittedIds.length} total={players.filter(p => p.isConnected !== false).length} />}</div>}
+        {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>{phase === "Submitting" && (
+          <AnswersAccepted count={submittedIds.length} total={players.filter(p => p.isConnected !== false).length} twoLines={view.w < 1250}>
+            {showTopic && <><TopicText size={isShort ? 28 : 34}>{currentTopic}</TopicText>{specialTopicNote(currentTopic) && <div style={{ fontSize: 14, marginTop: 2 }}>🎭 {specialTopicNote(currentTopic)}</div>}</>}
+          </AnswersAccepted>
+        )}</div>}
         <div style={{ textAlign: "center" }}>
           {/* Countdown — number only, centred above the letters, red in the last 10 seconds.
               The line is always there; when the timer has ended it is only made invisible, so the
@@ -5616,7 +5673,7 @@ function Room() {
               colour comes from its palette: accent normally, letters colour in the last 10 seconds */}
           <div style={{ fontSize: `calc(${timerSize} * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: "var(--tf-lh, 1)", marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
             {/* "0" keeps the line one number tall while it is hidden */}
-            {timer !== null && timer > 0 ? timer : 0}
+            {two(timer)}
           </div>
           <div ref={lettersRef} title="Click to change the letters' font"
             onClick={() => { cycleLetterFont(); document.getElementById("acroInput")?.focus(); }}
