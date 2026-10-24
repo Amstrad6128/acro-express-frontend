@@ -792,17 +792,51 @@ function LetterFontPicker() {
 }
 
 // "Music: 70% ▾" (or "Music: Off"; was "Sound", renamed by Damon 2026-10-20) — music choice, volume slider and a Mute / Unmute button for all game sounds
-function SoundControl() {
+// The sound settings, kept in step with every menu and the /mu command
+function useSoundSettings() {
   const [st, setSt] = useState(soundSettings);
   useEffect(() => {
     const on = () => setSt(soundSettings);                           // e.g. typed /mu in the chat
     window.addEventListener("acro-sound-change", on);
     return () => window.removeEventListener("acro-sound-change", on);
   }, []);
-  const change = (next) => { setSoundSettings(next); setSt(next); };
+  return [st, next => { setSoundSettings(next); setSt(next); }];
+}
+
+// "Song: Turbo ▾" — which music plays while acros are written (Damon, 2026-10-23: separate from the volume). As
+// wide as the longest song name, so nothing next to it moves.
+function SongPicker() {
+  const [st, change] = useSoundSettings();
+  const current = MUSIC_CHOICES.find(m => m.id === (st.music || "classic")) || MUSIC_CHOICES[0];
+  return (
+    <HeaderMenu width={210} label={<>Song: <span style={{ color: C.teal, fontWeight: 600, display: "inline-grid", textAlign: "left" }}>
+      {MUSIC_CHOICES.map(m => <span key={m.id} aria-hidden style={{ gridArea: "1 / 1", visibility: "hidden" }}>{m.name}</span>)}
+      <span style={{ gridArea: "1 / 1" }}>{current.name}</span></span></>}>
+      {() => (
+        <>
+          <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 6 }}>Your music while you write. It switches at once.</div>
+          {MUSIC_CHOICES.map(m => {
+            const on = current.id === m.id;
+            return (
+              <button key={m.id} onClick={() => change({ ...st, music: m.id })} aria-pressed={on}
+                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", background: on ? C.navy3 : "transparent", border: "none", borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "5px 8px", textAlign: "left" }}>
+                <span style={{ flex: 1, fontWeight: on ? 700 : 400 }}>{m.name}</span>
+                {on && <span style={{ color: C.teal }}>✓</span>}
+              </button>
+            );
+          })}
+        </>
+      )}
+    </HeaderMenu>
+  );
+}
+
+// "Volume: 70% ▾" (or "Volume: Off") — volume slider, Mute / Unmute for all game sounds, and the button sounds
+function SoundControl() {
+  const [st, change] = useSoundSettings();
   const pct = Math.round(st.volume * 100);
   return (
-    <HeaderMenu width={210} label={<>Music: <span style={{ color: C.teal, fontWeight: 600, display: "inline-grid", textAlign: "left" }}>
+    <HeaderMenu width={210} label={<>Volume: <span style={{ color: C.teal, fontWeight: 600, display: "inline-grid", textAlign: "left" }}>
       {/* as wide as "100%" whatever it shows, so nothing next to it moves */}
       <span aria-hidden style={{ gridArea: "1 / 1", visibility: "hidden" }}>100%</span>
       <span style={{ gridArea: "1 / 1" }}>{st.on ? `${pct}%` : "Off"}</span></span></>}>
@@ -819,19 +853,6 @@ function SoundControl() {
             style={{ marginTop: 10, width: "100%", background: "transparent", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "5px 8px" }}>
             {st.on ? "Mute" : "Unmute"}
           </button>
-          {/* Music while acros are written (Damon, 2026-10-20): the original song or one of the songs made in the
-              browser (src/themes.js). Switches at once, also in the middle of a station (2026-10-21). */}
-          <div style={{ color: C.textMuted, fontSize: 13, margin: "10px 0 4px" }}>Song</div>
-          {MUSIC_CHOICES.map(m => {
-            const on = (st.music || "classic") === m.id;
-            return (
-              <button key={m.id} onClick={() => change({ ...st, music: m.id })} aria-pressed={on}
-                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", background: on ? C.navy3 : "transparent", border: "none", borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "5px 8px", textAlign: "left" }}>
-                <span style={{ flex: 1, fontWeight: on ? 700 : 400 }}>{m.name}</span>
-                {on && <span style={{ color: C.teal }}>✓</span>}
-              </button>
-            );
-          })}
           {/* Button sounds on their own switch: some players want the music without the clicks */}
           <button onClick={() => change({ ...st, buttons: st.buttons === false })} aria-pressed={st.buttons !== false}
             style={{ marginTop: 6, width: "100%", background: "transparent", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "5px 8px" }}>
@@ -840,6 +861,24 @@ function SoundControl() {
         </>
       )}
     </HeaderMenu>
+  );
+}
+
+// A one-time hint under the header's menus (Damon, 2026-10-23: "I always have to explain about the colors and the
+// music"): once per browser, until "Got it". Placed inside the menus' row (position: relative), it hangs right
+// under them however they wrap; side: which end of the row it lines up with
+function CustomizeHint({ side = "right" }) {
+  const [show, setShow] = useState(() => { try { return !localStorage.getItem("acro.hint.customize"); } catch { return false; } });
+  if (!show) return null;
+  const done = () => { try { localStorage.setItem("acro.hint.customize", "1"); } catch { /* private mode */ } setShow(false); };
+  return (
+    <div role="note" style={{ position: "absolute", top: "calc(100% + 12px)", [side]: 0, width: 300, textAlign: "left", zIndex: 80, maxWidth: 300, background: C.brand, color: C.onBrand, borderRadius: 12, padding: "10px 14px", boxShadow: "0 10px 30px rgba(0,0,0,0.4)", fontWeight: 700, fontSize: 15 }}>
+      <div style={{ position: "absolute", top: -7, [side]: 40, width: 14, height: 14, background: C.brand, transform: "rotate(45deg)" }} />
+      🎨 Make it yours: pick your colors, letters and song up here.
+      <div style={{ textAlign: "right", marginTop: 6 }}>
+        <button onClick={done} style={{ background: C.onBrand, color: C.brand, border: "none", borderRadius: 999, padding: "3px 12px", fontFamily: "inherit", fontWeight: 800, cursor: "pointer" }}>Got it</button>
+      </div>
+    </div>
   );
 }
 
@@ -2001,8 +2040,14 @@ function PracticeTrain({ onClose = null, boarding = null }) {
           <span style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: 34, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15", lineHeight: 1.05 }}>Acro Express</span>
           <span style={{ color: C.teal, fontWeight: 700 }}>🚂 Practice ride{st && n < 3 ? ` · Station ${n + 1} of 3` : ""}</span>
           {/* the letters' font, as on a train (Damon, 2026-10-22: "the practice font doesn't change") */}
-          <LetterFontPicker />
-          <SoundControl />   {/* music on/off, volume and song, as on a train */}
+          {/* make it yours, as on a train (Damon, 2026-10-23: Colors here too) */}
+          <span style={{ display: "flex", gap: 8, flexWrap: "wrap", position: "relative" }}>
+            <ThemePicker />
+            <LetterFontPicker />
+            <SongPicker />
+            <SoundControl />
+            <CustomizeHint side="left" />
+          </span>
           <BtnSecondary onClick={leave} style={{ padding: "6px 12px", fontSize: 14 }}>{onClose ? "Back to the station" : "Leave the practice"}</BtnSecondary>
         </div>
       </div>
@@ -5176,13 +5221,15 @@ function Room() {
         </div>
         {/* Gap between the buttons and the topic: 6px on short windows, 16px otherwise */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: isShort ? 4 : 8 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", position: "relative" }}>
+            <CustomizeHint />
             {/* "Colors" and "Music" menus — change them any time, even mid-game */}
             <span data-hint="Online: who is at the station and on the trains right now" style={{ display: "contents" }}><OnlineButton /></span>
             <span data-hint="How to play: the rules, the points and the special topics" style={{ display: "contents" }}><HowToPlay winScore={data.winScore || 30} /></span>
             <span data-hint="Colors: the look of the train. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>
             <span data-hint="Letters: the font of the big letters and the timer (or click the letters)" style={{ display: "contents" }}><LetterFontPicker /></span>
-            <span data-hint="Music: volume, button sounds, and your song (it switches at once)" style={{ display: "contents" }}><SoundControl /></span>
+            <span data-hint="Song: your music while you write (it switches at once)" style={{ display: "contents" }}><SongPicker /></span>
+            <span data-hint="Volume: music and sounds, mute, button sounds" style={{ display: "contents" }}><SoundControl /></span>
             {/* After a game ends the room is back in Waiting, so a new game can be started */}
             {/* Hidden during the 30-second break after a game — the next game starts by itself */}
             {/* Not while the first topic is being chosen: round 1 already exists then (currentRoundNumber > 0)
