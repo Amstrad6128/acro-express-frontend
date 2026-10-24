@@ -1412,7 +1412,7 @@ function HowToPlay({ winScore = 30 }) {
               {/* 2026-10-22: rewritten shorter and plainer (Damon: "make them more easy to understand and more simple";
                   the old "A valid acro is entered for you" sounded as if the game wrote one for you) */}
               <RulesSection icon="🚉" title="All aboard!">
-                Each station gives you a few letters and a topic. Turn the letters into a funny phrase, then everyone votes.
+                Each station gives you a few letters and a direction. Turn the letters into a funny phrase, then everyone votes.
                 The first to <b style={{ color: C.textPrimary }}>{winScore} points</b> wins the journey.
               </RulesSection>
               <RulesSection icon="✍️" title="Write">
@@ -1444,11 +1444,12 @@ function HowToPlay({ winScore = 30 }) {
                 Your free player account: your passenger name, your stats, your best acros and your stamps. No email needed.
                 Click your name at the station to see it.
               </RulesSection>
-              <RulesSection icon="🎯" title="Topics">
-                The winner of a station picks the next topic. No topic in time? Then it's "General Acro".
+              <RulesSection icon="🎯" title="Directions">
+                The direction is the station's topic: what your acro should be about. The winner of a station picks the
+                next one. No direction in time? Then it's "General Acro".
               </RulesSection>
-              <RulesSection icon="🎭" title="Special topics">
-                Sometimes the topic is a special challenge — your acro still has to fit the letters.
+              <RulesSection icon="🎭" title="Special directions">
+                Sometimes the direction is a special challenge — your acro still has to fit the letters.
                 <ul style={rulesList}>
                   {/* 2026-10-24 (Damon): his specials; the 3-letter ones only come on 3-letter stations, Rhyme Time on 4 */}
                   <li><b style={{ color: C.textPrimary }}>Pander</b> — make your acro about someone on the train. Be nice… or at least funny.</li>
@@ -2123,7 +2124,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
   // A special topic: explained first; the letters and the clock come when the player is ready
   if (phase === "intro") return shell(
     <Panel style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12, alignItems: "center", textAlign: "center", maxWidth: 560, width: "100%", margin: "0 auto", boxSizing: "border-box", borderColor: C.teal }}>
-      <div style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: C.textMuted }}>🎭 Special topic</div>
+      <div style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: C.textMuted }}>🎭 Special direction</div>
       <div style={{ ...honkTitle, fontSize: 36, lineHeight: 1.15 }}>{st.topic}</div>
       <div style={{ fontSize: 18, color: C.textPrimary }}>{specialTopicNote(st.topic)}</div>
       <div style={{ fontSize: 15, color: C.textSecond }}>Your letters and the {PRACTICE_SECONDS} seconds start when you're ready.</div>
@@ -2134,7 +2135,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
     <>
       {/* the stage: topic, timer, letters — the game's look, in the player's own letter font */}
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: C.textMuted }}>Topic</div>
+        <div style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: C.textMuted }}>Direction</div>
         <div style={{ ...honkTitle, fontSize: 30, lineHeight: 1.15 }}>{st.topic}</div>
         {specialTopicNote(st.topic) && <div style={{ color: C.textSecond, fontSize: 15, marginTop: 4 }}>🎭 Special topic: {specialTopicNote(st.topic)}</div>}
         {phase === "write" && (
@@ -2157,7 +2158,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
               style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "12px 14px", color: C.textPrimary, fontSize: 18, outline: "none", fontFamily: "inherit", textAlign: "center" }} />
             <Btn onClick={() => finish(false)}>Submit</Btn>
           </div>
-          <div style={{ minHeight: 20, textAlign: "center", fontSize: 14, color: problem ? C.brand : C.textMuted }}>{problem || "One word for each letter, in order. Have fun with the topic!"}</div>
+          <div style={{ minHeight: 20, textAlign: "center", fontSize: 14, color: problem ? C.brand : C.textMuted }}>{problem || "One word for each letter, in order. Have fun with the direction!"}</div>
         </form>
       ) : (
         // the reveal: the player's acro, then what the passengers wrote for these letters (no names)
@@ -3330,7 +3331,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
               songs play — your settings carry over) */}
           {auth && <span data-hint="Sky Leaderboard: the champions of the week, the month and all time" style={{ display: "contents" }}>
             <button onClick={() => navigate("/leaderboard")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏆 Sky Leaderboard</button></span>}
-          <span data-hint="How to play: the rules, the points and the special topics" style={{ display: "contents" }}><HowToPlay winScore={roomList[0]?.winScore || 30} /></span>
+          <span data-hint="How to play: the rules, the points and the special directions" style={{ display: "contents" }}><HowToPlay winScore={roomList[0]?.winScore || 30} /></span>
           {auth && <span data-hint="Colors: the look of the station and the trains. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>}
           {/* ("All lines running" moved to the Station Board's right end, 2026-10-22: loose text broke the row of buttons) */}
         </div>
@@ -3380,7 +3381,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                 {/* the Practice Train: play right away, no sign-up (2026-10-22) */}
                 <button onClick={() => navigate("/practice")} style={{ alignSelf: "flex-start", background: "transparent", border: `2px solid ${C.teal}`, borderRadius: 999, color: C.teal, fontFamily: "inherit", fontSize: 16, fontWeight: 700, padding: "9px 18px", cursor: "pointer" }}>🚂 Take a practice ride · 3 stations · 2 minutes</button>
                 <div style={{ display: "grid", gridTemplateColumns: phone ? "1fr" : "repeat(3, 1fr)", gap: 10 }}>
-                  {step("1", "Letters arrive", "And a topic.")}
+                  {step("1", "Letters arrive", "And a direction.")}
                   {step("2", "Write a phrase", "One word per letter, about a minute.")}
                   {step("3", "Everyone votes", "No names shown. Funniest wins.")}
                 </div>
@@ -3610,7 +3611,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                   const pill = isFull ? { text: "Full", color: C.textMuted } : room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand };
                   const board = () => navigate(`/room/${room.id}`);
                   return (
-                    <div key={room.id} data-hint={room.gameOn ? "A game is on: board now and join in from the next station" : "Waiting for passengers: board and the game starts with the first topic"} style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
+                    <div key={room.id} data-hint={room.gameOn ? "A game is on: board now and join in from the next station" : "Waiting for passengers: board and the game starts with the first direction"} style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
                       gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
                       <PlatformBox n={room.platform} />
                       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
@@ -3754,7 +3755,7 @@ function AcroDemo() {
   useEffect(() => { if (!calm && t > end) { setT(0); setN(x => x + 1); } }, [t, end, calm]);
   return (
     <div aria-label={`Example: ${d.acro}`} style={{ background: "var(--c-bgApp)", border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px", minHeight: 170, display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: C.teal }}>A real station · topic: <span style={{ color: C.textPrimary, textTransform: "none", letterSpacing: 0 }}>{d.topic}</span></div>
+      <div style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: C.teal }}>A real station · direction: <span style={{ color: C.textPrimary, textTransform: "none", letterSpacing: 0 }}>{d.topic}</span></div>
       <div style={{ display: "flex", gap: 10, minHeight: 52 }}>
         {letters.map((L, i) => (
           <span key={n + "-" + i} style={{ fontFamily: "'Bowlby One SC', serif", fontSize: 44, lineHeight: 1, color: C.brand, textShadow: "0 3px 0 rgba(0,0,0,0.35)",
@@ -3838,9 +3839,9 @@ const BOARD_TIPS = [
   "Tip: click a line on the Station Board to read more.",
   "Tip: click the Express Server letters on a train to change their font.",
   "Tip: pick your song for the writing time in the Music menu. It switches at once.",
-  "Tip: in a Word > Chain topic, put > between the words: Fire > Truck > Driver.",
+  "Tip: in a Word > Chain direction, put > between the words: Fire > Truck > Driver.",
   "Tip: identical acros are shown once, and everyone who wrote it shares the votes.",
-  "Tip: the winner of a station picks the next topic.",
+  "Tip: the winner of a station picks the next direction.",
   "Tip: warm up with a practice ride: three stations from our past games, and what the passengers wrote.",
 ];
 // "in 3 h 20 min" / "in 12 min"
@@ -4103,7 +4104,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
           {/* The round's topic — players asked "what was the topic?" while voting */}
           {topic && (
             <div style={{ margin: "10px 0 0", textAlign: "center" }}>
-              <div style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Topic</div>
+              <div style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Direction</div>
               <div style={{ fontSize: 34, ...smallTitle, overflowWrap: "anywhere" }}>{topic}</div>   {/* Honk (Damon, 2026-10-18) */}
             </div>
           )}
@@ -4202,7 +4203,7 @@ function useTopicFont() {
 function TopicText({ children, size }) {
   const [font, next] = useTopicFont();
   return (
-    <span onClick={next} data-hint={`Topic font: ${font.name}. Click to try another`} style={{ ...font.style, fontSize: Math.round(size * font.scale), lineHeight: 1.15, cursor: "pointer", overflowWrap: "anywhere" }}>{children}</span>
+    <span onClick={next} data-hint={`Direction font: ${font.name}. Click to try another`} style={{ ...font.style, fontSize: Math.round(size * font.scale), lineHeight: 1.15, cursor: "pointer", overflowWrap: "anywhere" }}>{children}</span>
   );
 }
 
@@ -4785,7 +4786,7 @@ function Room() {
       // One chat line per round with the topic in it (before, the topic had its own line,
       // which left less room for real chat on short screens)
       postSystemMessage(typeof topic === "string" && topic.trim()
-        ? `Leaving for Station ${roundNumber} — Topic: "${topic}"`
+        ? `Leaving for Station ${roundNumber} — Direction: "${topic}"`
         : `Leaving for Station ${roundNumber}.`);
       setMaxTimer(seconds);
 
@@ -4842,7 +4843,7 @@ function Room() {
         topicRequestedRef.current = true;
         setTopicTimer(35);
       } else {
-        postSystemMessage("Waiting for the host to set a topic...");
+        postSystemMessage("Waiting for the host to set a direction...");
       }
     }, [auth]),
 
@@ -4922,7 +4923,7 @@ function Room() {
       setTimer(null);
       setLetters([]);
       setFrozenScores(null);
-      postSystemMessage("Game paused: no acros for 3 rounds in a row. Choose a topic to continue.");
+      postSystemMessage("Game paused: no acros for 3 rounds in a row. Choose a direction to continue.");
     }, []),
 
     onTopicSet: useCallback((topic) => {
@@ -5248,7 +5249,7 @@ function Room() {
   async function submitTopic(value) {
     const topic = (typeof value === "string" ? value : topicDraft).trim();
     if ((topic.match(/[\p{L}\p{N}]/gu) || []).length < 2) {
-      setTopicError("The topic needs at least 2 letters.");
+      setTopicError("The direction needs at least 2 letters.");
       return;
     }
     try {
@@ -5261,7 +5262,7 @@ function Room() {
       return true;
     } catch (e) {
       // Show the server's reason (the error text arrives as "400: <reason>")
-      setTopicError((e.message || "").replace(/^\d{3}:\s*/, "") || "The topic wasn't accepted.");
+      setTopicError((e.message || "").replace(/^\d{3}:\s*/, "") || "The direction wasn't accepted.");
     }
   }
 
@@ -5275,7 +5276,7 @@ function Room() {
   // The first topic: checked, then "Departing in 5…" (Change stops it), then the journey starts
   function startDeparture() {
     const t = firstTopicDraft.trim();
-    if ((t.match(/[\p{L}\p{N}]/gu) || []).length < 2) { setFirstTopicError("The topic needs at least 2 letters."); return; }
+    if ((t.match(/[\p{L}\p{N}]/gu) || []).length < 2) { setFirstTopicError("The direction needs at least 2 letters."); return; }
     setFirstTopicError("");
     setDepartTopic(t);
     setDepartIn(5);
@@ -5380,7 +5381,7 @@ function Room() {
   // Phase title shown in the header (replaces the technical "Phase: Submitting")
   // (The round winner's topic prompt replaces the results after 8 s, so it comes first)
   const phaseTitle =
-    topicRequested || phase === "Starting" ? "Choosing the topic"
+    topicRequested || phase === "Starting" ? "Choosing the direction"
     : phase === "Results" || phase === "Ended" ? "Results"
     : phase === "Submitting" ? "Write your acro"
     : phase === "Voting" ? "Voting"
@@ -5406,7 +5407,7 @@ function Room() {
   // 2026-10-24: beside the letters (right), not in the header's corner — "you don't have to turn your head"
   const topicBlock = (align) => (
     <div style={{ textAlign: align, maxWidth: 520, margin: align === "center" ? "0 auto" : 0 }}>
-      <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 2 }}>Topic</div>
+      <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 2 }}>Direction</div>
       <TopicText size={isShort ? 28 : 34}>{currentTopic}</TopicText>
       {/* a special topic, in one line (2026-10-24) */}
       {specialTopicNote(currentTopic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2, maxWidth: 420 }}>🎭 {specialTopicNote(currentTopic)}</div>}
@@ -5479,7 +5480,7 @@ function Room() {
             <CustomizeHint />
             {/* "Colors" and "Music" menus — change them any time, even mid-game */}
             <span data-hint="Online: who is at the station and on the trains right now" style={{ display: "contents" }}><OnlineButton /></span>
-            <span data-hint="How to play: the rules, the points and the special topics" style={{ display: "contents" }}><HowToPlay winScore={data.winScore || 30} /></span>
+            <span data-hint="How to play: the rules, the points and the special directions" style={{ display: "contents" }}><HowToPlay winScore={data.winScore || 30} /></span>
             <span data-hint="Colors: the look of the train. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>
             <span data-hint="Letters: the font of the Express Server letters and the timer (or click the letters)" style={{ display: "contents" }}><LetterFontPicker /></span>
             <span data-hint="Song: your music while you write (it switches at once)" style={{ display: "contents" }}><SongPicker /></span>
@@ -5562,7 +5563,7 @@ function Room() {
           {/* Countdown during the break; "Departing…" while the server starts it; the old hint if it didn't */}
           {nextGameIn > 0 ? `The next journey starts in ${nextGameIn}s`
             : nextGameIn !== null && nextGameIn > -10 ? "Departing…"
-            : "Choose a topic below to start the next journey."}
+            : "Choose a direction below to start the next journey."}
         </FinalStopPanel>
       )}
 
@@ -5645,7 +5646,7 @@ function Room() {
             lines if needed), with "TOPIC" just above it */}
         {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>{showTopic && (
           <div style={{ position: "relative", maxWidth: 400, textAlign: "left" }}>
-            <div style={{ position: "absolute", bottom: "100%", left: 0, marginBottom: 4, fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", whiteSpace: "nowrap" }}>Topic</div>
+            <div style={{ position: "absolute", bottom: "100%", left: 0, marginBottom: 4, fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", whiteSpace: "nowrap" }}>Direction</div>
             <TopicText size={isShort ? 28 : 34}>{currentTopic}</TopicText>
             {specialTopicNote(currentTopic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2 }}>🎭 {specialTopicNote(currentTopic)}</div>}
           </div>
