@@ -169,3 +169,11 @@ body {
 @keyframes acroStretch { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .acro-stretch { display: inline-block; animation: acroStretch 0.45s cubic-bezier(.2,.9,.3,1.2); transform-origin: center; }
 @media (prefers-reduced-motion: reduce) { .acro-stretch { animation: none; } }
+
+/* Highball! (2026-10-24): the button flashes when pressed, and the desk's picture slides away, slowly at first, as the
+   train departs */
+@keyframes acroHighball { 0% { filter: brightness(1); } 35% { filter: brightness(1.55); box-shadow: 0 0 36px var(--c-brand, #FF7A6B); } 100% { filter: brightness(1.15); } }
+.acro-highball { animation: acroHighball 0.6s ease-out forwards; }
+@keyframes acroDepart { from { transform: translateX(0); } to { transform: translateX(-38%); } }
+.acro-depart { animation: acroDepart 6.3s cubic-bezier(.55, 0, .9, .6) forwards; }
+@media (prefers-reduced-motion: reduce) { .acro-highball, .acro-depart { animation: none; } }

@@ -55,6 +55,36 @@ export function playHonk(level = 1) {
   } catch { /* no sound available */ }
 }
 
+// The guard's signal whistle for Highball! (2026-10-24): two short blasts of a pea whistle: a high tone with a fast
+// trill (the pea rattling) and a little breath. level: 0 = silent … 1 = full.
+export function playWhistle(level = 1) {
+  if (level <= 0) return;
+  try {
+    const c = audioCtx(), t0 = c.currentTime + 0.02;
+    const out = c.createGain(); out.gain.value = 0.12 * level; out.connect(speakers(c));
+    for (const [start, len] of [[0, 0.22], [0.32, 0.5]]) {               // short, then longer
+      const t = t0 + start;
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = "sine"; o.frequency.value = 2650;
+      const trill = c.createOscillator(), depth = c.createGain();        // the pea: the pitch wobbles ~32 times a second
+      trill.frequency.value = 32; depth.gain.value = 140;
+      trill.connect(depth); depth.connect(o.frequency);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(1, t + 0.02);
+      g.gain.setValueAtTime(1, t + len - 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      o.connect(g); g.connect(out);
+      o.start(t); trill.start(t); o.stop(t + len + 0.02); trill.stop(t + len + 0.02);
+      // breath: a little filtered noise under the tone
+      const n = c.createBufferSource(), bp = c.createBiquadFilter(), ng = c.createGain();
+      n.buffer = noise(c); bp.type = "bandpass"; bp.frequency.value = 2600; bp.Q.value = 3;
+      ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+      ng.gain.setValueAtTime(0.25, t + len - 0.05); ng.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      n.connect(bp); bp.connect(ng); ng.connect(out); n.start(t); n.stop(t + len + 0.02);
+    }
+  } catch { /* no sound available */ }
+}
+
 export function unlockAudio() {
   try {
     const c = audioCtx();

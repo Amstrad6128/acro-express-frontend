@@ -4,7 +4,7 @@ import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, ge
 import { useSignalR } from "./hooks/useSignalR";
 import { useLobbyHub } from "./hooks/useLobbyHub";
 import { usePm, openPm, closePm, sendPm, setPmDraft, dismissPmToast, setPmChime } from "./pm";
-import { playTheme, THEME_LIST, unlockAudio, playHonk } from "./themes";
+import { playTheme, THEME_LIST, unlockAudio, playHonk, playWhistle } from "./themes";
 
 // ── Design tokens ──────────────────────────────────────────────
 // ── Colour schemes ─────────────────────────────────────────────
@@ -4243,7 +4243,7 @@ function AnswersAccepted({ count, total, children, twoLines }) {
 // a station shelter with a lamp and the "0 STATION" sign. It spans the panel's full width, bottom-aligned (2026-10-24, Damon:
 // "you didn't place it well" — the first try fitted it to the height and faded the clouds); the panel is tall enough for
 // the shelter's roof and sign (the picture is 3:1, shown whole), the content left of the shelter.
-function TopicDesk({ left, center, right, narrow, station }) {
+function TopicDesk({ left, center, right, narrow, station, departing }) {
   // no lines between the parts any more (Damon, 2026-10-24: "We don't need these"); the empty 1px columns stay so the
   // layout doesn't move
   const divider = <div aria-hidden />;
@@ -4259,6 +4259,8 @@ function TopicDesk({ left, center, right, narrow, station }) {
       padding: narrow ? "18px 16px" : "22px 21% 5% 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
       gridTemplateColumns: "minmax(0, 1.2fr) 1px minmax(0, 1.4fr) 1px minmax(0, 0.9fr)", columnGap: 28, alignItems: "center",
     }}>
+      {/* the picture, its number and its tint in one group: it slides away as the train departs (Highball!) */}
+      <div aria-hidden className={departing ? "acro-depart" : undefined} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
       {/* the picture: the full width, bottom-aligned */}
       <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "url(/art/topic-desk-2.webp)", backgroundRepeat: "no-repeat", backgroundPosition: "center bottom", backgroundSize: "100% auto", opacity: narrow ? 0.35 : 1 }} />
       {/* The sign's number: a box over the painted 0, in the sign's yellow, with the station number in Goldman. It lives
@@ -4277,6 +4279,7 @@ function TopicDesk({ left, center, right, narrow, station }) {
         background: "linear-gradient(180deg, var(--art-top) 20%, var(--art-bottom) 85%)",
         WebkitMaskImage: "url(/art/topic-desk-2.webp)", maskImage: "url(/art/topic-desk-2.webp)", WebkitMaskSize: "100% auto", maskSize: "100% auto",
         WebkitMaskPosition: "center bottom", maskPosition: "center bottom", WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat" }} />
+      </div>
       <div style={{ ...layer, minWidth: 0, order: narrow ? 2 : 0 }}>{left}</div>
       {!narrow && <div style={{ ...layer, alignSelf: "stretch", display: "flex" }}>{divider}</div>}
       <div style={{ ...layer, minWidth: 0, textAlign: "center" }}>{center}</div>
@@ -4357,11 +4360,15 @@ function DeskInput({ id, value, onChange, onEnter, placeholder, pulse }) {
   );
 }
 // The big button: a word in Honk, dark on gold, with a ▶
-function DeskButton({ children, onClick, disabled }) {
+// ready = false: the signal hasn't cleared yet (no direction): dimmed and not clickable; ready: lit, with a glow.
+// flash: the moment it is pressed
+function DeskButton({ children, onClick, disabled, ready = true, flash }) {
   return (
-    <button onClick={onClick} disabled={disabled}
+    <button onClick={onClick} disabled={disabled || !ready} className={flash ? "acro-highball" : undefined}
       style={{ ...smallTitle, color: C.onBrand, fontPalette: "var(--fp-dark)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", background: C.brand, border: "none", borderRadius: 14,
-        padding: "10px 40px", fontSize: 34, lineHeight: 1.1, cursor: disabled ? "wait" : "pointer", boxShadow: "0 6px 18px rgba(0,0,0,0.3)", display: "inline-flex", alignItems: "center", gap: 14 }}>
+        padding: "10px 40px", fontSize: 34, lineHeight: 1.1, cursor: disabled ? "wait" : ready ? "pointer" : "not-allowed", display: "inline-flex", alignItems: "center", gap: 14,
+        opacity: ready ? 1 : 0.4, filter: ready ? "none" : "saturate(0.4)", transition: "opacity 0.35s, filter 0.35s, box-shadow 0.35s",
+        boxShadow: ready ? `0 6px 18px rgba(0,0,0,0.3), 0 0 22px color-mix(in srgb, ${C.brand} 55%, transparent)` : "none" }}>
       {children}
       <svg aria-hidden width="16" height="18" viewBox="0 0 16 18"><path d="M1 1l14 8-14 8z" fill={C.onBrand} /></svg>
     </button>
@@ -5347,12 +5354,17 @@ function Room() {
   }
 
   // The first topic: checked, then "Departing in 5…" (Change stops it), then the journey starts
+  // Highball!: the whistle and the flash, then the countdown from 5 (the button shows its flash for 0.6 s first)
+  const [highballFlash, setHighballFlash] = useState(false);
   function startDeparture() {
     const t = firstTopicDraft.trim();
     if ((t.match(/[\p{L}\p{N}]/gu) || []).length < 2) { setFirstTopicError("The direction needs at least 2 letters."); return; }
+    if (highballFlash) return;
     setFirstTopicError("");
     setDepartTopic(t);
-    setDepartIn(5);
+    playWhistle(soundGain());
+    setHighballFlash(true);
+    setTimeout(() => { setHighballFlash(false); setDepartIn(5); }, 600);
   }
   useEffect(() => {
     if (departIn === null) return;
@@ -5665,7 +5677,7 @@ function Room() {
         // the topic desk (GPT's structure, Damon 2026-10-24): a quick topic or your own, then START: a countdown from
         // 5, the horn, the first station. Choosing a topic doesn't start anything by itself.
         <div style={{ marginBottom: 8 }}>
-        <TopicDesk narrow={isNarrow} station={phase === "Paused" ? currentRound + 1 : 1}
+        <TopicDesk narrow={isNarrow} station={phase === "Paused" ? currentRound + 1 : 1} departing={departIn !== null}
           left={departIn === null && <QuickTopics ideas={firstIdeas} selected={firstTopicDraft} onPick={t => { setFirstTopicDraft(t); setFirstTopicError(""); }} />}
           center={departIn !== null ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
@@ -5682,8 +5694,8 @@ function Room() {
               <DeskInput id="firstTopicInput" value={firstTopicDraft} placeholder="Write a direction, or pick one"
                 onChange={v => { setFirstTopicDraft(v); setFirstTopicError(""); }} onEnter={startDeparture} />
               {/* "Highball!": the railway signal to go (Damon, 2026-10-24: "It doesn't say start, it says Highball!") */}
-              <DeskButton onClick={startDeparture}>Highball!</DeskButton>
-              <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Press Highball! to begin the journey</div>
+              <DeskButton onClick={startDeparture} ready={(firstTopicDraft.match(/[\p{L}\p{N}]/gu) || []).length >= 2} flash={highballFlash}>Highball!</DeskButton>
+              <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Give the signal to depart.</div>
               {firstTopicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{firstTopicError}</p>}
             </div>
           )}
