@@ -287,7 +287,10 @@ function applyTheme(key) {
   const honkPalette = (name, fill) => `@font-palette-values ${name}-${key} { font-family: 'Honk'; override-colors: ${[t.bgPanel, t.bgPanel, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
   // The logo in the button colour on every palette (Damon, 2026-10-19; Midnight first, then all)
   root.style.setProperty("--c-logo", t.brand);
-  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-mark", t.brand), honkPalette("--acro-letters", t.brand), honkPalette("--acro-gold", t.gold || "#FFD24A"), honkPalette("--acro-dark", t.onBrand)].join("\n");   // dark: Honk on the gold button
+  // dark: Honk on the button colour (START): dark letters, their shadow and inner lines in the button colour, so the
+  // shapes stay crisp (with the box colour they melted into a dark smudge, 2026-10-24)
+  const darkHonk = `@font-palette-values --acro-dark-${key} { font-family: 'Honk'; override-colors: ${[t.brand, t.brand, t.onBrand, t.onBrand, t.onBrand, t.onBrand, t.onBrand, t.onBrand].map((c, i) => `${i} ${c}`).join(", ")}; }`;
+  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-mark", t.brand), honkPalette("--acro-letters", t.brand), honkPalette("--acro-gold", t.gold || "#FFD24A"), darkHonk].join("\n");   // dark: Honk on the gold button
   for (const p of ["logo", "mark", "letters", "gold", "dark"]) root.style.setProperty(`--fp-${p}`, `--acro-${p}-${key}`);   // which ones are in use
   currentThemeKey = key;
   currentTheme = t;                // for setBigLetterSky
@@ -5379,7 +5382,6 @@ function Room() {
   const stageHeight = `calc(2 * ${stagePad} + ${timerSize} + ${timerGap} + ${letterSize} + ${ACRO_BOX}px)`;
   // Results showing: the stage may grow to fit all passengers (option C, Damon 2026-10-16)
   // The stage grows for the results, and for the Final Stop celebration (the winner panel is taller than the letters)
-  const resultsGrow = (phase === "Results" && !resultsClosed && !topicRequested) || (phase === "GameOver" && !!gameWinner) || topicRequested;   // also the topic choice (2026-10-24: it was cut off)
   // Topic: label and topic on one line (compact header)
   // 2026-10-24: beside the letters (right), not in the header's corner — "you don't have to turn your head"
   const topicBlock = (align) => (
@@ -5398,6 +5400,8 @@ function Room() {
   const iAmConductor = !!conductor && sameId(conductor.id, auth?.userId);
   const showFirstTopic = !topicRequested && ((phase === "Waiting" && !(data.currentRoundNumber > 0)) || phase === "Paused"
     || (phase === "GameOver" && nextGameIn !== null && nextGameIn <= -10));
+  // The stage grows for the results, the Final Stop and both topic desks (2026-10-24: they were cut off)
+  const resultsGrow = (phase === "Results" && !resultsClosed && !topicRequested) || (phase === "GameOver" && !!gameWinner) || topicRequested || (showFirstTopic && iAmConductor);
 
   return (
     // Wide side margins on desktop (like AcroChallenge), tighter on phones
