@@ -4243,7 +4243,7 @@ function AnswersAccepted({ count, total, children, twoLines }) {
 // a station shelter with a lamp and the "0 STATION" sign. It spans the panel's full width, bottom-aligned (2026-10-24, Damon:
 // "you didn't place it well" — the first try fitted it to the height and faded the clouds); the panel is tall enough for
 // the shelter's roof and sign (the picture is 3:1, shown whole), the content left of the shelter.
-function TopicDesk({ left, center, right, narrow, station, departing }) {
+function TopicDesk({ left, center, right, narrow, station }) {
   // no lines between the parts any more (Damon, 2026-10-24: "We don't need these"); the empty 1px columns stay so the
   // layout doesn't move
   const divider = <div aria-hidden />;
@@ -4259,8 +4259,8 @@ function TopicDesk({ left, center, right, narrow, station, departing }) {
       padding: narrow ? "18px 16px" : "22px 21% 5% 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
       gridTemplateColumns: "minmax(0, 1.2fr) 1px minmax(0, 1.4fr) 1px minmax(0, 0.9fr)", columnGap: 28, alignItems: "center",
     }}>
-      {/* the picture, its number and its tint in one group: it slides away as the train departs (Highball!) */}
-      <div aria-hidden className={departing ? "acro-depart" : undefined} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      {/* the picture, its number and its tint in one group, fading in when the desk appears */}
+      <div aria-hidden className="acro-fade-in" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
       {/* the picture: the full width, bottom-aligned */}
       <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "url(/art/topic-desk-2.webp)", backgroundRepeat: "no-repeat", backgroundPosition: "center bottom", backgroundSize: "100% auto", opacity: narrow ? 0.35 : 1 }} />
       {/* The sign's number: a box over the painted 0, in the sign's yellow, with the station number in Goldman. It lives
@@ -5677,7 +5677,7 @@ function Room() {
         // the topic desk (GPT's structure, Damon 2026-10-24): a quick topic or your own, then START: a countdown from
         // 5, the horn, the first station. Choosing a topic doesn't start anything by itself.
         <div style={{ marginBottom: 8 }}>
-        <TopicDesk narrow={isNarrow} station={phase === "Paused" ? currentRound + 1 : 1} departing={departIn !== null}
+        <TopicDesk narrow={isNarrow} station={phase === "Paused" ? currentRound + 1 : 1}
           left={departIn === null && <QuickTopics ideas={firstIdeas} selected={firstTopicDraft} onPick={t => { setFirstTopicDraft(t); setFirstTopicError(""); }} />}
           center={departIn !== null ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>

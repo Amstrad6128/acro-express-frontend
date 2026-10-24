@@ -170,10 +170,10 @@ body {
 .acro-stretch { display: inline-block; animation: acroStretch 0.45s cubic-bezier(.2,.9,.3,1.2); transform-origin: center; }
 @media (prefers-reduced-motion: reduce) { .acro-stretch { animation: none; } }
 
-/* Highball! (2026-10-24): the button flashes when pressed, and the desk's picture slides away, slowly at first, as the
-   train departs */
+/* Highball! (2026-10-24): the button flashes when pressed */
 @keyframes acroHighball { 0% { filter: brightness(1); } 35% { filter: brightness(1.55); box-shadow: 0 0 36px var(--c-brand, #FF7A6B); } 100% { filter: brightness(1.15); } }
 .acro-highball { animation: acroHighball 0.6s ease-out forwards; }
-@keyframes acroDepart { from { transform: translateX(0); } to { transform: translateX(-38%); } }
-.acro-depart { animation: acroDepart 6.3s cubic-bezier(.55, 0, .9, .6) forwards; }
-@media (prefers-reduced-motion: reduce) { .acro-highball, .acro-depart { animation: none; } }
+/* The direction desk's picture fades in when the desk appears (Damon, 2026-10-24: no departure slide yet) */
+@keyframes acroFadeIn { from { opacity: 0; } to { opacity: 1; } }
+.acro-fade-in { animation: acroFadeIn 0.9s ease-out; }
+@media (prefers-reduced-motion: reduce) { .acro-highball, .acro-fade-in { animation: none; } }
