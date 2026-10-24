@@ -287,8 +287,8 @@ function applyTheme(key) {
   const honkPalette = (name, fill) => `@font-palette-values ${name}-${key} { font-family: 'Honk'; override-colors: ${[t.bgPanel, t.bgPanel, fill, fill, fill, fill, fill, fill].map((c, i) => `${i} ${c}`).join(", ")}; }`;
   // The logo in the button colour on every palette (Damon, 2026-10-19; Midnight first, then all)
   root.style.setProperty("--c-logo", t.brand);
-  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-mark", t.brand), honkPalette("--acro-letters", t.brand), honkPalette("--acro-gold", t.gold || "#FFD24A")].join("\n");
-  for (const p of ["logo", "mark", "letters", "gold"]) root.style.setProperty(`--fp-${p}`, `--acro-${p}-${key}`);   // which ones are in use
+  logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-mark", t.brand), honkPalette("--acro-letters", t.brand), honkPalette("--acro-gold", t.gold || "#FFD24A"), honkPalette("--acro-dark", t.onBrand)].join("\n");   // dark: Honk on the gold button
+  for (const p of ["logo", "mark", "letters", "gold", "dark"]) root.style.setProperty(`--fp-${p}`, `--acro-${p}-${key}`);   // which ones are in use
   currentThemeKey = key;
   currentTheme = t;                // for setBigLetterSky
   setBigLetterSky(bigLetterSpot);  // the big letters' outline in this palette's sky colour
@@ -4209,6 +4209,96 @@ function AnswersAccepted({ count, total }) {
   );
 }
 
+// ── The topic desk (2026-10-24, after GPT's mock-up Damon liked) ─────────────
+// One wide panel for choosing a topic (the creator's first topic and the winner's next one): quick topics on the
+// left, the box and the big button in the middle, the topic as it will look on the right, thin dividers with a dot
+// between them. The picture behind it (clouds, a station lamp) comes later as a background image: --topic-art.
+function TopicDesk({ left, center, right, narrow }) {
+  const divider = (
+    <div aria-hidden style={{ alignSelf: "stretch", width: 1, position: "relative", background: `linear-gradient(transparent, ${C.border} 25%, ${C.border} 75%, transparent)` }}>
+      <span style={{ position: "absolute", top: "50%", left: -2, width: 5, height: 5, marginTop: -2.5, borderRadius: "50%", background: C.border }} />
+    </div>
+  );
+  return (
+    <div style={{
+      background: C.bgPanel, backgroundImage: "var(--topic-art, none)", backgroundRepeat: "no-repeat", backgroundPosition: "right bottom", backgroundSize: "auto 100%",
+      border: `1px solid ${C.border}`, borderRadius: 14, boxSizing: "border-box", minHeight: narrow ? undefined : 240,
+      padding: narrow ? "18px 16px" : "26px 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
+      gridTemplateColumns: "minmax(0, 1fr) 1px minmax(0, 1.5fr) 1px minmax(0, 1fr)", columnGap: 32, alignItems: "center",
+    }}>
+      <div style={{ minWidth: 0, order: narrow ? 2 : 0 }}>{left}</div>
+      {!narrow && divider}
+      <div style={{ minWidth: 0, textAlign: "center" }}>{center}</div>
+      {!narrow && divider}
+      <div style={{ minWidth: 0, order: narrow ? 3 : 0 }}>{right}</div>
+    </div>
+  );
+}
+// Small caps above a piece of the desk ("EVERYONE ON BOARD?", "TOPIC")
+const deskEyebrow = { fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.16em" };
+// Left: a compass, "PICK ONE · QUICK TOPICS", then the topics as outlined pills (the chosen one in gold)
+function QuickTopics({ ideas, selected, onPick }) {
+  if (!ideas.length) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start", maxWidth: 320, margin: "0 auto" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 2 }}>
+        <svg aria-hidden width="30" height="30" viewBox="0 0 30 30" fill="none" stroke={C.brand} strokeWidth="1.6">
+          <circle cx="15" cy="15" r="12" /><path d="M15 3v3M15 24v3M3 15h3M24 15h3" strokeLinecap="round" />
+          <path d="M19 11l-2.6 5.4L11 19l2.6-5.4z" fill={C.brand} stroke="none" />
+        </svg>
+        <div style={{ lineHeight: 1.25 }}>
+          <div style={deskEyebrow}>Pick one</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.textPrimary, textTransform: "uppercase", letterSpacing: "0.06em" }}>Quick directions</div>
+        </div>
+      </div>
+      {ideas.map(t => {
+        const on = selected === t;
+        return (
+          <button key={t} onClick={() => onPick(t)} aria-pressed={on}
+            style={{ background: on ? `color-mix(in srgb, ${C.brand} 14%, transparent)` : "transparent", border: `${on ? 2 : 1}px solid ${on ? C.brand : C.border}`, borderRadius: 999,
+              padding: on ? "4px 15px" : "5px 16px", color: C.textPrimary, fontFamily: "inherit", fontSize: 15, fontWeight: 600, lineHeight: 1.3, cursor: "pointer", textAlign: "left", maxWidth: "100%", overflowWrap: "anywhere" }}>
+            {t}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+// Right: "TOPIC" and the topic as it will look
+function TopicPreview({ topic, size }) {
+  return (
+    <div style={{ maxWidth: 360, margin: "0 auto" }}>
+      <div style={{ ...deskEyebrow, marginBottom: 6 }}>Direction</div>
+      {topic ? <TopicText size={size}>{topic}</TopicText> : <span style={{ fontSize: 16, color: C.textMuted, fontStyle: "italic" }}>Yours shows here</span>}
+      {topic && specialTopicNote(topic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 6 }}>🎭 {specialTopicNote(topic)}</div>}
+    </div>
+  );
+}
+// The topic box: wide, a gold line, a pencil at its right end
+function DeskInput({ id, value, onChange, onEnter, placeholder, pulse }) {
+  return (
+    <div style={{ position: "relative", width: "100%" }}>
+      <input id={id} className={pulse ? "acro-pulse" : undefined} maxLength={80} value={value} placeholder={placeholder}
+        onChange={e => onChange(e.target.value)} onKeyDown={e => { if (e.key === "Enter") onEnter(); }}
+        style={{ width: "100%", boxSizing: "border-box", background: `color-mix(in srgb, ${C.bgApp} 55%, ${C.bgPanel})`, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "12px 46px", color: C.textPrimary, fontSize: 19, outline: "none", fontFamily: "inherit", textAlign: "center" }} />
+      <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill={C.textPrimary} style={{ position: "absolute", right: 16, top: "50%", marginTop: -9, opacity: 0.85 }}>
+        <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm17.7-10.2a1 1 0 0 0 0-1.42l-2.33-2.33a1 1 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+      </svg>
+    </div>
+  );
+}
+// The big button: a word in Honk, dark on gold, with a ▶
+function DeskButton({ children, onClick, disabled }) {
+  return (
+    <button onClick={onClick} disabled={disabled}
+      style={{ ...smallTitle, color: C.onBrand, fontPalette: "var(--fp-dark)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", background: C.brand, border: "none", borderRadius: 14,
+        padding: "10px 40px", fontSize: 34, lineHeight: 1.1, cursor: disabled ? "wait" : "pointer", boxShadow: "0 6px 18px rgba(0,0,0,0.3)", display: "inline-flex", alignItems: "center", gap: 14 }}>
+      {children}
+      <svg aria-hidden width="16" height="18" viewBox="0 0 16 18"><path d="M1 1l14 8-14 8z" fill={C.onBrand} /></svg>
+    </button>
+  );
+}
+
 // ── Results Screen ─────────────────────────────────────────────
 function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote, votes, myName, details, letters }) {
   const sorted = Object.entries(scores || {}).sort((a, b) => b[1] - a[1]);
@@ -5399,61 +5489,33 @@ function Room() {
           )}
           {topicRequested && (
         <div>
-        {/* The station winner chooses the next topic (redesigned 2026-10-24, Damon: "a frame within a frame … the timer
-            is too small"). Three columns like the writing stage: 4 suggestions from the Express Server's pool on the
-            left, the clock and a wide box in the middle, the topic as it will look on the right. */}
-        <div style={{ display: isNarrow ? "flex" : "grid", flexDirection: "column", gap: isNarrow ? 16 : 32, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 560px) minmax(0, 1fr)", alignItems: "center", padding: "8px 0" }}>
-          {/* left: pick one */}
-          <div style={{ justifySelf: "center", display: "flex", flexDirection: "column", gap: 8, alignItems: isNarrow ? "stretch" : "flex-end", order: isNarrow ? 2 : 0 }}>
-            {!topicSetValue && topicIdeas.length > 0 && <>
-              <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Pick one</div>
-              {/* one column (the stage grows for it); long topics wrap instead of running off the side */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: isNarrow ? "stretch" : "flex-end", maxWidth: "100%" }}>
-              {topicIdeas.map(t => (
-                <button key={t} onClick={async () => { if (await submitTopic(t)) goTopic(); }}   /* a suggestion departs at once (Damon, 2026-10-24) */
-                  style={{ background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 14, padding: "4px 12px", color: C.textPrimary, fontFamily: "inherit", fontSize: 14, fontWeight: 600, lineHeight: 1.3, cursor: "pointer", maxWidth: "100%", textAlign: "right", overflowWrap: "anywhere" }}>{t}</button>
-              ))}
-              </div>
-            </>}
-          </div>
-          {/* middle: the station, the clock, the box */}
-          <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+        {/* The station winner chooses the next topic, on the topic desk (GPT's structure, Damon 2026-10-24): quick topics
+            on the left (a click departs at once), the clock and the box in the middle, the topic as it will look on the
+            right */}
+        <TopicDesk narrow={isNarrow}
+          left={!topicSetValue && <QuickTopics ideas={topicIdeas} selected={null} onPick={async t => { if (await submitTopic(t)) goTopic(); }} />}
+          center={<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             {/* The topic is chosen BEFORE the station it belongs to — the station starts with the countdown */}
-            <div style={{ fontSize: 15, color: C.textSecond }}>
-              Next up: <b style={{ color: C.textPrimary }}>Station {nextStation}</b> · <span style={{ color: C.brand, fontWeight: 700 }}>{topicForFirstRound ? 3 : 3 + (currentRound % 5)}</span> letters
-            </div>
+            <div style={deskEyebrow}>Next up · Station {nextStation} · {topicForFirstRound ? 3 : 3 + (currentRound % 5)} letters</div>
             <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 56, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: topicTimer !== null && topicTimer <= 5 ? C.brand : C.teal, visibility: topicTimer > 0 ? "visible" : "hidden" }}>{topicTimer > 0 ? topicTimer : 0}</div>
             {topicSetValue ? (
               // Set, not started: change it, or GO! now
-              <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
                 <BtnSecondary onClick={() => { setTopicDraft(topicSetValue); setTopicSetValue(null); setTimeout(() => document.getElementById("topicInput")?.focus(), 50); }}>Change</BtnSecondary>
-                <Btn onClick={goTopic} disabled={topicGoing} style={{ whiteSpace: "nowrap", fontWeight: 800, padding: "10px 28px", fontSize: 17 }}>{topicGoing ? "Departing…" : "GO!"}</Btn>
+                <DeskButton onClick={goTopic} disabled={topicGoing}>{topicGoing ? "Departing" : "GO!"}</DeskButton>
               </div>
             ) : (
-              // one wide bar, like the acro box: no panel around it
-              <div style={{ display: "flex", gap: 8, width: "100%" }}>
-                {/* No autoFocus: the cursor stays where it is (Sandy typed "ty" in chat, Enter set it as the topic) */}
-                <input id="topicInput" className="acro-pulse" maxLength={80}
-                  style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "12px 16px", color: C.textPrimary, fontSize: 19, outline: "none", fontFamily: "inherit", textAlign: "center" }}
-                  placeholder="…or write your own topic"
-                  value={topicDraft}
-                  onChange={e => { setTopicDraft(e.target.value); setTopicError(""); }}
-                  onKeyDown={e => { if (e.key === "Enter") submitTopic(); }} />
-                <Btn onClick={submitTopic} style={{ whiteSpace: "nowrap" }}>Set topic</Btn>
+              // No autoFocus: the cursor stays where it is (Sandy typed "ty" in chat, Enter set it as the topic)
+              <div style={{ display: "flex", gap: 8, width: "100%", alignItems: "center" }}>
+                <DeskInput id="topicInput" pulse value={topicDraft} placeholder="…or write your own direction"
+                  onChange={v => { setTopicDraft(v); setTopicError(""); }} onEnter={submitTopic} />
+                <Btn onClick={submitTopic} style={{ whiteSpace: "nowrap" }}>Set</Btn>
               </div>
             )}
-            <div style={{ fontSize: 13, color: C.textMuted }}>{topicSetValue ? "The station starts when the clock runs out, or press GO!" : "No topic in time? The Express Server picks one."}</div>
-          </div>
-          {/* right: the topic as it will look */}
-          <div style={{ justifySelf: "center", minWidth: 0, order: isNarrow ? 3 : 0, display: isNarrow && !(topicSetValue || topicDraft.trim()) ? "none" : "block" }}>
-            <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 2 }}>Topic</div>
-            {(topicSetValue || topicDraft.trim())
-              ? <TopicText size={isShort ? 28 : 34}>{topicSetValue || topicDraft.trim()}</TopicText>
-              : <span style={{ fontSize: 16, color: C.textMuted, fontStyle: "italic" }}>Yours shows here</span>}
-          </div>
-        </div>
-          {topicError && <p style={{ margin: "10px 0 0", color: C.brand, fontSize: 14, fontWeight: 600 }}>{topicError}</p>}
-
+            <div style={{ fontSize: 13, color: C.textMuted }}>{topicSetValue ? "The station starts when the clock runs out, or press GO!" : "No direction in time? The Express Server picks one."}</div>
+            {topicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{topicError}</p>}
+          </div>}
+          right={<TopicPreview topic={topicSetValue || topicDraft.trim()} size={isShort ? 28 : 32} />} />
         </div>
           )}
         </div>
@@ -5472,62 +5534,40 @@ function Room() {
       )}
 
       {/* The first topic starts the journey — no Start button (Damon, 2026-10-16) */}
-      {showFirstTopic && (
+      {showFirstTopic && (!iAmConductor ? (
         <Panel style={{ padding: 16, marginBottom: 8, borderColor: C.teal, textAlign: "center" }}>
-          {!iAmConductor ? (
-            <p style={{ color: C.textMuted, margin: 0, fontSize: 16 }}>
-              {conductor ? <>Waiting for <b style={{ color: C.textPrimary }}>{conductor.nickname}</b> to choose the first topic…</> : "Waiting for passengers…"}
-            </p>
+          <p style={{ color: C.textMuted, margin: 0, fontSize: 16 }}>
+            {conductor ? <>Waiting for <b style={{ color: C.textPrimary }}>{conductor.nickname}</b> to choose the first direction…</> : "Waiting for passengers…"}
+          </p>
+        </Panel>
+      ) : (
+        // the topic desk (GPT's structure, Damon 2026-10-24): a quick topic or your own, then START: a countdown from
+        // 5, the horn, the first station. Choosing a topic doesn't start anything by itself.
+        <div style={{ marginBottom: 8 }}>
+        <TopicDesk narrow={isNarrow}
+          left={departIn === null && <QuickTopics ideas={firstIdeas} selected={firstTopicDraft} onPick={t => { setFirstTopicDraft(t); setFirstTopicError(""); }} />}
+          center={departIn !== null ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+              <div style={deskEyebrow}>The journey begins in</div>
+              <div key={departIn} className="acro-stretch" style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 64, lineHeight: 1, color: C.brand, fontVariantNumeric: "tabular-nums" }}>{Math.max(departIn, 0)}</div>
+              <BtnSecondary onClick={() => { setDepartIn(null); setFirstTopicDraft(departTopic); }}>Change the direction</BtnSecondary>
+            </div>
           ) : (
-            // 2026-10-24 (Damon): like the winner's topic choice — 4 suggestions on the left, the box in the middle,
-            // the topic as it will look on the right — and a big "Begin journey" button: a countdown from 5, the
-            // horn, then the first station. Choosing a topic doesn't start anything by itself.
-            <div style={{ display: isNarrow ? "flex" : "grid", flexDirection: "column", gap: isNarrow ? 14 : 32, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 520px) minmax(0, 1fr)", alignItems: "center", textAlign: "left" }}>
-              <div style={{ justifySelf: "end", display: "flex", flexDirection: "column", gap: 8, alignItems: isNarrow ? "stretch" : "flex-end", order: isNarrow ? 2 : 0 }}>
-                {departIn === null && firstIdeas.length > 0 && <>
-                  <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Pick one</div>
-                  {firstIdeas.map(t => (
-                    <button key={t} onClick={() => { setFirstTopicDraft(t); setFirstTopicError(""); }} aria-pressed={firstTopicDraft === t}
-                      style={{ background: firstTopicDraft === t ? C.navy3 : C.bgPanel, border: `1px solid ${firstTopicDraft === t ? C.teal : C.border}`, borderRadius: 14, padding: "4px 12px", color: C.textPrimary, fontFamily: "inherit", fontSize: 14, fontWeight: 600, lineHeight: 1.3, cursor: "pointer", maxWidth: "100%", textAlign: "right", overflowWrap: "anywhere" }}>{t}</button>
-                  ))}
-                </>}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+              <div>
+                <div style={deskEyebrow}>{phase === "Paused" ? "Ready to continue?" : "Everyone on board?"}</div>
+                <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 26, color: C.textPrimary, marginTop: 2 }}>{phase === "Paused" ? "Choose a direction" : "Choose the first direction"}</div>
               </div>
-              <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-                {departIn !== null ? (
-                  <>
-                    <div style={{ fontSize: 15, color: C.textSecond }}>The journey begins in</div>
-                    <div key={departIn} className="acro-stretch" style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 64, lineHeight: 1, color: C.brand, fontVariantNumeric: "tabular-nums" }}>{Math.max(departIn, 0)}</div>
-                    <BtnSecondary onClick={() => { setDepartIn(null); setFirstTopicDraft(departTopic); }}>Change the topic</BtnSecondary>
-                  </>
-                ) : (
-                  <>
-                    <div style={{ fontSize: 17, color: C.textSecond }}>{phase === "Paused" ? "Choose a topic to continue" : "Everyone on board? Choose the first topic"}</div>
-                    <input id="firstTopicInput" maxLength={80}
-                      style={{ width: "100%", boxSizing: "border-box", background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "12px 16px", color: C.textPrimary, fontSize: 19, outline: "none", fontFamily: "inherit", textAlign: "center" }}
-                      placeholder="Write a topic, or pick one"
-                      value={firstTopicDraft}
-                      onChange={e => { setFirstTopicDraft(e.target.value); setFirstTopicError(""); }}
-                      onKeyDown={e => { if (e.key === "Enter") startDeparture(); }} />
-                    {/* the big button, in Honk */}
-                    <button onClick={startDeparture}
-                      style={{ ...smallTitle, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15", background: C.bgApp, border: `2px solid ${C.brand}`, borderRadius: 14, padding: "10px 34px", fontSize: 34, cursor: "pointer", boxShadow: "0 6px 18px rgba(0,0,0,0.3)" }}>   {/* the logo's colours, never Honk's own */}
-                      START
-                    </button>
-                    <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Press START to begin the journey</div>
-                  </>
-                )}
-                {firstTopicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{firstTopicError}</p>}
-              </div>
-              <div style={{ justifySelf: "start", minWidth: 0, order: isNarrow ? 3 : 0, display: isNarrow && !(departIn !== null ? departTopic : firstTopicDraft.trim()) ? "none" : "block" }}>
-                <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 2 }}>Topic</div>
-                {(departIn !== null ? departTopic : firstTopicDraft.trim())
-                  ? <TopicText size={isShort ? 28 : 34}>{departIn !== null ? departTopic : firstTopicDraft.trim()}</TopicText>
-                  : <span style={{ fontSize: 16, color: C.textMuted, fontStyle: "italic" }}>Yours shows here</span>}
-              </div>
+              <DeskInput id="firstTopicInput" value={firstTopicDraft} placeholder="Write a direction, or pick one"
+                onChange={v => { setFirstTopicDraft(v); setFirstTopicError(""); }} onEnter={startDeparture} />
+              <DeskButton onClick={startDeparture}>START</DeskButton>
+              <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Press START to begin the journey</div>
+              {firstTopicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{firstTopicError}</p>}
             </div>
           )}
-        </Panel>
-      )}
+          right={<TopicPreview topic={departIn !== null ? departTopic : firstTopicDraft.trim()} size={isShort ? 28 : 32} />} />
+        </div>
+      ))}
 
       {/* Letters */}
       {letters.length > 0 && !topicRequested && phase !== "Results" && phase !== "GameOver" && (
