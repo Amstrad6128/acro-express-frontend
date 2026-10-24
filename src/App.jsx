@@ -4225,8 +4225,10 @@ function AnswersAccepted({ count, total }) {
 // One wide panel for choosing a topic (the creator's first topic and the winner's next one): quick topics on the
 // left, the box and the big button in the middle, the topic as it will look on the right, thin dividers with a dot
 // between them. Behind it, Damon's picture (2026-10-24, public/art/topic-desk.webp, transparent sky): clouds, a platform and
-// a station shelter with a lamp and the "0 STATION" sign, anchored bottom-right at the panel's height (never cropped), the
-// clouds fading out to the left; the content keeps clear of the shelter.
+// a station shelter with a lamp and the "0 STATION" sign. It spans the panel's full width, bottom-aligned (2026-10-24, Damon:
+// "you didn't place it well" — the first try fitted it to the height and faded the clouds); the panel is tall enough for
+// the shelter's roof and sign (the picture is 3:1; the panel shows about its bottom 72%), the content above the clouds
+// and left of the shelter.
 function TopicDesk({ left, center, right, narrow }) {
   const divider = (
     <div aria-hidden style={{ alignSelf: "stretch", width: 1, position: "relative", background: `linear-gradient(transparent, ${C.border} 25%, ${C.border} 75%, transparent)` }}>
@@ -4237,13 +4239,15 @@ function TopicDesk({ left, center, right, narrow }) {
   return (
     <div style={{
       position: "relative", overflow: "hidden", background: C.bgPanel,
-      border: `1px solid ${C.border}`, borderRadius: 14, boxSizing: "border-box", minHeight: narrow ? undefined : 240,
-      padding: narrow ? "18px 16px" : "26px 250px 110px 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,   // room at the bottom: the clouds sit below the content
-      gridTemplateColumns: "minmax(0, 1fr) 1px minmax(0, 1.5fr) 1px minmax(0, 1fr)", columnGap: 32, alignItems: "center",
+      border: `1px solid ${C.border}`, borderRadius: 14, boxSizing: "border-box",
+      // as tall as the bottom 72% of the 3:1 picture at this width (the stage is the window less about 80 px of margins)
+      minHeight: narrow ? undefined : "calc((100vw - 80px) * 0.24)",
+      // clear of the shelter (the picture's right quarter) and of the clouds (its bottom part)
+      padding: narrow ? "18px 16px" : "24px 25% 8% 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
+      gridTemplateColumns: "minmax(0, 1.2fr) 1px minmax(0, 1.4fr) 1px minmax(0, 0.9fr)", columnGap: 28, alignItems: "center",
     }}>
-      {/* the picture: at the panel's height plus a little, from the right; faded out on the left */}
-      <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "url(/art/topic-desk.webp)", backgroundRepeat: "no-repeat", backgroundPosition: "right bottom", backgroundSize: "auto 100%",
-        WebkitMaskImage: "linear-gradient(to right, transparent 0%, #000 35%)", maskImage: "linear-gradient(to right, transparent 0%, #000 35%)", opacity: narrow ? 0.35 : 1 }} />
+      {/* the picture: the full width, bottom-aligned */}
+      <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "url(/art/topic-desk.webp)", backgroundRepeat: "no-repeat", backgroundPosition: "center bottom", backgroundSize: "100% auto", opacity: narrow ? 0.35 : 1 }} />
       <div style={{ ...layer, minWidth: 0, order: narrow ? 2 : 0 }}>{left}</div>
       {!narrow && <div style={{ ...layer, alignSelf: "stretch", display: "flex" }}>{divider}</div>}
       <div style={{ ...layer, minWidth: 0, textAlign: "center" }}>{center}</div>
@@ -4273,7 +4277,8 @@ function QuickTopics({ ideas, selected, onPick }) {
         const on = selected === t;
         return (
           <button key={t} onClick={() => onPick(t)} aria-pressed={on}
-            style={{ background: on ? `color-mix(in srgb, ${C.brand} 14%, transparent)` : "transparent", border: `${on ? 2 : 1}px solid ${on ? C.brand : C.border}`, borderRadius: 999,
+            // the panel colour behind each pill, so they read clearly over the clouds of the picture
+            style={{ background: on ? `color-mix(in srgb, ${C.brand} 22%, ${C.bgPanel})` : `color-mix(in srgb, ${C.bgPanel} 88%, transparent)`, border: `${on ? 2 : 1}px solid ${on ? C.brand : C.border}`, borderRadius: 999,
               padding: on ? "4px 15px" : "5px 16px", color: C.textPrimary, fontFamily: "inherit", fontSize: 15, fontWeight: 600, lineHeight: 1.3, cursor: "pointer", textAlign: "left", maxWidth: "100%", overflowWrap: "anywhere" }}>
             {t}
           </button>
