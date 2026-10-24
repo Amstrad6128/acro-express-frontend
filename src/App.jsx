@@ -4148,11 +4148,11 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
 }
 
 // The topic's font (Damon, 2026-10-24: "Leave it in Honk and give me a clickable option to change the font to
-// decide"): a click on the topic switches Honk → Nunito → Fredoka. Saved in the browser; every topic on the page follows.
+// decide"): a click on the topic switches Honk ↔ Nunito (2026-10-24: Fredoka dropped; Nunito smaller). Saved in the
+// browser; every topic on the page follows. scale: its size next to Honk's.
 const TOPIC_FONTS = {
-  honk: { name: "Honk", style: smallTitle },
-  nunito: { name: "Nunito", style: { fontFamily: "'Nunito', sans-serif", fontWeight: 500, color: C.textPrimary } },
-  fredoka: { name: "Fredoka", style: { fontFamily: "Fredoka, sans-serif", fontWeight: 400, color: C.teal } },
+  honk: { name: "Honk", style: smallTitle, scale: 1 },
+  nunito: { name: "Nunito", style: { fontFamily: "'Nunito', sans-serif", fontWeight: 500, color: C.textPrimary }, scale: 0.72 },
 };
 function useTopicFont() {
   const [key, setKey] = useState(() => { try { const k = localStorage.getItem("acro.topicFont"); return TOPIC_FONTS[k] ? k : "honk"; } catch { return "honk"; } });
@@ -4172,7 +4172,7 @@ function useTopicFont() {
 function TopicText({ children, size }) {
   const [font, next] = useTopicFont();
   return (
-    <span onClick={next} data-hint={`Topic font: ${font.name}. Click to try another`} style={{ ...font.style, fontSize: size, lineHeight: 1.15, cursor: "pointer", overflowWrap: "anywhere" }}>{children}</span>
+    <span onClick={next} data-hint={`Topic font: ${font.name}. Click to try another`} style={{ ...font.style, fontSize: Math.round(size * font.scale), lineHeight: 1.15, cursor: "pointer", overflowWrap: "anywhere" }}>{children}</span>
   );
 }
 
