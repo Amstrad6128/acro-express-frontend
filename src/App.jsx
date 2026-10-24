@@ -3589,28 +3589,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                     </div>
                   );
                 })}
-                {/* The scheduled trains, The Continental and the Daily Express, always the first rows (the next to leave
-                    first), on platforms TC and DX */}
-                {scheduled.map(night => (
-                <div key={night.key} data-hint="One of our daily games: every day at the same time, shown here in your own time"
-                  style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
-                    gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
-                  <PlatformBox n={night.label} />
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                    {!phone && <Icon name="train" size={22} color={C.teal} />}
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{night.name}</div>
-                      <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Every day · departs {night.local} your time</div>
-                      {phone && <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}><StatusPill {...night.status} />{night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={smallBtn}>Board →</Btn> : night.canStart && <Btn onClick={() => startScheduled(night.name)} style={smallBtn}>Start it →</Btn>}</div>}
-                    </div>
-                  </div>
-                  {!phone && <span />}
-                  {!phone && <span><StatusPill {...night.status} /></span>}
-                  {!phone && (night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>Board now →</Btn>
-                    : night.canStart ? <span data-hint={`Start ${night.name}: everyone boards it from this row`} style={{ display: "contents" }}><Btn onClick={() => startScheduled(night.name)} style={{ ...smallBtn, justifyContent: "center" }}>Start it →</Btn></span> : <span />)}
-                </div>
-                ))}
-                {/* the scheduled trains have their own rows above */}
+                {/* the scheduled trains have their own rows below */}
                 {roomList.filter(room => !scheduled.some(t => t.room?.id === room.id && isScheduledName(room.name))).map(room => {
                   const names = room.playingNames || [];
                   const away = room.awayNames || [];
@@ -3646,6 +3625,28 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                     </div>
                   );
                 })}
+                {/* The scheduled trains, The Continental and the Daily Express (the next to leave first), on platforms TC
+                    and DX: below the players' own trains, which have passengers on them (2026-10-24: "nobody could find
+                    the new game, because it was hidden in the scroll") */}
+                {scheduled.map(night => (
+                <div key={night.key} data-hint="One of our daily games: every day at the same time, shown here in your own time"
+                  style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
+                    gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
+                  <PlatformBox n={night.label} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                    {!phone && <Icon name="train" size={22} color={C.teal} />}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{night.name}</div>
+                      <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Every day · departs {night.local} your time</div>
+                      {phone && <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}><StatusPill {...night.status} />{night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={smallBtn}>Board →</Btn> : night.canStart && <Btn onClick={() => startScheduled(night.name)} style={smallBtn}>Start it →</Btn>}</div>}
+                    </div>
+                  </div>
+                  {!phone && <span />}
+                  {!phone && <span><StatusPill {...night.status} /></span>}
+                  {!phone && (night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>Board now →</Btn>
+                    : night.canStart ? <span data-hint={`Start ${night.name}: everyone boards it from this row`} style={{ display: "contents" }}><Btn onClick={() => startScheduled(night.name)} style={{ ...smallBtn, justifyContent: "center" }}>Start it →</Btn></span> : <span />)}
+                </div>
+                ))}
               </div>
             </div>
           </Panel>
@@ -4293,7 +4294,7 @@ function TopicDesk({ left, center, right, narrow, station, departing }) {
   );
 }
 // Small caps above a piece of the desk ("EVERYONE ON BOARD?", "TOPIC")
-const deskEyebrow = { fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.16em" };
+const deskEyebrow = { fontSize: 15, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.16em" };
 // Left: a compass, "PICK ONE · QUICK TOPICS", then the topics as outlined pills (the chosen one in gold)
 function QuickTopics({ ideas, selected, onPick }) {
   if (!ideas.length) return null;
@@ -4587,6 +4588,8 @@ function Room() {
   const [topicDraft, setTopicDraft] = useState("");
   // Waits 8 s after the results appear before opening the winner's topic prompt
   const topicPromptTimerRef = useRef(null);
+  // Every passenger's name by id, kept after they leave (the chooser may have just got off: "Someone is choosing…")
+  const nameByIdRef = useRef({});
   // The station winner's streak (stations won in a row), for "wins the station again!" (Damon, 2026-10-24)
   const winStreakRef = useRef({ id: null, count: 0 });
   const [winStreak, setWinStreak] = useState(1);
@@ -4872,9 +4875,11 @@ function Room() {
       setCurrentRound(roundNumber);
       // One chat line per round with the topic in it (before, the topic had its own line,
       // which left less room for real chat on short screens)
+      // with the letter count (Sandy, 2026-10-24: "it shows how many above … but not in the chat here")
+      const nLetters = (typeof lettersStr === "string" ? lettersStr : (lettersStr || []).join("")).length;
       postSystemMessage(typeof topic === "string" && topic.trim()
-        ? `Leaving for Station ${roundNumber} — Direction: "${topic}"`
-        : `Leaving for Station ${roundNumber}.`);
+        ? `Leaving for Station ${roundNumber} · ${nLetters} letters — Direction: "${topic}"`
+        : `Leaving for Station ${roundNumber} · ${nLetters} letters.`);
       setMaxTimer(seconds);
 
       if (!topicRequestedRef.current) {
@@ -4922,7 +4927,14 @@ function Room() {
       // so nobody else clicks it and gets a "round already in progress" error)
       setGameWinner(null);
       setNextGameIn(null); // the new game is starting — stop the countdown
-      setPhase(prev => (prev === "GameOver" || prev === "Paused" ? "Starting" : prev));
+      // a new game: whatever phase this page thought it was in (2026-10-24: a page that missed the game's end still
+      // had station 9's letters, direction and "Your entry is on its way" under the desk), nothing of the old one stays
+      setPhase(prev => (prev === "Waiting" ? prev : "Starting"));
+      setLetters([]);
+      setSubmittedAcro(null);
+      submittedAcroRef.current = null;
+      setEntries([]);
+      setCurrentTopic("");
       // sameId ignores case differences between the backend Guid and localStorage
       if (sameId(auth?.userId, creatorUserId)) {
         setTopicForFirstRound(true); // a new game always starts at round 1 (3 letters)
@@ -5106,6 +5118,18 @@ function Room() {
     const el = chatListRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [roomMessages]);
+  // ...and when the box changes size (the direction desk appearing made it shorter, and the newest 2-3 lines slipped
+  // out of view, 2026-10-24), as long as the player was at the newest line (not while reading back)
+  useEffect(() => {
+    const el = chatListRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let atBottom = true;
+    const onScroll = () => { atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24; };
+    const ro = new ResizeObserver(() => { if (atBottom) el.scrollTop = el.scrollHeight; });
+    el.addEventListener("scroll", onScroll);
+    ro.observe(el);
+    return () => { el.removeEventListener("scroll", onScroll); ro.disconnect(); };
+  }, [state.loading]);
 
   // Topic countdown
   useEffect(() => {
@@ -5220,7 +5244,7 @@ function Room() {
         // Also join the live updates again, in case this connection lost the room group
         connectionRef.current?.invoke("JoinRoom", id, String(me)).catch(() => { });
       }
-      if (data?.letters) setLetters(typeof data.letters === "string" ? data.letters.split("") : data.letters);
+      if (data?.letters && data?.phase !== "Starting") setLetters(typeof data.letters === "string" ? data.letters.split("") : data.letters);
       // the station number too: after a refresh mid-journey the header said "Station 1" until the next station (2026-10-24)
       if (data?.currentRoundNumber > 0) setCurrentRound(data.currentRoundNumber);
 
@@ -5371,13 +5395,27 @@ function Room() {
 
   // GO! — start the next station now with the topic that was set
   // The winner's Highball!: the whistle and the flash, then the station (Damon, 2026-10-24: "the GO! should be Highball!")
+  // (2026-10-24: a quick direction only fills the box now; Highball! sends it and departs)
   function highballTopic() {
+    const t = topicDraft.trim();
     if (topicGoing) return;
+    if ((t.match(/[\p{L}\p{N}]/gu) || []).length < 2) { setTopicError("The direction needs at least 2 letters."); return; }
     playWhistle(soundGain());
     setTopicGoing(true);
     setHighballFlash(true);
-    setTimeout(() => { setHighballFlash(false); goTopic(); }, 600);
+    setTimeout(async () => {
+      setHighballFlash(false);
+      if (await submitTopic(t)) goTopic();
+      else setTopicGoing(false);
+    }, 600);
   }
+  // A direction typed but not sent when the clock is about to run out: sent, so it isn't lost (the station then
+  // starts with it when the clock runs out)
+  useEffect(() => {
+    if (!topicRequested || topicTimer !== 2 || topicGoing || topicSetValue) return;
+    const t = topicDraft.trim();
+    if ((t.match(/[\p{L}\p{N}]/gu) || []).length >= 2) submitTopic(t);
+  }, [topicTimer]);   // eslint-disable-line react-hooks/exhaustive-deps
   async function goTopic() {
     setTopicGoing(true);
     try { await topicGo(id); }
@@ -5485,6 +5523,8 @@ function Room() {
   const data = state.data || {};
   const players = data.players || [];
   playersRef.current = players;
+  for (const p of players) nameByIdRef.current[String(p.id).toLowerCase()] = p.nickname;
+  const nameOf = pid => (pid ? nameByIdRef.current[String(pid).toLowerCase()] : undefined);
   // Score shown in Passengers — frozen during voting/drumroll, live otherwise
   const shownScore = p => (frozenScores && frozenScores[p.id] !== undefined ? frozenScores[p.id] : p.score);
   // Station shown in the header: 0 before the first round of a game (waiting, or the first topic
@@ -5540,7 +5580,7 @@ function Room() {
   const showFirstTopic = !topicRequested && ((phase === "Waiting" && !(data.currentRoundNumber > 0)) || phase === "Paused"
     || (phase === "GameOver" && nextGameIn !== null && nextGameIn <= -10));
   // The stage grows for the results, the Final Stop and both topic desks (2026-10-24: they were cut off)
-  const resultsGrow = (phase === "Results" && !resultsClosed && !topicRequested) || (phase === "GameOver" && !!gameWinner) || topicRequested || !!watchChooser || (showFirstTopic && !!conductor);
+  const resultsGrow = (phase === "Results" && !resultsClosed && !topicRequested) || (phase === "GameOver" && !!gameWinner) || topicRequested || !!watchChooser?.first || (showFirstTopic && !!conductor);
 
   return (
     // Wide side margins on desktop (like AcroChallenge), tighter on phones
@@ -5626,15 +5666,23 @@ function Room() {
       {/* Round results and the winner's topic prompt — inside the stage, where the letters are
           (like Acrophobia). Before, they floated over the page and covered "Round N" in the header.
           Never both at once: results first; for the round winner the topic prompt replaces them. */}
-      {((phase === "Results" && !resultsClosed) || topicRequested || watchChooser) && (
+      {((phase === "Results" && !resultsClosed) || topicRequested || watchChooser?.first) && (
         <div style={{ marginBottom: 4 }}>
-          {phase === "Results" && !resultsClosed && !topicRequested && !watchChooser && (
+          {phase === "Results" && !resultsClosed && !topicRequested && !watchChooser?.first && (
             // lined up with the panels below: from the Sky Train Chat's left edge to the right edge (Damon's markup, 2026-10-24),
             // using the same columns as those panels
             <div style={{ display: "grid", gap: 16, gridTemplateColumns: isNarrow ? "1fr" : (pm.active ? "minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.4fr)" : "1fr 3fr") }}>
             {/* the station winner, left of the results and centred on them (Damon, 2026-10-24) */}
             <div style={{ gridColumn: "1", alignSelf: "center", minWidth: 0 }}>
               <StationCheer key={currentRound} round={currentRound} streak={winStreak} names={stationResults(scores, winningAcro, entries, players).winners.map(w => w.name)} />
+              {/* who chooses the next direction, with the clock; the results stay up meanwhile (Fran, 2026-10-24: "the
+                  vote result screen disappears too fast") */}
+              {watchChooser && !watchChooser.first && (
+                <div style={{ textAlign: "center", marginTop: 10, fontSize: 15, color: C.textMuted }}>
+                  <b style={{ color: C.textPrimary }}>{nameOf(watchChooser.id) || "The winner"}</b> is choosing the next direction
+                  <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 30, lineHeight: 1.1, color: topicTimer <= 5 ? C.brand : C.teal, fontVariantNumeric: "tabular-nums", visibility: topicTimer > 0 ? "visible" : "hidden" }}>{two(topicTimer)}</div>
+                </div>
+              )}
             </div>
             <div style={{ gridColumn: isNarrow ? "1" : "2 / -1", minWidth: 0 }}>
             <ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players}
@@ -5643,40 +5691,32 @@ function Room() {
             </div>
             </div>
           )}
-          {watchChooser && !topicRequested && (
-            <WatchDesk narrow={isNarrow} name={onBoard.find(p => sameId(p.id, watchChooser.id))?.nickname} station={watchChooser.first ? 1 : currentRound + 1}
+          {watchChooser?.first && !topicRequested && (
+            <WatchDesk narrow={isNarrow} name={nameOf(watchChooser.id)} station={watchChooser.first ? 1 : currentRound + 1}
               eyebrow={`Next up · Station ${watchChooser.first ? 1 : currentRound + 1} · ${watchChooser.first ? 3 : 3 + (currentRound % 5)} letters`}
               timer={topicTimer} short={isShort} />
           )}
           {topicRequested && (
         <div>
         {/* The station winner chooses the next topic, on the topic desk (GPT's structure, Damon 2026-10-24): quick topics
-            on the left (a click departs at once), the clock and the box in the middle, the topic as it will look on the
+            on the left (a click fills the box), the clock, the box and Highball! in the middle, the topic as it will look on the
             right */}
         <TopicDesk narrow={isNarrow} station={nextStation}
-          left={!topicSetValue && <QuickTopics ideas={topicIdeas} selected={null} onPick={async t => { if (await submitTopic(t)) { playWhistle(soundGain()); goTopic(); } }} />}
+          left={!topicGoing && <QuickTopics ideas={topicIdeas} selected={topicDraft} onPick={t => { setTopicDraft(t); setTopicError(""); }} />}
           center={<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             {/* The topic is chosen BEFORE the station it belongs to — the station starts with the countdown */}
             <div style={deskEyebrow}>Next up · Station {nextStation} · {topicForFirstRound ? 3 : 3 + (currentRound % 5)} letters</div>
             <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 56, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: topicTimer !== null && topicTimer <= 5 ? C.brand : C.teal, visibility: topicTimer > 0 ? "visible" : "hidden" }}>{two(topicTimer)}</div>
-            {topicSetValue ? (
-              // Set, not started: change it, or GO! now
-              <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
-                <BtnSecondary onClick={() => { setTopicDraft(topicSetValue); setTopicSetValue(null); setTimeout(() => document.getElementById("topicInput")?.focus(), 50); }}>Change</BtnSecondary>
-                <DeskButton onClick={highballTopic} disabled={topicGoing && !highballFlash} flash={highballFlash}>Highball!</DeskButton>
-              </div>
-            ) : (
-              // No autoFocus: the cursor stays where it is (Sandy typed "ty" in chat, Enter set it as the topic)
-              <div style={{ display: "flex", gap: 8, width: "100%", alignItems: "center" }}>
-                <DeskInput id="topicInput" pulse value={topicDraft} placeholder="…or write your own direction"
-                  onChange={v => { setTopicDraft(v); setTopicError(""); }} onEnter={submitTopic} />
-                <Btn onClick={submitTopic} style={{ whiteSpace: "nowrap" }}>Set</Btn>
-              </div>
-            )}
-            <div style={{ fontSize: 13, color: C.textMuted }}>{topicSetValue ? "The station starts when the clock runs out, or give the signal." : "No direction in time? The Express Server picks one."}</div>
+            {/* the box (a quick direction fills it) and Highball!, dark until there is a direction (as on the creator's desk).
+                No autoFocus: the cursor stays where it is (Sandy typed "ty" in chat, Enter set it as the topic) */}
+            <DeskInput id="topicInput" pulse value={topicDraft} placeholder="Write a direction, or pick one"
+              onChange={v => { setTopicDraft(v); setTopicError(""); }} onEnter={highballTopic} />
+            <DeskButton onClick={highballTopic} disabled={topicGoing && !highballFlash} flash={highballFlash}
+              ready={(topicDraft.match(/[\p{L}\p{N}]/gu) || []).length >= 2}>Highball!</DeskButton>
+            <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Give the signal to depart. No direction in time? The Express Server picks one.</div>
             {topicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{topicError}</p>}
           </div>}
-          right={<TopicPreview topic={topicSetValue || topicDraft.trim()} size={isShort ? 28 : 32} />} />
+          right={<TopicPreview topic={topicDraft.trim() || topicSetValue} size={isShort ? 28 : 32} />} />
         </div>
           )}
         </div>
