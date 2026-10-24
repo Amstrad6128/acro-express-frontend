@@ -4224,25 +4224,31 @@ function AnswersAccepted({ count, total }) {
 // ── The topic desk (2026-10-24, after GPT's mock-up Damon liked) ─────────────
 // One wide panel for choosing a topic (the creator's first topic and the winner's next one): quick topics on the
 // left, the box and the big button in the middle, the topic as it will look on the right, thin dividers with a dot
-// between them. The picture behind it (clouds, a station lamp) comes later as a background image: --topic-art.
+// between them. Behind it, Damon's picture (2026-10-24, public/art/topic-desk.webp, transparent sky): clouds, a platform and
+// a station shelter with a lamp and the "0 STATION" sign, anchored bottom-right at the panel's height (never cropped), the
+// clouds fading out to the left; the content keeps clear of the shelter.
 function TopicDesk({ left, center, right, narrow }) {
   const divider = (
     <div aria-hidden style={{ alignSelf: "stretch", width: 1, position: "relative", background: `linear-gradient(transparent, ${C.border} 25%, ${C.border} 75%, transparent)` }}>
       <span style={{ position: "absolute", top: "50%", left: -2, width: 5, height: 5, marginTop: -2.5, borderRadius: "50%", background: C.border }} />
     </div>
   );
+  const layer = { position: "relative", zIndex: 1 };
   return (
     <div style={{
-      background: C.bgPanel, backgroundImage: "var(--topic-art, none)", backgroundRepeat: "no-repeat", backgroundPosition: "right bottom", backgroundSize: "auto 100%",
+      position: "relative", overflow: "hidden", background: C.bgPanel,
       border: `1px solid ${C.border}`, borderRadius: 14, boxSizing: "border-box", minHeight: narrow ? undefined : 240,
-      padding: narrow ? "18px 16px" : "26px 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
+      padding: narrow ? "18px 16px" : "26px 250px 110px 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,   // room at the bottom: the clouds sit below the content
       gridTemplateColumns: "minmax(0, 1fr) 1px minmax(0, 1.5fr) 1px minmax(0, 1fr)", columnGap: 32, alignItems: "center",
     }}>
-      <div style={{ minWidth: 0, order: narrow ? 2 : 0 }}>{left}</div>
-      {!narrow && divider}
-      <div style={{ minWidth: 0, textAlign: "center" }}>{center}</div>
-      {!narrow && divider}
-      <div style={{ minWidth: 0, order: narrow ? 3 : 0 }}>{right}</div>
+      {/* the picture: at the panel's height plus a little, from the right; faded out on the left */}
+      <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "url(/art/topic-desk.webp)", backgroundRepeat: "no-repeat", backgroundPosition: "right bottom", backgroundSize: "auto 100%",
+        WebkitMaskImage: "linear-gradient(to right, transparent 0%, #000 35%)", maskImage: "linear-gradient(to right, transparent 0%, #000 35%)", opacity: narrow ? 0.35 : 1 }} />
+      <div style={{ ...layer, minWidth: 0, order: narrow ? 2 : 0 }}>{left}</div>
+      {!narrow && <div style={{ ...layer, alignSelf: "stretch", display: "flex" }}>{divider}</div>}
+      <div style={{ ...layer, minWidth: 0, textAlign: "center" }}>{center}</div>
+      {!narrow && <div style={{ ...layer, alignSelf: "stretch", display: "flex" }}>{divider}</div>}
+      <div style={{ ...layer, minWidth: 0, order: narrow ? 3 : 0 }}>{right}</div>
     </div>
   );
 }
