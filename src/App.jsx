@@ -4243,7 +4243,7 @@ function AnswersAccepted({ count, total, children, twoLines }) {
 // a station shelter with a lamp and the "0 STATION" sign. It spans the panel's full width, bottom-aligned (2026-10-24, Damon:
 // "you didn't place it well" — the first try fitted it to the height and faded the clouds); the panel is tall enough for
 // the shelter's roof and sign (the picture is 3:1, shown whole), the content left of the shelter.
-function TopicDesk({ left, center, right, narrow, station }) {
+function TopicDesk({ left, center, right, narrow, station, departing }) {
   // no lines between the parts any more (Damon, 2026-10-24: "We don't need these"); the empty 1px columns stay so the
   // layout doesn't move
   const divider = <div aria-hidden />;
@@ -4259,8 +4259,11 @@ function TopicDesk({ left, center, right, narrow, station }) {
       padding: narrow ? "18px 16px" : "22px 21% 5% 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
       gridTemplateColumns: "minmax(0, 1.2fr) 1px minmax(0, 1.4fr) 1px minmax(0, 0.9fr)", columnGap: 28, alignItems: "center",
     }}>
-      {/* the picture, its number and its tint in one group, fading in when the desk appears */}
-      <div aria-hidden className="acro-fade-in" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      {/* the picture, its number and its tint in one group: it fades in when the desk appears, and slips away and fades
+          out as the train departs (Highball!). It reaches past the panel's right edge (overscan: 80 px, 40 on phones),
+          a little more than it moves (--depart), so its right edge never shows */}
+      <div aria-hidden className={departing ? "acro-depart" : "acro-fade-in"}
+        style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: narrow ? -40 : -80, pointerEvents: "none", "--depart": narrow ? "34px" : "68px" }}>
       {/* the picture: the full width, bottom-aligned */}
       <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "url(/art/topic-desk-2.webp)", backgroundRepeat: "no-repeat", backgroundPosition: "center bottom", backgroundSize: "100% auto", opacity: narrow ? 0.35 : 1 }} />
       {/* The sign's number: a box over the painted 0, in the sign's yellow, with the station number in Goldman. It lives
@@ -5347,6 +5350,14 @@ function Room() {
   }
 
   // GO! — start the next station now with the topic that was set
+  // The winner's Highball!: the whistle and the flash, then the station (Damon, 2026-10-24: "the GO! should be Highball!")
+  function highballTopic() {
+    if (topicGoing) return;
+    playWhistle(soundGain());
+    setTopicGoing(true);
+    setHighballFlash(true);
+    setTimeout(() => { setHighballFlash(false); goTopic(); }, 600);
+  }
   async function goTopic() {
     setTopicGoing(true);
     try { await topicGo(id); }
@@ -5623,7 +5634,7 @@ function Room() {
             on the left (a click departs at once), the clock and the box in the middle, the topic as it will look on the
             right */}
         <TopicDesk narrow={isNarrow} station={nextStation}
-          left={!topicSetValue && <QuickTopics ideas={topicIdeas} selected={null} onPick={async t => { if (await submitTopic(t)) goTopic(); }} />}
+          left={!topicSetValue && <QuickTopics ideas={topicIdeas} selected={null} onPick={async t => { if (await submitTopic(t)) { playWhistle(soundGain()); goTopic(); } }} />}
           center={<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             {/* The topic is chosen BEFORE the station it belongs to — the station starts with the countdown */}
             <div style={deskEyebrow}>Next up · Station {nextStation} · {topicForFirstRound ? 3 : 3 + (currentRound % 5)} letters</div>
@@ -5632,7 +5643,7 @@ function Room() {
               // Set, not started: change it, or GO! now
               <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
                 <BtnSecondary onClick={() => { setTopicDraft(topicSetValue); setTopicSetValue(null); setTimeout(() => document.getElementById("topicInput")?.focus(), 50); }}>Change</BtnSecondary>
-                <DeskButton onClick={goTopic} disabled={topicGoing}>{topicGoing ? "Departing" : "GO!"}</DeskButton>
+                <DeskButton onClick={highballTopic} disabled={topicGoing && !highballFlash} flash={highballFlash}>Highball!</DeskButton>
               </div>
             ) : (
               // No autoFocus: the cursor stays where it is (Sandy typed "ty" in chat, Enter set it as the topic)
@@ -5642,7 +5653,7 @@ function Room() {
                 <Btn onClick={submitTopic} style={{ whiteSpace: "nowrap" }}>Set</Btn>
               </div>
             )}
-            <div style={{ fontSize: 13, color: C.textMuted }}>{topicSetValue ? "The station starts when the clock runs out, or press GO!" : "No direction in time? The Express Server picks one."}</div>
+            <div style={{ fontSize: 13, color: C.textMuted }}>{topicSetValue ? "The station starts when the clock runs out, or give the signal." : "No direction in time? The Express Server picks one."}</div>
             {topicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{topicError}</p>}
           </div>}
           right={<TopicPreview topic={topicSetValue || topicDraft.trim()} size={isShort ? 28 : 32} />} />
@@ -5677,7 +5688,7 @@ function Room() {
         // the topic desk (GPT's structure, Damon 2026-10-24): a quick topic or your own, then START: a countdown from
         // 5, the horn, the first station. Choosing a topic doesn't start anything by itself.
         <div style={{ marginBottom: 8 }}>
-        <TopicDesk narrow={isNarrow} station={phase === "Paused" ? currentRound + 1 : 1}
+        <TopicDesk narrow={isNarrow} station={phase === "Paused" ? currentRound + 1 : 1} departing={departIn !== null}
           left={departIn === null && <QuickTopics ideas={firstIdeas} selected={firstTopicDraft} onPick={t => { setFirstTopicDraft(t); setFirstTopicError(""); }} />}
           center={departIn !== null ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>

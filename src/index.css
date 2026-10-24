@@ -176,4 +176,17 @@ body {
 /* The direction desk's picture fades in when the desk appears (Damon, 2026-10-24: no departure slide yet) */
 @keyframes acroFadeIn { from { opacity: 0; } to { opacity: 1; } }
 .acro-fade-in { animation: acroFadeIn 0.9s ease-out; }
-@media (prefers-reduced-motion: reduce) { .acro-highball, .acro-fade-in { animation: none; } }
+/* Highball! departure (2026-10-24, GPT's spec): over the 5 s countdown the picture slips left, slowly at first and then
+   faster (about 12 px, 40 px, then --depart in all), and fades out from about the halfway point */
+@keyframes acroDepartMove {
+  0%   { transform: translateX(0); animation-timing-function: ease-in; }
+  20%  { transform: translateX(calc(var(--depart, 68px) * -0.18)); animation-timing-function: linear; }
+  60%  { transform: translateX(calc(var(--depart, 68px) * -0.59)); animation-timing-function: ease-out; }
+  100% { transform: translateX(calc(var(--depart, 68px) * -1)); }
+}
+@keyframes acroDepartFade { 0%, 45% { opacity: 1; } 100% { opacity: 0; } }
+.acro-depart { animation: acroDepartMove 5s forwards, acroDepartFade 5s ease-in forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .acro-highball, .acro-fade-in { animation: none; }
+  .acro-depart { animation: acroDepartFade 5s ease-in forwards; }   /* no movement, only the fade */
+}
