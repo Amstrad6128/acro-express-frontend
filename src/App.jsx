@@ -4243,7 +4243,7 @@ function AnswersAccepted({ count, total, children, twoLines }) {
 // a station shelter with a lamp and the "0 STATION" sign. It spans the panel's full width, bottom-aligned (2026-10-24, Damon:
 // "you didn't place it well" — the first try fitted it to the height and faded the clouds); the panel is tall enough for
 // the shelter's roof and sign (the picture is 3:1, shown whole), the content left of the shelter.
-function TopicDesk({ left, center, right, narrow }) {
+function TopicDesk({ left, center, right, narrow, station }) {
   const divider = (
     <div aria-hidden style={{ alignSelf: "stretch", width: 1, position: "relative", background: `linear-gradient(transparent, ${C.border} 25%, ${C.border} 75%, transparent)` }}>
       <span style={{ position: "absolute", top: "50%", left: -2, width: 5, height: 5, marginTop: -2.5, borderRadius: "50%", background: C.border }} />
@@ -4263,6 +4263,15 @@ function TopicDesk({ left, center, right, narrow }) {
     }}>
       {/* the picture: the full width, bottom-aligned */}
       <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "url(/art/topic-desk-2.webp)", backgroundRepeat: "no-repeat", backgroundPosition: "center bottom", backgroundSize: "100% auto", opacity: narrow ? 0.35 : 1 }} />
+      {/* The sign's number: a box over the painted 0, in the sign's yellow, with the station number in Goldman. It lives
+          in a layer with the picture's own shape (2000 x 667, bottom-aligned, full width), so the percentages are
+          places in the picture: the painted 0 is at x 1756-1794, y 257-314 */}
+      {station != null && (
+        <div aria-hidden style={{ position: "absolute", left: 0, right: 0, bottom: 0, aspectRatio: "2000 / 667", containerType: "inline-size", pointerEvents: "none", opacity: narrow ? 0.35 : 1 }}>
+          <div style={{ position: "absolute", left: "87.4%", width: "2.75%", top: "37.5%", height: "10.5%", background: "#FBCD4F", display: "flex", alignItems: "center", justifyContent: "center",
+            fontFamily: "'Goldman', sans-serif", fontWeight: 700, color: "#371C27", lineHeight: 1, fontSize: station > 9 ? "2.6cqw" : "3.8cqw", letterSpacing: station > 9 ? "-0.06em" : 0 }}>{station}</div>
+        </div>
+      )}
       {/* the picture in this palette's colours (Damon, 2026-10-24): a layer of the palette's colours that only changes the
           hue ("color" blending keeps the picture's light and shading), drawn only where the picture is (masked by it).
           Golden Hour, the picture's own palette, keeps the original (--art-tint 0) */}
@@ -4321,9 +4330,9 @@ function TopicPreview({ topic, size, empty = "Yours shows here" }) {
 }
 // The desk the other passengers see while someone chooses (2026-10-24): the same picture, who is choosing, the clock
 // (none before the first station: the creator presses START), and the direction's place on the right
-function WatchDesk({ name, eyebrow, timer, first, narrow, short }) {
+function WatchDesk({ name, eyebrow, timer, first, narrow, short, station }) {
   return (
-    <TopicDesk narrow={narrow}
+    <TopicDesk narrow={narrow} station={station}
       left={null}
       center={<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
         <div style={deskEyebrow}>{eyebrow}</div>
@@ -5567,7 +5576,7 @@ function Room() {
             </div>
           )}
           {watchChooser && !topicRequested && (
-            <WatchDesk narrow={isNarrow} name={onBoard.find(p => sameId(p.id, watchChooser.id))?.nickname}
+            <WatchDesk narrow={isNarrow} name={onBoard.find(p => sameId(p.id, watchChooser.id))?.nickname} station={watchChooser.first ? 1 : currentRound + 1}
               eyebrow={`Next up · Station ${watchChooser.first ? 1 : currentRound + 1} · ${watchChooser.first ? 3 : 3 + (currentRound % 5)} letters`}
               timer={topicTimer} short={isShort} />
           )}
@@ -5576,7 +5585,7 @@ function Room() {
         {/* The station winner chooses the next topic, on the topic desk (GPT's structure, Damon 2026-10-24): quick topics
             on the left (a click departs at once), the clock and the box in the middle, the topic as it will look on the
             right */}
-        <TopicDesk narrow={isNarrow}
+        <TopicDesk narrow={isNarrow} station={nextStation}
           left={!topicSetValue && <QuickTopics ideas={topicIdeas} selected={null} onPick={async t => { if (await submitTopic(t)) goTopic(); }} />}
           center={<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             {/* The topic is chosen BEFORE the station it belongs to — the station starts with the countdown */}
@@ -5620,7 +5629,7 @@ function Room() {
       {/* The first topic starts the journey — no Start button (Damon, 2026-10-16) */}
       {showFirstTopic && (!iAmConductor ? (conductor ? (
         <div style={{ marginBottom: 8 }}>
-          <WatchDesk narrow={isNarrow} name={conductor.nickname} short={isShort} first
+          <WatchDesk narrow={isNarrow} name={conductor.nickname} short={isShort} first station={phase === "Paused" ? currentRound + 1 : 1}
             eyebrow={phase === "Paused" ? "Ready to continue?" : "Everyone on board?"} />
         </div>
       ) : (
@@ -5631,7 +5640,7 @@ function Room() {
         // the topic desk (GPT's structure, Damon 2026-10-24): a quick topic or your own, then START: a countdown from
         // 5, the horn, the first station. Choosing a topic doesn't start anything by itself.
         <div style={{ marginBottom: 8 }}>
-        <TopicDesk narrow={isNarrow}
+        <TopicDesk narrow={isNarrow} station={phase === "Paused" ? currentRound + 1 : 1}
           left={departIn === null && <QuickTopics ideas={firstIdeas} selected={firstTopicDraft} onPick={t => { setFirstTopicDraft(t); setFirstTopicError(""); }} />}
           center={departIn !== null ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
