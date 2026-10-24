@@ -42,17 +42,22 @@ const THEMES = {
   // 2026-10-18: Notebook, Blueprint, Marigold and Paper Ticket retired (Damon); saved choices move on in loadThemeKey.
   // Names are times of the day (Damon), except Neon and Phosphor. The keys (e.g. "sakura") stay as they were,
   // so players' saved choices and the palette stats keep working; only the names shown changed.
-  ember: {  // Last Light (was Ember, renamed 2026-10-18) — the last glow of a campfire at night: charcoal, orange flame, golden names, a few drifting sparks
+  ember: {  // Last Light (was Ember, renamed 2026-10-18). Redone 2026-10-24 after Damon's 90s "Sound Corner" reference
+           // (Habbo/Parego style): chocolate brown, warmer brown boxes with thin orange outlines, hot orange, cream
+           // headings, tan labels, amber like the equaliser bars, and soft diagonal light beams behind everything
     name: "Last Light",
-    bgApp: "#1C1410", bgPanel: "#2A1D16", bgPanel2: "#33241B", border: "#5A3A28",
-    textPrimary: "#FBEEE0", textSecond: "#E8D5C2", textMuted: "#C9AD94",
-    brand: "#FF8A3D", brandHover: "#FF9E5C", onBrand: "#1C1410",
-    teal: "#FFD166", tealLight: "#FFDD8A", lavender: "#E8A0BF", ivory: "#FFE7C7",
-    success: "#9CCB7A", navy2: "#3D2A1F", navy3: "#4A3326", bgGradient: "none",
-    danger: "#A8322A", dangerHover: "#BF4034",
-    fieldLine: "#6B4A35", focusLine: "#FFD166",
-    pattern: svgPattern(90, 90, "<g fill='#ff8a3d'><circle cx='14' cy='72' r='1' fill-opacity='0.2'/><circle cx='57' cy='30' r='0.8' fill-opacity='0.16'/><circle cx='78' cy='66' r='0.7' fill-opacity='0.13'/></g>"),
-    patternSize: "90px 90px",
+    bgApp: "#3A2517", bgPanel: "#5B3920", bgPanel2: "#66412A", border: "#C8642A",
+    textPrimary: "#F6E6C8", textSecond: "#EFC08A", textMuted: "#D9A36C",
+    brand: "#FF7A1A", brandHover: "#FF9440", onBrand: "#2E1C10",
+    teal: "#FFB347", tealLight: "#FFC870", lavender: "#E9D5AE", ivory: "#F6E6C8",
+    success: "#BFD46E", navy2: "#4A2E1B", navy3: "#55351F",
+    bgGradient: "linear-gradient(180deg, #3E2819 0%, #33200F 100%)",
+    danger: "#B2391F", dangerHover: "#C9492B",
+    fieldLine: "#9A5A2C", focusLine: "#FF7A1A",
+    // the light beams: wide, faint, slanting wedges, like the rays behind the reference's keyboard
+    pattern: svgPattern(900, 900, "<g fill='#c47a3e'><polygon points='120,0 260,0 -40,900 -180,900' fill-opacity='0.07'/><polygon points='430,0 520,0 300,900 210,900' fill-opacity='0.05'/><polygon points='700,0 860,0 700,900 540,900' fill-opacity='0.06'/></g>"),
+    patternSize: "900px 900px", patternAttach: "fixed",
+    letterShadow: "3px 3px 0px rgba(0,0,0,0.45)",
   },
   neon: {  // Neon — synthwave: hot pink letters, electric cyan, neon yellow, faint sparkles
     name: "Neon",
