@@ -3216,7 +3216,10 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   const shortWin = !phone && winH < 850;
   // Everyone online, with where they are: the station's list (players) plus the passengers aboard each train
   // (roomList). Someone aboard a train is shown aboard it, not twice.
-  const aboard = roomList.flatMap(r => (r.playingNames || []).map(n => ({ name: n, where: `Aboard ${r.name}`, onTrain: true })));
+  // Aboard a train — but never you: this page is the station, so you're here (2026-10-24: TylerDurden showed "aboard aa"
+  // while standing at the station, after leaving a train the train still counted him on)
+  const meName = String(auth?.username || "").toLowerCase();
+  const aboard = roomList.flatMap(r => (r.playingNames || []).filter(n => String(n).toLowerCase() !== meName).map(n => ({ name: n, where: `Aboard ${r.name}`, train: r.name, onTrain: true })));
   const aboardSet = new Set(aboard.map(a => a.name.toLowerCase()));
   const online = [
     ...players.filter(n => !aboardSet.has(String(n).toLowerCase())).map(n => ({ name: n, where: "On the platform", onTrain: false })),
@@ -3451,7 +3454,8 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                         <AvatarSquare name={o.name} size={22} />
                         <div data-hint={`${o.name} · ${o.where}`} style={{ minWidth: 0, flex: 1, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           <span style={{ fontWeight: 600 }}>{o.name}</span>
-                          {o.onTrain && <span style={{ fontSize: 13, color: C.textMuted }}> · 🚂 {o.where.replace(/^Aboard /, "")}</span>}
+                          {/* "· on The Comet", with the site's own train icon (was a 🚂 emoji and the bare name) */}
+                          {o.onTrain && <span style={{ fontSize: 13, color: C.textMuted, whiteSpace: "nowrap" }}> · <span style={{ display: "inline-block", verticalAlign: "-2px" }}><Icon name="train" size={13} color={C.textMuted} /></span> on <span style={{ color: C.textSecond }}>{o.train}</span></span>}
                         </div>
                         {/* Unread private messages from them */}
                         {(pm.unread[o.name] || 0) > 0 && <span style={{ background: C.brand, color: C.onBrand, fontSize: 11, borderRadius: 999, padding: "1px 6px" }}>{pm.unread[o.name]}</span>}
