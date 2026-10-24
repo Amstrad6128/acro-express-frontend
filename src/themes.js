@@ -32,6 +32,29 @@ const speakers = c => c.destination;
 // key press (2026-10-20: the music was silent in a real game because of this; the admin page worked because there
 // every song started with a click).
 // Safari only switches the engine on if a sound actually starts during the tap, so a tiny silent one is played.
+// A train horn (2026-10-24): the journey begins. Two reedy notes a minor third apart, swelling in, held, fading out,
+// through a soft filter — an old diesel horn, not a car horn. level: 0 = silent … 1 = full.
+export function playHonk(level = 1) {
+  if (level <= 0) return;
+  try {
+    const c = audioCtx(), t = c.currentTime + 0.02;
+    const out = c.createGain(); out.gain.value = 0.22 * level;
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1400; lp.Q.value = 0.7;
+    lp.connect(out); out.connect(speakers(c));
+    for (const [f, d] of [[311.1, 0], [370, 0.004]]) {                 // E♭4 and F♯4
+      for (const detune of [-6, 6]) {                                   // two slightly apart: a thicker sound
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = "sawtooth"; o.frequency.value = f; o.detune.value = detune;
+        g.gain.setValueAtTime(0.0001, t + d);
+        g.gain.exponentialRampToValueAtTime(0.5, t + d + 0.08);        // swells in
+        g.gain.setValueAtTime(0.5, t + d + 0.75);                       // held
+        g.gain.exponentialRampToValueAtTime(0.0001, t + d + 1.25);      // fades out
+        o.connect(g); g.connect(lp); o.start(t + d); o.stop(t + d + 1.3);
+      }
+    }
+  } catch { /* no sound available */ }
+}
+
 export function unlockAudio() {
   try {
     const c = audioCtx();

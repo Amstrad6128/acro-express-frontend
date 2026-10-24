@@ -4,7 +4,7 @@ import { fetchHealth, createRoom, joinRoom, startRound, submitAcro, castVote, ge
 import { useSignalR } from "./hooks/useSignalR";
 import { useLobbyHub } from "./hooks/useLobbyHub";
 import { usePm, openPm, closePm, sendPm, setPmDraft, dismissPmToast, setPmChime } from "./pm";
-import { playTheme, THEME_LIST, unlockAudio } from "./themes";
+import { playTheme, THEME_LIST, unlockAudio, playHonk } from "./themes";
 
 // ── Design tokens ──────────────────────────────────────────────
 // ── Colour schemes ─────────────────────────────────────────────
@@ -306,9 +306,11 @@ const EXTRA_FONTS = {
   righteous: { fam: "'Righteous'", lf: 1.07, tf: 0.96, w: 400 },  // capitals 71, digits 75
   // 2026-10-22 (Damon: "Direction is Barrio, but it's not the one. Add Bricolage Grotesque and Dela Gothic One")
   bricolage: { fam: "'Bricolage Grotesque'", lf: 1.12, tf: 1.03, w: 800 },   // capitals 68, digits 70
-  dela: { fam: "'Dela Gothic One'", lf: 1.01, tf: 0.95, w: 400 },           // capitals 75, digits 76
+  // 2026-10-24 (Damon): Michroma replaces Dela Gothic One. Capitals 75, digits 77 — but 35% wider than Bowlby, so its
+  // letters are a little smaller (0.9) to keep a 7-letter station about as wide
+  michroma: { fam: "'Michroma'", lf: 0.9, tf: 0.94, w: 400 },
 };
-const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", trueno: "Trueno", nunito: "Nunito", righteous: "Righteous", bricolage: "Bricolage", dela: "Dela Gothic" };   // key → name shown in the menu
+const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", trueno: "Trueno", nunito: "Nunito", righteous: "Righteous", bricolage: "Bricolage", michroma: "Michroma" };   // key → name shown in the menu
 // No choice yet (2026-10-22, Damon: "I think Honk"): brand-new players get Honk; someone who has logged in here before
 // keeps Bowlby, the old default, so a regular's letters don't suddenly change. (A saved choice that no longer exists,
 // like "pixel" or "titan", goes back to Bowlby.)
@@ -778,7 +780,7 @@ function LetterFontPicker() {
                     nunito: { fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.brand },
                     righteous: { fontFamily: "'Righteous', sans-serif", fontSize: 18, color: C.brand },
                     bricolage: { fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 19, color: C.brand },
-                    dela: { fontFamily: "'Dela Gothic One', sans-serif", fontSize: 17, color: C.brand },
+                    michroma: { fontFamily: "'Michroma', sans-serif", fontSize: 15, color: C.brand },
                   }[key]}>B T V</span>
                   <span style={{ fontSize: 13, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</span>
                 </button>
@@ -4094,34 +4096,83 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
               );
             })
           )}
-        </div>
-
-        {/* Footer */}
-        <div style={{ padding: "12px 24px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "center", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          {/* Blank vote option */}
-          {!submitted && (
-            <button
-              onClick={handleBlankVote}
+          {/* "None of the above": the last option of the list, like the acros (Damon, 2026-10-24: not a box below) */}
+          {visibleEntries.length > 0 && (
+            <button onClick={handleBlankVote} disabled={submitted}
               style={{
-                background: selected === "blank" ? `color-mix(in srgb, ${C.textMuted} 13%, transparent)` : "transparent",
-                border: `1px solid ${selected === "blank" ? C.textMuted : C.border}`,
-                borderRadius: 8, padding: "6px 14px", fontSize: 14,
-                color: selected === "blank" ? C.textPrimary : C.textMuted,
-                cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s"
+                width: "100%", textAlign: "left", padding: "12px 16px",
+                background: selected === "blank" ? `color-mix(in srgb, ${C.brand} 13%, transparent)` : "transparent",
+                border: `1px ${selected === "blank" ? "solid" : "dashed"} ${selected === "blank" ? C.brand : C.border}`,
+                borderRadius: 10, color: selected === "blank" ? C.ivory : C.textMuted, fontStyle: "italic",
+                fontSize: 16, cursor: submitted ? "not-allowed" : "pointer",
+                opacity: submitted && selected !== "blank" ? 0.6 : 1,
+                fontFamily: "inherit", transition: "all 0.15s"
               }}>
               None of the above
             </button>
           )}
+        </div>
 
-          {/* Voting countdown — number only (no bar), red in the last 10 seconds */}
-          {timer !== null && timer > 0 && (
-            <span style={{ fontSize: 32, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.ivory, lineHeight: 1 }}>{timer}</span>
+        {/* Footer */}
+        <div style={{ padding: "12px 24px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "center", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+
+          {/* Voting countdown — number only (no bar), red in the last 10 seconds. In Honk, and it stays on 00 when the
+              time is up instead of disappearing (Damon, 2026-10-24) */}
+          {timer !== null && (
+            // a fixed-width slot: the buttons beside it never move as the number changes (Damon, 2026-10-24)
+            <span style={{ ...honkTitle, display: "inline-block", width: 72, textAlign: "center", fontSize: 40, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: timer <= 10 ? C.brand : C.teal, fontPalette: timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15" }}>{timer > 0 ? timer : "00"}</span>
           )}
 
           {/* Done voting button */}
           <BtnSecondary onClick={handleDoneVoting}>Done Voting</BtnSecondary>
         </div>
       </div>
+    </div>
+  );
+}
+
+// The topic's font (Damon, 2026-10-24: "Leave it in Honk and give me a clickable option to change the font to
+// decide"): a click on the topic switches Honk → Nunito → Fredoka. Saved in the browser; every topic on the page follows.
+const TOPIC_FONTS = {
+  honk: { name: "Honk", style: smallTitle },
+  nunito: { name: "Nunito", style: { fontFamily: "'Nunito', sans-serif", fontWeight: 500, color: C.textPrimary } },
+  fredoka: { name: "Fredoka", style: { fontFamily: "Fredoka, sans-serif", fontWeight: 400, color: C.teal } },
+};
+function useTopicFont() {
+  const [key, setKey] = useState(() => { try { const k = localStorage.getItem("acro.topicFont"); return TOPIC_FONTS[k] ? k : "honk"; } catch { return "honk"; } });
+  useEffect(() => {
+    const on = e => setKey(e.detail);
+    window.addEventListener("acro-topicfont", on);
+    return () => window.removeEventListener("acro-topicfont", on);
+  }, []);
+  const next = () => {
+    const keys = Object.keys(TOPIC_FONTS), k = keys[(keys.indexOf(key) + 1) % keys.length];
+    try { localStorage.setItem("acro.topicFont", k); } catch { /* private mode */ }
+    window.dispatchEvent(new CustomEvent("acro-topicfont", { detail: k }));
+  };
+  return [TOPIC_FONTS[key], next];
+}
+// A topic in the chosen font; a click switches the font
+function TopicText({ children, size }) {
+  const [font, next] = useTopicFont();
+  return (
+    <span onClick={next} data-hint={`Topic font: ${font.name}. Click to try another`} style={{ ...font.style, fontSize: size, lineHeight: 1.15, cursor: "pointer", overflowWrap: "anywhere" }}>{children}</span>
+  );
+}
+
+// "Answers accepted" left of the letters (after Acrophobia, 2026-10-24): how many acros are in. Each new one stretches
+// the number in from zero width; under it a light per passenger, lit for each acro in (Damon didn't like a ticket).
+function AnswersAccepted({ count, total }) {
+  const lights = Math.min(16, Math.max(total, count));
+  return (
+    <div style={{ textAlign: "center", visibility: count > 0 ? "visible" : "hidden" }} aria-live="polite">
+      <span key={`n${count}`} className="acro-stretch" style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 52, lineHeight: 1, color: C.teal, fontVariantNumeric: "tabular-nums" }}>{count}</span>
+      <div style={{ display: "flex", gap: 5, justifyContent: "center", flexWrap: "wrap", maxWidth: 140, margin: "6px auto 0" }} aria-hidden>
+        {Array.from({ length: lights }, (_, i) => (
+          <span key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: i < count ? C.teal : "transparent", border: `1.5px solid ${i < count ? C.teal : C.border}`, boxShadow: i < count ? `0 0 6px ${C.teal}` : "none", transition: "all 0.3s" }} />
+        ))}
+      </div>
+      <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginTop: 4 }}>{count === 1 ? "Answer accepted" : "Answers accepted"}</div>
     </div>
   );
 }
@@ -4287,6 +4338,12 @@ function Room() {
 
   const [maxTimer, setMaxTimer] = useState(60); // tracks initial timer value for the progress bar
   const [topicRequested, setTopicRequested] = useState(false);
+  // 4 topics from the Express Server's pool for the station winner to choose from (2026-10-24)
+  const [topicIdeas, setTopicIdeas] = useState([]);
+  useEffect(() => {
+    if (!topicRequested) return;
+    fetch(`${API_URL}/api/topics/suggest?n=4`).then(r => (r.ok ? r.json() : [])).then(list => setTopicIdeas(Array.isArray(list) ? list : [])).catch(() => setTopicIdeas([]));
+  }, [topicRequested]);
   // True when the topic prompt is for round 1 (Start Game / New Game), false when the round winner sets it
   const [topicForFirstRound, setTopicForFirstRound] = useState(false);
   const [topicDraft, setTopicDraft] = useState("");
@@ -4304,6 +4361,13 @@ function Room() {
   const [firstTopicError, setFirstTopicError] = useState("");
   const [departIn, setDepartIn] = useState(null);
   const [departTopic, setDepartTopic] = useState("");
+  const honkedRef = useRef(false);   // the creator already heard the horn at the end of the countdown
+  // 4 topics from the Express Server's pool for the first topic too (2026-10-24)
+  const [firstIdeas, setFirstIdeas] = useState([]);
+  useEffect(() => {
+    if (topicRequested || !["Waiting", "Paused", "GameOver"].includes(phase)) return;   // waiting for a first topic
+    fetch(`${API_URL}/api/topics/suggest?n=4`).then(r => (r.ok ? r.json() : [])).then(list => setFirstIdeas(Array.isArray(list) ? list : [])).catch(() => setFirstIdeas([]));
+  }, [phase, topicRequested]);
   const restart = useRestartWindow();
   const restartAnnouncedRef = useRef(null);
 
@@ -4539,6 +4603,8 @@ function Room() {
     onConnectionChange: useCallback((status) => setConnStatus(status), []),
     // 4th argument (topic) is new — the backend now sends it with every RoundStarted
     onRoundStarted: useCallback((roundNumber, lettersStr, seconds, topic) => {
+      // the journey begins: a train horn (the creator heard it already at the end of the countdown)
+      if (Number(roundNumber) === 1) { if (!honkedRef.current) playHonk(soundGain()); honkedRef.current = false; }
       setLetters(typeof lettersStr === "string" ? lettersStr.split("") : lettersStr);
       setPhase("Submitting");
       setTimer(seconds);
@@ -4619,7 +4685,7 @@ function Room() {
         setTopicForFirstRound(true); // a new game always starts at round 1 (3 letters)
         setTopicRequested(true);
         topicRequestedRef.current = true;
-        setTopicTimer(25);
+        setTopicTimer(35);
       } else {
         postSystemMessage("Waiting for the host to set a topic...");
       }
@@ -4663,7 +4729,7 @@ function Room() {
             setTopicForFirstRound(false); // topic for the round after the one that just ended
             setTopicRequested(true);
             topicRequestedRef.current = true;
-            setTopicTimer(25);
+            setTopicTimer(35);
           }, 8000);
         }
       }, 4180);
@@ -4896,6 +4962,8 @@ function Room() {
         connectionRef.current?.invoke("JoinRoom", id, String(me)).catch(() => { });
       }
       if (data?.letters) setLetters(typeof data.letters === "string" ? data.letters.split("") : data.letters);
+      // the station number too: after a refresh mid-journey the header said "Station 1" until the next station (2026-10-24)
+      if (data?.currentRoundNumber > 0) setCurrentRound(data.currentRoundNumber);
 
       // If server says Voting but frontend missed the SignalR event — force it.
       // phaseRef (not `phase`) because this runs from a setInterval with a stale closure,
@@ -5021,8 +5089,9 @@ function Room() {
 
   // Sends the topic from the prompt. Needs at least 2 letters or digits (same rule as the server,
   // which refuses shorter ones too) — "l" and "s" were accepted by accident before.
-  async function submitTopic() {
-    const topic = topicDraft.trim();
+  // value: a suggestion that was clicked (otherwise what was typed)
+  async function submitTopic(value) {
+    const topic = (typeof value === "string" ? value : topicDraft).trim();
     if ((topic.match(/[\p{L}\p{N}]/gu) || []).length < 2) {
       setTopicError("The topic needs at least 2 letters.");
       return;
@@ -5034,6 +5103,7 @@ function Room() {
       setTopicSetValue(topic);
       setTopicDraft("");
       setTopicError("");
+      return true;
     } catch (e) {
       // Show the server's reason (the error text arrives as "400: <reason>")
       setTopicError((e.message || "").replace(/^\d{3}:\s*/, "") || "The topic wasn't accepted.");
@@ -5059,6 +5129,10 @@ function Room() {
     if (departIn === null) return;
     if (departIn <= 0) {
       (async () => {
+        // the horn, then the station (Damon, 2026-10-24); the others hear it when the station begins
+        honkedRef.current = true;
+        playHonk(soundGain());
+        await new Promise(r => setTimeout(r, 1300));
         try { await startRound(id, departTopic); }
         catch (e) {
           setDepartIn(null);
@@ -5173,14 +5247,13 @@ function Room() {
   const stageHeight = `calc(2 * ${stagePad} + ${timerSize} + ${timerGap} + ${letterSize} + ${ACRO_BOX}px)`;
   // Results showing: the stage may grow to fit all passengers (option C, Damon 2026-10-16)
   // The stage grows for the results, and for the Final Stop celebration (the winner panel is taller than the letters)
-  const resultsGrow = (phase === "Results" && !resultsClosed && !topicRequested) || (phase === "GameOver" && !!gameWinner);
+  const resultsGrow = (phase === "Results" && !resultsClosed && !topicRequested) || (phase === "GameOver" && !!gameWinner) || topicRequested;   // also the topic choice (2026-10-24: it was cut off)
   // Topic: label and topic on one line (compact header)
+  // 2026-10-24: beside the letters (right), not in the header's corner — "you don't have to turn your head"
   const topicBlock = (align) => (
-    // marginTop: a little space under the Grand Sky Station button (Damon, 2026-10-18: too close)
-    <div style={{ textAlign: align, maxWidth: 460, margin: align === "center" ? "0 auto" : "6px 0 0" }}>
-      <span style={{ fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginRight: 8 }}>Topic</span>
-      {/* The topic in Honk (was Fredoka; Damon: a different font) */}
-      <span style={{ fontSize: isShort ? 30 : 36, ...smallTitle, overflowWrap: "anywhere" }}>{currentTopic}</span>
+    <div style={{ textAlign: align, maxWidth: 380, margin: align === "center" ? "0 auto" : 0 }}>
+      <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 2 }}>Topic</div>
+      <TopicText size={isShort ? 28 : 34}>{currentTopic}</TopicText>
       {/* the Word of the Week, one slim line */}
       {weekWord && <div data-hint={`Word of the week: use "${weekWord.word}" in your acro; if it gets at least one vote, you earn +1`}
         style={{ fontSize: 13, color: C.textSecond, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -5264,7 +5337,6 @@ function Room() {
             <span data-hint="Leave this train and go back to the Grand Sky Station" style={{ display: "contents" }}><BtnSecondary onClick={handleLeaveRoom} style={{ border: `1px solid ${C.focusLine}` }}>← Grand Sky Station</BtnSecondary></span>
           </div>
           {/* Topic — top right, under Back to Lobby (on phones it sits under the letters) */}
-          {showTopic && !isNarrow && topicBlock("right")}
         </div>
       </div>
 
@@ -5291,48 +5363,61 @@ function Room() {
           )}
           {topicRequested && (
         <div>
-        <Panel style={{ padding: 20, borderColor: C.teal, textAlign: "center" }}>
-          <h2 style={{ margin: "0 0 8px", fontFamily: "Fredoka, sans-serif", fontSize: 22, color: C.teal }}>
-            {/* The topic is chosen BEFORE the round (station) it belongs to — the round starts with the countdown */}
-            Next up: Station <span style={{ fontFamily: NUM_FONT }}>{nextStation}</span>
-          </h2>
-          <p style={{ margin: "0 0 16px", color: C.textMuted, fontSize: 15 }}>
-            {topicSetValue
-              ? <>The station starts when the clock runs out{topicTimer > 0 && <> (<span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span>)</>} — or press GO!</>
-              : <>Set the topic — you have <span style={{ color: C.ivory, fontWeight: 700 }}>{topicTimer}s</span>, or it defaults to General Acro.</>}
-          </p>
-          {/* Letters go 3,4,5,6,7 and repeat — same rule as the server (3 + (round - 1) % 5).
-              Round 1 always has 3; otherwise currentRound is the round that just ended, so the next one has 3 + (currentRound % 5) */}
-          <p style={{ margin: "0 0 16px", color: C.textSecond, fontSize: 16 }}>
-            <span style={{ color: C.brand, fontWeight: 700, fontFamily: NUM_FONT }}>{topicForFirstRound ? 3 : 3 + (currentRound % 5)}</span> letters
-          </p>
-          {topicSetValue ? (
-            // Set, not started: change it, or GO! now
-            <div style={{ display: "flex", gap: 8, maxWidth: 500, margin: "0 auto", alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
-              <span style={{ fontSize: 18, color: C.textSecond }}>Topic: <b style={{ color: C.teal, fontFamily: "Fredoka, sans-serif" }}>{topicSetValue}</b></span>
-              <BtnSecondary onClick={() => { setTopicDraft(topicSetValue); setTopicSetValue(null); setTimeout(() => document.getElementById("topicInput")?.focus(), 50); }}>Change</BtnSecondary>
-              <Btn onClick={goTopic} disabled={topicGoing} style={{ whiteSpace: "nowrap", fontWeight: 800 }}>{topicGoing ? "Departing…" : "GO!"}</Btn>
-            </div>
-          ) : (
-          <div style={{ display: "flex", gap: 8, maxWidth: 500, margin: "0 auto" }}>
-            {/* No autoFocus: the cursor stays where it is (Sandy typed "ty" in chat, Enter set it as the
-                topic). The box is highlighted instead; the player clicks into it. */}
-            <input
-              id="topicInput"
-              className="acro-pulse"
-              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.teal}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit", textAlign: "center" }}
-              placeholder="Click here and type a topic..."
-              value={topicDraft}
-              onChange={e => { setTopicDraft(e.target.value); setTopicError(""); }}
-              onKeyDown={e => { if (e.key === "Enter") submitTopic(); }}
-            />
-            {/* nowrap: "Set Topic" stays on one line */}
-            <Btn onClick={submitTopic} style={{ whiteSpace: "nowrap" }}>Set Topic</Btn>
+        {/* The station winner chooses the next topic (redesigned 2026-10-24, Damon: "a frame within a frame … the timer
+            is too small"). Three columns like the writing stage: 4 suggestions from the Express Server's pool on the
+            left, the clock and a wide box in the middle, the topic as it will look on the right. */}
+        <div style={{ display: isNarrow ? "flex" : "grid", flexDirection: "column", gap: isNarrow ? 16 : 32, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 560px) minmax(0, 1fr)", alignItems: "center", padding: "8px 0" }}>
+          {/* left: pick one */}
+          <div style={{ justifySelf: "end", display: "flex", flexDirection: "column", gap: 8, alignItems: isNarrow ? "stretch" : "flex-end", order: isNarrow ? 2 : 0 }}>
+            {!topicSetValue && topicIdeas.length > 0 && <>
+              <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Pick one</div>
+              {/* one column (the stage grows for it); long topics wrap instead of running off the side */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: isNarrow ? "stretch" : "flex-end", maxWidth: "100%" }}>
+              {topicIdeas.map(t => (
+                <button key={t} onClick={async () => { if (await submitTopic(t)) goTopic(); }}   /* a suggestion departs at once (Damon, 2026-10-24) */
+                  style={{ background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 18, padding: "8px 18px", color: C.textPrimary, fontFamily: "inherit", fontSize: 16, fontWeight: 600, cursor: "pointer", maxWidth: "100%", textAlign: "right", overflowWrap: "anywhere" }}>{t}</button>
+              ))}
+              </div>
+            </>}
           </div>
-          )}
-          {/* Why the topic wasn't accepted (e.g. "l" — at least 2 letters) */}
+          {/* middle: the station, the clock, the box */}
+          <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+            {/* The topic is chosen BEFORE the station it belongs to — the station starts with the countdown */}
+            <div style={{ fontSize: 15, color: C.textSecond }}>
+              Next up: <b style={{ color: C.textPrimary }}>Station {nextStation}</b> · <span style={{ color: C.brand, fontWeight: 700 }}>{topicForFirstRound ? 3 : 3 + (currentRound % 5)}</span> letters
+            </div>
+            <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 56, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: topicTimer !== null && topicTimer <= 5 ? C.brand : C.teal, visibility: topicTimer > 0 ? "visible" : "hidden" }}>{topicTimer > 0 ? topicTimer : 0}</div>
+            {topicSetValue ? (
+              // Set, not started: change it, or GO! now
+              <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+                <BtnSecondary onClick={() => { setTopicDraft(topicSetValue); setTopicSetValue(null); setTimeout(() => document.getElementById("topicInput")?.focus(), 50); }}>Change</BtnSecondary>
+                <Btn onClick={goTopic} disabled={topicGoing} style={{ whiteSpace: "nowrap", fontWeight: 800, padding: "10px 28px", fontSize: 17 }}>{topicGoing ? "Departing…" : "GO!"}</Btn>
+              </div>
+            ) : (
+              // one wide bar, like the acro box: no panel around it
+              <div style={{ display: "flex", gap: 8, width: "100%" }}>
+                {/* No autoFocus: the cursor stays where it is (Sandy typed "ty" in chat, Enter set it as the topic) */}
+                <input id="topicInput" className="acro-pulse" maxLength={80}
+                  style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "12px 16px", color: C.textPrimary, fontSize: 19, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+                  placeholder="…or write your own topic"
+                  value={topicDraft}
+                  onChange={e => { setTopicDraft(e.target.value); setTopicError(""); }}
+                  onKeyDown={e => { if (e.key === "Enter") submitTopic(); }} />
+                <Btn onClick={submitTopic} style={{ whiteSpace: "nowrap" }}>Set topic</Btn>
+              </div>
+            )}
+            <div style={{ fontSize: 13, color: C.textMuted }}>{topicSetValue ? "The station starts when the clock runs out, or press GO!" : "No topic in time? The Express Server picks one."}</div>
+          </div>
+          {/* right: the topic as it will look */}
+          <div style={{ justifySelf: "start", minWidth: 0, order: isNarrow ? 3 : 0, display: isNarrow && !(topicSetValue || topicDraft.trim()) ? "none" : "block" }}>
+            <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 2 }}>Topic</div>
+            {(topicSetValue || topicDraft.trim())
+              ? <TopicText size={isShort ? 28 : 34}>{topicSetValue || topicDraft.trim()}</TopicText>
+              : <span style={{ fontSize: 16, color: C.textMuted, fontStyle: "italic" }}>Yours shows here</span>}
+          </div>
+        </div>
           {topicError && <p style={{ margin: "10px 0 0", color: C.brand, fontSize: 14, fontWeight: 600 }}>{topicError}</p>}
-        </Panel>
+
         </div>
           )}
         </div>
@@ -5357,40 +5442,63 @@ function Room() {
             <p style={{ color: C.textMuted, margin: 0, fontSize: 16 }}>
               {conductor ? <>Waiting for <b style={{ color: C.textPrimary }}>{conductor.nickname}</b> to choose the first topic…</> : "Waiting for passengers…"}
             </p>
-          ) : departIn !== null ? (
-            <>
-              <h2 style={{ margin: "0 0 6px", fontFamily: "Fredoka, sans-serif", fontSize: 24, color: C.teal }}>
-                Departing in <span style={{ fontFamily: NUM_FONT }}>{Math.max(departIn, 0)}</span>…
-              </h2>
-              <p style={{ margin: "0 0 10px", color: C.textSecond, fontSize: 16 }}>First topic: <b style={{ color: C.teal }}>{departTopic}</b></p>
-              <BtnSecondary onClick={() => { setDepartIn(null); setFirstTopicDraft(departTopic); }}>Change</BtnSecondary>
-            </>
           ) : (
-            <>
-              <h2 style={{ margin: "0 0 6px", fontFamily: "Fredoka, sans-serif", fontSize: 22, color: C.teal }}>
-                {phase === "Paused" ? "Choose a topic to continue" : "Everyone on board? Choose the first topic to depart"}
-              </h2>
-              <p style={{ margin: "0 0 12px", color: C.textMuted, fontSize: 15 }}>Type a topic and press Enter — the journey starts.</p>
-              <div style={{ display: "flex", gap: 8, maxWidth: 500, margin: "0 auto" }}>
-                <input
-                  id="firstTopicInput"
-                  style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.teal}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 16, outline: "none", fontFamily: "inherit", textAlign: "center" }}
-                  placeholder="First topic, e.g. Trains"
-                  value={firstTopicDraft}
-                  onChange={e => { setFirstTopicDraft(e.target.value); setFirstTopicError(""); }}
-                  onKeyDown={e => { if (e.key === "Enter") startDeparture(); }}
-                />
-                <Btn onClick={startDeparture} style={{ whiteSpace: "nowrap" }}>Depart</Btn>
+            // 2026-10-24 (Damon): like the winner's topic choice — 4 suggestions on the left, the box in the middle,
+            // the topic as it will look on the right — and a big "Begin journey" button: a countdown from 5, the
+            // horn, then the first station. Choosing a topic doesn't start anything by itself.
+            <div style={{ display: isNarrow ? "flex" : "grid", flexDirection: "column", gap: isNarrow ? 14 : 32, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 520px) minmax(0, 1fr)", alignItems: "center", textAlign: "left" }}>
+              <div style={{ justifySelf: "end", display: "flex", flexDirection: "column", gap: 8, alignItems: isNarrow ? "stretch" : "flex-end", order: isNarrow ? 2 : 0 }}>
+                {departIn === null && firstIdeas.length > 0 && <>
+                  <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Pick one</div>
+                  {firstIdeas.map(t => (
+                    <button key={t} onClick={() => { setFirstTopicDraft(t); setFirstTopicError(""); }} aria-pressed={firstTopicDraft === t}
+                      style={{ background: firstTopicDraft === t ? C.navy3 : C.bgPanel, border: `1px solid ${firstTopicDraft === t ? C.teal : C.border}`, borderRadius: 18, padding: "8px 18px", color: C.textPrimary, fontFamily: "inherit", fontSize: 16, fontWeight: 600, cursor: "pointer", maxWidth: "100%", textAlign: "right", overflowWrap: "anywhere" }}>{t}</button>
+                  ))}
+                </>}
               </div>
-              {firstTopicError && <p style={{ margin: "10px 0 0", color: C.brand, fontSize: 14, fontWeight: 600 }}>{firstTopicError}</p>}
-            </>
+              <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                {departIn !== null ? (
+                  <>
+                    <div style={{ fontSize: 15, color: C.textSecond }}>The journey begins in</div>
+                    <div key={departIn} className="acro-stretch" style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 64, lineHeight: 1, color: C.brand, fontVariantNumeric: "tabular-nums" }}>{Math.max(departIn, 0)}</div>
+                    <BtnSecondary onClick={() => { setDepartIn(null); setFirstTopicDraft(departTopic); }}>Change the topic</BtnSecondary>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 17, color: C.textSecond }}>{phase === "Paused" ? "Choose a topic to continue" : "Everyone on board? Choose the first topic"}</div>
+                    <input id="firstTopicInput" maxLength={80}
+                      style={{ width: "100%", boxSizing: "border-box", background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "12px 16px", color: C.textPrimary, fontSize: 19, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+                      placeholder="Write a topic, or pick one"
+                      value={firstTopicDraft}
+                      onChange={e => { setFirstTopicDraft(e.target.value); setFirstTopicError(""); }}
+                      onKeyDown={e => { if (e.key === "Enter") startDeparture(); }} />
+                    {/* the big button, in Honk */}
+                    <button onClick={startDeparture}
+                      style={{ ...smallTitle, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15", background: C.bgApp, border: `2px solid ${C.brand}`, borderRadius: 14, padding: "10px 34px", fontSize: 34, cursor: "pointer", boxShadow: "0 6px 18px rgba(0,0,0,0.3)" }}>   {/* the logo's colours, never Honk's own */}
+                      START
+                    </button>
+                    <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Press START to begin the journey</div>
+                  </>
+                )}
+                {firstTopicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{firstTopicError}</p>}
+              </div>
+              <div style={{ justifySelf: "start", minWidth: 0, order: isNarrow ? 3 : 0, display: isNarrow && !(departIn !== null ? departTopic : firstTopicDraft.trim()) ? "none" : "block" }}>
+                <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 2 }}>Topic</div>
+                {(departIn !== null ? departTopic : firstTopicDraft.trim())
+                  ? <TopicText size={isShort ? 28 : 34}>{departIn !== null ? departTopic : firstTopicDraft.trim()}</TopicText>
+                  : <span style={{ fontSize: 16, color: C.textMuted, fontStyle: "italic" }}>Yours shows here</span>}
+              </div>
+            </div>
           )}
         </Panel>
       )}
 
       {/* Letters */}
       {letters.length > 0 && !topicRequested && phase !== "Results" && phase !== "GameOver" && (
-        <div style={{ textAlign: "center", padding: `${stagePad} 0` }}>
+        <div style={{ padding: `${stagePad} 0`, display: isNarrow ? "block" : "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", alignItems: "center", columnGap: 32 }}>
+        {/* left of the letters: how many acros are in (2026-10-24) */}
+        {!isNarrow && <div style={{ justifySelf: "end", minWidth: 0 }}>{phase === "Submitting" && <AnswersAccepted count={submittedIds.length} total={players.filter(p => p.isConnected !== false).length} />}</div>}
+        <div style={{ textAlign: "center" }}>
           {/* Countdown — number only, centred above the letters, red in the last 10 seconds.
               The line is always there; when the timer has ended it is only made invisible, so the
               letters below keep their place (before, they jumped up when the timer ended). */}
@@ -5421,6 +5529,9 @@ function Room() {
             ))}
           </div>
           {showTopic && isNarrow && <div style={{ marginTop: 16 }}>{topicBlock("center")}</div>}
+        </div>
+        {/* right of the letters: the topic */}
+        {!isNarrow && <div style={{ justifySelf: "start", minWidth: 0 }}>{showTopic && topicBlock("left")}</div>}
         </div>
       )}
 
