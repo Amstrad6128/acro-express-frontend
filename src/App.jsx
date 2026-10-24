@@ -4398,17 +4398,25 @@ function stationResults(scores, winningAcro, entries, players) {
 
 // Damon's five lines for the station winner (2026-10-24), word for word; only the station number and the name change.
 // The name always comes last, so each line is the words before it.
-const STATION_CHEERS = ["applauds", "cheers for", "tips its hat to", "bows to", "is in awe of"];
+// "wins" is Damon's first mock (2026-10-24): the name on top, "WINS STATION 1!" under it
+const STATION_CHEERS = ["wins", "applauds", "cheers for", "tips its hat to", "bows to", "is in awe of"];
 
 // Left of the results, centred on them: "Station 1 applauds" and the winner's name in Honk. One line at random per
 // station (the train page gives it a new key each station, so it picks again)
 function StationCheer({ round, names }) {
   const [cheer] = useState(() => STATION_CHEERS[Math.floor(Math.random() * STATION_CHEERS.length)]);
   if (!names.length) return null;
+  const nameStyle = { ...smallTitle, fontSize: 34, lineHeight: 1.15, color: C.brand, overflowWrap: "anywhere" };
+  if (cheer === "wins") return (
+    <div style={{ textAlign: "center", padding: "8px 4px" }}>
+      <div style={nameStyle}>{names.join(" & ")}</div>
+      <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.teal, textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 4 }}>{names.length > 1 ? "win" : "wins"} Station {round}!</div>
+    </div>
+  );
   return (
     <div style={{ textAlign: "center", padding: "8px 4px" }}>
       <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.teal }}>Station {round} {cheer}</div>
-      <div style={{ ...smallTitle, fontSize: 34, lineHeight: 1.15, color: C.brand, marginTop: 4, overflowWrap: "anywhere" }}>{names.join(" & ")}!</div>
+      <div style={{ ...nameStyle, marginTop: 4 }}>{names.join(" & ")}!</div>
     </div>
   );
 }
