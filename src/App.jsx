@@ -1441,7 +1441,7 @@ function HowToPlay({ winScore = 30 }) {
                 When someone reaches {winScore}, the highest score wins the journey. After a 30-second break the next journey starts by itself.
               </RulesSection>
               <RulesSection icon="🚂" title="When we play">
-                Every day at <b style={{ color: C.textPrimary }}>{nightExpress(Date.now(), []).local}</b> your time the regulars ride the <b style={{ color: C.textPrimary }}>Daily Express</b>: that's when the trains are fullest. You can start or join a train any other time too.
+                Every day the regulars ride <b style={{ color: C.textPrimary }}>The Continental</b> at <b style={{ color: C.textPrimary }}>{scheduledTrain("continental", Date.now(), []).local}</b> and the <b style={{ color: C.textPrimary }}>Daily Express</b> at <b style={{ color: C.textPrimary }}>{nightExpress(Date.now(), []).local}</b>, your time: that's when the trains are fullest. You can start or join a train any other time too.
               </RulesSection>
               <RulesSection icon="💬" title="Tips">
                 <ul style={rulesList}>
@@ -2076,7 +2076,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
         {mine.map((m, i) => m && <div key={i} style={{ fontSize: 18 }}><span style={{ color: C.brand, letterSpacing: "0.1em", fontWeight: 800 }}>{stations[i].letters.split("").join(" ")}</span> · "{m}"</div>)}
         {/* Damon's closing message */}
         <p style={{ margin: "8px 0 0", fontSize: 19, color: C.textPrimary, fontWeight: 700 }}>Wonder how your acros would fare with the passengers?</p>
-        <p style={{ margin: 0, fontSize: 17, color: C.textSecond }}>Join free (just a name and a password) and ride the Daily Express, every day at {nightExpress(Date.now(), []).local} your time, to find out.</p>
+        <p style={{ margin: 0, fontSize: 17, color: C.textSecond }}>Join free (just a name and a password) and ride with us, every day: The Continental at {scheduledTrain("continental", Date.now(), []).local} or the Daily Express at {nightExpress(Date.now(), []).local}, your time.</p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
           <Btn onClick={leave}>{getAuth()?.token ? "Back to the Grand Sky Station" : "Join free"}</Btn>
           <BtnSecondary onClick={() => { const ride = practiceRide(); setStations(ride); setMine([]); setN(0); setPhase(practiceStart(ride[0])); track("practice_start"); }}>Another practice ride</BtnSecondary>
@@ -3075,7 +3075,7 @@ function Lobby() {
   const [liveNow, setLiveNow] = useState(null);
   useEffect(() => {
     // also signed in: the Daily Express row needs to know if tonight's game was played (lastStationUtc)
-    const load = () => fetch(`${API_URL}/api/status`).then(r => r.json()).then(d => { setDailyExpressUtc(d.dailyExpressUtc); setLiveNow(d); }).catch(() => { });
+    const load = () => fetch(`${API_URL}/api/status`).then(r => r.json()).then(d => { setSchedule(d); setLiveNow(d); }).catch(() => { });
     load(); const iv = setInterval(load, 30000);
     return () => clearInterval(iv);
   }, [auth]);
@@ -3137,18 +3137,18 @@ function Lobby() {
     setCreating(false); setNewRoomName(""); setCreateError("");
   }
 
-  // The Daily Express row's "Start it →": a Sky Train named "Daily Express" (if someone started it a moment ago, the
-  // name is taken: then board theirs)
-  async function startDaily() {
+  // A scheduled train's "Start it →": a Sky Train with its name (if someone started it a moment ago, the name is
+  // taken: then board theirs)
+  async function startScheduled(name) {
     try {
-      const data = await createRoom("Daily Express");
+      const data = await createRoom(name);
       const id = data?.id || data?.roomId;
       if (!id) throw new Error("No room id");
       navigate(`/room/${encodeURIComponent(id)}`);
     } catch {
-      const theirs = roomList.find(r => /^daily express$/i.test(String(r.name || "").trim()));
+      const theirs = roomList.find(r => String(r.name || "").trim().toLowerCase() === name.toLowerCase());
       if (theirs) navigate(`/room/${encodeURIComponent(theirs.id)}`);
-      else setCreateError("Couldn't start the Daily Express. Try again in a moment.");
+      else setCreateError(`Couldn't start ${name}. Try again in a moment.`);
     }
   }
 
@@ -3219,7 +3219,7 @@ function Lobby() {
     </>
   );
   // The Station Board's news (2026-10-22): the Daily Express, the latest Station Log post, who's here, a tip
-  const dailyNow = nightExpress(Date.now(), roomList, liveNow?.lastStationUtc);
+  const dailyNow = scheduledTrains(Date.now(), roomList, liveNow?.lastStationUtc)[0];   // the next scheduled train
   const boardWord = useWordOfWeek();   // for the Station Board
   const bdayAge = birthdayToday();
   // confetti once per birthday per browser: decided when the page opens, remembered once you're at the station
@@ -3229,11 +3229,11 @@ function Lobby() {
   const boardNews = [
     ...(bdayAge ? [{ key: "birthday", icon: "🎂", text: `Acro Express turns ${bdayAge} today! On the rails since 16 August 2025. Thank you for riding with us!`,
       title: `Acro Express turns ${bdayAge} today!`, detail: "Thank you for riding with us!" }] : []),
-    { key: "daily", icon: "🚂", text: dailyNow.status.text === "On the move" ? "The Daily Express is on the move: hop on!"
-        : dailyNow.status.text === "Running a little late 🚂" ? `The Daily Express is running a little late. Start it, or wait on the platform!`
-        : `Daily Express: every day at ${dailyNow.local} your time · next one ${dailyNow.mins < 0 ? untilText(dailyNow.mins) : "tomorrow"}`,
-      title: "The Daily Express",
-      detail: <>Every day at <b style={{ color: C.textPrimary }}>{dailyNow.local}</b>, with the regulars. Hop on!</> },
+    { key: "daily", icon: "🚂", text: dailyNow.status.text === "On the move" ? `${dailyNow.name} is on the move: hop on!`
+        : dailyNow.status.text === "Running a little late 🚂" ? `${dailyNow.name} is running a little late. Start it, or wait on the platform!`
+        : `Next: ${dailyNow.name} at ${dailyNow.local} your time · ${dailyNow.mins < 0 ? untilText(dailyNow.mins) : "now"}`,
+      title: "Our daily trains",
+      detail: <>The Continental at <b style={{ color: C.textPrimary }}>{scheduledTrain("continental", Date.now(), []).local}</b> and the Daily Express at <b style={{ color: C.textPrimary }}>{nightExpress(Date.now(), []).local}</b>, every day, with the regulars. Hop on!</> },
     ...(latestLog ? [{ key: "log", icon: "📰", text: `Station Log: ${latestLog.title}`, title: latestLog.title,
       // the post itself: its "- " lines as a list
       detail: <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -3258,8 +3258,8 @@ function Lobby() {
   // Departures: the trains, then free platforms so the board always shows 3 rows — and always at least one
   // free platform, the row where you start a new Sky Train
   const used = new Set(roomList.map(r => r.platform));
-  const freeRows = shortWin ? 1 : Math.max(1, 2 - roomList.length);   // short windows: just the New Sky Train row (the Daily Express row counts as one of the 3)
-  const night = nightExpress(Date.now(), roomList, liveNow?.lastStationUtc);   // tonight's game (re-worked out on every refresh of the list)
+  const freeRows = shortWin ? 1 : Math.max(1, 1 - roomList.length);   // short windows: just the New Sky Train row (the two scheduled rows count among the 3)
+  const scheduled = scheduledTrains(Date.now(), roomList, liveNow?.lastStationUtc);   // The Continental and the Daily Express (re-worked out on every refresh)
   const freeNumbers = []; for (let n = 1; freeNumbers.length < freeRows; n++) if (!used.has(n)) freeNumbers.push(n);
   const boardCols = "76px minmax(0, 2.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) 132px";   // platform · train · aboard · status · button
 
@@ -3341,7 +3341,7 @@ function Lobby() {
                   {step("3", "Everyone votes", "No names shown. Funniest wins.")}
                 </div>
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, display: "flex", flexDirection: "column", gap: 6, fontSize: 15, color: C.textSecond }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="train" size={18} color={C.teal} /></span><span><b style={{ color: C.textPrimary }}>When we play:</b> every day at <b style={{ color: C.teal }}>{daily.local}</b> your time, the Daily Express. You can also start a train any time.</span></div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="train" size={18} color={C.teal} /></span><span><b style={{ color: C.textPrimary }}>When we play:</b> every day, The Continental at <b style={{ color: C.teal }}>{scheduledTrain("continental", Date.now(), []).local}</b> and the Daily Express at <b style={{ color: C.teal }}>{daily.local}</b>, your time. You can also start a train any time.</span></div>
                   {here !== null && (
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="users" size={18} color={C.teal} /></span><span><b style={{ color: C.textPrimary }}>Right now:</b> {here === 0 ? "the station is quiet. Come back at " + daily.local + " for a full train!" : `${here} passenger${here === 1 ? "" : "s"} at the station.`}</span></div>
                   )}
@@ -3493,26 +3493,29 @@ function Lobby() {
               )}
               {/* Up to 3 rows show; more trains scroll inside the board */}
               <div style={{ maxHeight: fits ? 3 * 62 : undefined, overflowY: fits ? "auto" : "visible" }}>
-                {/* The Daily Express: the daily game (23:00 Limassol), always the first row, on platform 23 */}
-                <div data-hint="Our daily game: every day at the same time, shown here in your own time"
+                {/* The scheduled trains, The Continental and the Daily Express, always the first rows (the next to leave
+                    first), on platforms TC and DX */}
+                {scheduled.map(night => (
+                <div key={night.key} data-hint="One of our daily games: every day at the same time, shown here in your own time"
                   style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
                     gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
-                  <PlatformBox n={23} />
+                  <PlatformBox n={night.label} />
                   <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                     {!phone && <Icon name="train" size={22} color={C.teal} />}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Daily Express</div>
+                      <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{night.name}</div>
                       <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Every day · departs {night.local} your time</div>
-                      {phone && <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}><StatusPill {...night.status} />{night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={smallBtn}>Board →</Btn> : night.canStart && <Btn onClick={startDaily} style={smallBtn}>Start it →</Btn>}</div>}
+                      {phone && <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}><StatusPill {...night.status} />{night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={smallBtn}>Board →</Btn> : night.canStart && <Btn onClick={() => startScheduled(night.name)} style={smallBtn}>Start it →</Btn>}</div>}
                     </div>
                   </div>
                   {!phone && <span />}
                   {!phone && <span><StatusPill {...night.status} /></span>}
                   {!phone && (night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>Board now →</Btn>
-                    : night.canStart ? <span data-hint="Start the Daily Express: everyone boards it from this row" style={{ display: "contents" }}><Btn onClick={startDaily} style={{ ...smallBtn, justifyContent: "center" }}>Start it →</Btn></span> : <span />)}
+                    : night.canStart ? <span data-hint={`Start ${night.name}: everyone boards it from this row`} style={{ display: "contents" }}><Btn onClick={() => startScheduled(night.name)} style={{ ...smallBtn, justifyContent: "center" }}>Start it →</Btn></span> : <span />)}
                 </div>
-                {/* the Daily Express train has its own row above */}
-                {roomList.filter(room => room.id !== night.room?.id || !/^daily express$/i.test(String(room.name || "").trim())).map(room => {
+                ))}
+                {/* the scheduled trains have their own rows above */}
+                {roomList.filter(room => !scheduled.some(t => t.room?.id === room.id && isScheduledName(room.name))).map(room => {
                   const names = room.playingNames || [];
                   const away = room.awayNames || [];
                   const isFull = names.length + away.length >= 16;   // 16 passengers at most, away ones included, as the server counts (2026-10-23)
@@ -3734,26 +3737,38 @@ function AcroDemo() {
 // Tonight's Daily Express as a moment, from the server (api/status: dailyExpressUtc). The website holds no home time
 // zone (Damon, 2026-10-23: a player worked out where he lives). Remembered in the browser, so the time shows at once
 // on the next visit.
-let dailyExpressAt = (() => { try { const v = Number(localStorage.getItem("acro.daily")); return v > 0 ? v : null; } catch { return null; } })();
-function setDailyExpressUtc(iso) {
-  const t = Date.parse(iso || "");
-  if (!t) return;
-  dailyExpressAt = t;
-  try { localStorage.setItem("acro.daily", String(t)); } catch { /* private mode */ }
+// 2026-10-23: two scheduled games (Damon): The Continental and the Daily Express. label = their platform.
+const SCHEDULED = [
+  { key: "continental", name: "The Continental", label: "TC", field: "continentalUtc" },
+  { key: "daily", name: "Daily Express", label: "DX", field: "dailyExpressUtc" },
+];
+let scheduledAt = (() => { try { return JSON.parse(localStorage.getItem("acro.sched") || "{}") || {}; } catch { return {}; } })();
+function setSchedule(status) {
+  let changed = false;
+  for (const t of SCHEDULED) { const ms = Date.parse(status?.[t.field] || ""); if (ms) { scheduledAt[t.key] = ms; changed = true; } }
+  if (changed) try { localStorage.setItem("acro.sched", JSON.stringify(scheduledAt)); } catch { /* private mode */ }
 }
-fetch(`${API_URL}/api/status`).then(r => r.json()).then(d => setDailyExpressUtc(d.dailyExpressUtc)).catch(() => { });
+fetch(`${API_URL}/api/status`).then(r => r.json()).then(setSchedule).catch(() => { });
+const isScheduledName = name => SCHEDULED.some(t => t.name.toLowerCase() === String(name || "").trim().toLowerCase());
+// Both trains, the next to leave first
+function scheduledTrains(now, rooms, lastStationUtc = null) {
+  return SCHEDULED.map(t => scheduledTrain(t.key, now, rooms, lastStationUtc)).sort((a, b) => (a.departs ?? Infinity) - (b.departs ?? Infinity));
+}
+// The Daily Express (kept for the places that only need its time)
+const nightExpress = (now, rooms, lastStationUtc = null) => scheduledTrain("daily", now, rooms, lastStationUtc);
 
-function nightExpress(now, rooms, lastStationUtc = null) {
-  let departs = dailyExpressAt;
-  if (!departs) return { local: "", status: { text: "Today", color: C.teal }, room: null, canStart: false, departs: null, mins: -9999 };   // not known yet
+function scheduledTrain(key, now, rooms, lastStationUtc = null) {
+  const train = SCHEDULED.find(t => t.key === key);
+  let departs = scheduledAt[key];
+  if (!departs) return { ...train, local: "", status: { text: "Today", color: C.teal }, room: null, canStart: false, departs: null, mins: -9999 };   // not known yet
   while (now - departs > 90 * 60000) departs += 86400000;                   // a remembered day: on to tonight's (after 00:30)
   const mins = (now - departs) / 60000;                                     // minutes since it left (negative = before)
   const local = new Date(departs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   // 2026-10-23: the train itself is a Sky Train named "Daily Express", started from this row from 30 minutes before
   // (open: until the row moves on to the next night at 00:30 Limassol time)
   const open = mins > -30;
-  const daily = rooms.find(r => /^daily express$/i.test(String(r.name || "").trim()));
-  const playing = daily?.gameOn ? daily : rooms.find(r => r.gameOn);
+  const daily = rooms.find(r => String(r.name || "").trim().toLowerCase() === train.name.toLowerCase());   // its own train
+  const playing = daily?.gameOn ? daily : rooms.find(r => r.gameOn && !isScheduledName(r.name));
   const ranTonight = !!lastStationUtc && new Date(lastStationUtc).getTime() >= departs - 30 * 60000;
   let status;
   if (daily && !daily.gameOn) status = { text: "Boarding now", color: C.brand };
@@ -3764,7 +3779,7 @@ function nightExpress(now, rooms, lastStationUtc = null) {
   else if (mins < 10) status = { text: "Departing now", color: C.brand };
   else status = { text: "Running a little late 🚂", color: C.gold || C.brand };
   const room = daily || (playing && open ? playing : null);   // the train to board
-  return { local, status, room, canStart: open && !room, departs, mins };
+  return { ...train, local, status, room, canStart: open && !room, departs, mins };
 }
 
 // One tip on the Station Board, a different one every hour
@@ -3894,7 +3909,7 @@ function HoverBar() {
 function PlatformBox({ n, free }) {
   return (
     <div style={{ width: 56, height: 44, borderRadius: 9, border: `1.5px ${free ? "dashed" : "solid"} ${free ? C.border : C.teal}`, background: C.bgApp, display: "flex", alignItems: "center", justifyContent: "center", ...smallTitle, fontSize: 24, color: free ? C.textMuted : C.teal }}>
-      {n > 0 ? String(n).padStart(2, "0") : "–"}
+      {typeof n === "string" ? n : n > 0 ? String(n).padStart(2, "0") : "–"}
     </div>
   );
 }
