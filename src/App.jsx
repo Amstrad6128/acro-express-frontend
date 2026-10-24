@@ -4239,10 +4239,11 @@ function TopicDesk({ left, center, right, narrow }) {
     <div style={{
       position: "relative", overflow: "hidden", background: C.bgPanel,
       border: `1px solid ${C.border}`, borderRadius: 14, boxSizing: "border-box",
-      // the whole 3:1 picture at this width, so the shelter's roof shows (the stage is the window less about 80 px of margins)
-      minHeight: narrow ? undefined : "calc((100vw - 80px) / 3)",
+      // shorter than the whole 3:1 picture (Damon: "takes too much vertical space"): its bottom 72%, the top of the roof
+      // cropped (the stage is the window less about 80 px of margins)
+      minHeight: narrow ? undefined : "calc((100vw - 80px) * 0.24)",
       // clear of the shelter's posts (its roof only overhangs at the top) and above the platform
-      padding: narrow ? "18px 16px" : "28px 21% 6% 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
+      padding: narrow ? "18px 16px" : "22px 21% 5% 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
       gridTemplateColumns: "minmax(0, 1.2fr) 1px minmax(0, 1.4fr) 1px minmax(0, 0.9fr)", columnGap: 28, alignItems: "center",
     }}>
       {/* the picture: the full width, bottom-aligned */}
