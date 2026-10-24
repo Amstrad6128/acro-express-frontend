@@ -167,16 +167,19 @@ const THEMES = {
     danger: "#A8455A", dangerHover: "#BC566B",
     fieldLine: "#5A6A7A", focusLine: "#F2C94C",
   },
-  meadow: {  // Afternoon (was Meadow) — sage-green fields, forest boxes, peach letters, buttercup names
+  meadow: {  // Afternoon (was Meadow). Redone 2026-10-24 from Damon's Grand Sky Station picture (nobody used the old green
+             // one): the sky from deep blue through lilac and pink clouds to a peach sunset, dark navy boxes like the
+             // "AE 30" sign and the logo's outline, cream text like the logo, gold buttons like the loading bar, pink titles
     name: "Afternoon",
-    bgApp: "#52703F", bgPanel: "#22331F", bgPanel2: "#2A3E26", border: "#5E7D4F",
-    textPrimary: "#F6FAEE", textSecond: "#E0EAD2", textMuted: "#BACDA6", bgText: "#F6FAEE",
-    brand: "#FFB07A", brandHover: "#FFC296", onBrand: "#22331F",
-    teal: "#FFE38A", tealLight: "#FFEDAE", lavender: "#E3C2F0", ivory: "#FFF6E0",
-    success: "#A8E08A", navy2: "#314A2C", navy3: "#385533",
-    bgGradient: "linear-gradient(180deg, #688D58 0%, #86A46C 100%)",
-    danger: "#A8453A", dangerHover: "#BC5446",
-    fieldLine: "#5E7D4F", focusLine: "#FFE38A",
+    bgApp: "#3B64A6", bgPanel: "#1F2A44", bgPanel2: "#26345A", border: "#4A5F92",
+    textPrimary: "#FFF4DC", textSecond: "#E6DCF0", textMuted: "#B9B6D8", bgText: "#FFF4DC",
+    brand: "#F6C46A", brandHover: "#FFD486", onBrand: "#1F2A44",
+    teal: "#F7B2CF", tealLight: "#FFC7DD", lavender: "#C9B6F2", ivory: "#FFF1C4",
+    success: "#9FE0B0", navy2: "#2A3A62", navy3: "#33467A",
+    bgGradient: "linear-gradient(180deg, #2C5596 0%, #5B7CC4 38%, #C58DC0 72%, #F2A98A 100%)",
+    pattern: "none",
+    danger: "#C2414B", dangerHover: "#D4525C",
+    fieldLine: "#4A5F92", focusLine: "#F6C46A",
   },
 };
 // The order in the Express Colors menu: the new mid-tone palettes follow Daybreak
