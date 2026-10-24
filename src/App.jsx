@@ -168,20 +168,21 @@ const THEMES = {
     fieldLine: "#5A6A7A", focusLine: "#F2C94C",
   },
   meadow: {  // Afternoon (was Meadow). Redone 2026-10-24 from Damon's Grand Sky Station picture (nobody used the old green
-             // one): the sky from deep blue through lilac and pink clouds to a peach sunset, dark navy boxes like the
-             // "AE 30" sign and the logo's outline, cream text like the logo, gold buttons like the loading bar, pink titles.
-             // Same day (Damon: "too much contrast between the panels and the background"): the boxes mid-tone dusky
-             // blue-violet, like the shadowed clouds and towers, so the whole looks as soft as the picture
+             // one). Third try the same day ("looks like Daybreak … fog everywhere, the contrast is too little"): its own
+             // look from the picture's sunset — a deep blue sky sliding into a strong pink and orange glow, deep
+             // indigo-violet boxes like the station's shadowed towers (darker than the sky, not navy-heavy), peach-orange
+             // titles like the sunset, warm gold buttons like the loading bar, cream text like the logo. Then warmer (Damon: "too
+             // cold"): more sunset than blue in the sky, warm plum boxes, dusty rose lines
     name: "Afternoon",
-    bgApp: "#3F62A3", bgPanel: "#4E5C93", bgPanel2: "#58679D", border: "#7E8CC2",
-    textPrimary: "#FFF6E2", textSecond: "#EDE4F5", textMuted: "#D2CCEA", bgText: "#FFF4DC",
-    brand: "#F6C46A", brandHover: "#FFD486", onBrand: "#1F2A44",
-    teal: "#FFC2DA", tealLight: "#FFD3E4", lavender: "#C9B6F2", ivory: "#FFF1C4",
-    success: "#9FE0B0", navy2: "#5A69A0", navy3: "#6473AA",
-    bgGradient: "linear-gradient(180deg, #3A62A6 0%, #6A86C6 38%, #C998C4 72%, #F0B092 100%)",
+    bgApp: "#7E5A9A", bgPanel: "#4E3366", bgPanel2: "#5A3C72", border: "#C08AAE",
+    textPrimary: "#FFF5DE", textSecond: "#F4DDE8", textMuted: "#E0BFD2", bgText: "#FFF5DE",
+    brand: "#FFC85C", brandHover: "#FFD57E", onBrand: "#3A2450",
+    teal: "#FFAE7A", tealLight: "#FFC59E", lavender: "#D5C2FF", ivory: "#FFF1C4",
+    success: "#9FE0B0", navy2: "#5E4078", navy3: "#6A4884",
+    bgGradient: "linear-gradient(180deg, #4A64B4 0%, #8C84CA 24%, #D592BC 50%, #F5A58E 76%, #FFBF78 100%)",
     pattern: "none",
     danger: "#C2414B", dangerHover: "#D4525C",
-    fieldLine: "#8A97CA", focusLine: "#F6C46A",
+    fieldLine: "#C08AAE", focusLine: "#FFC85C",
   },
 };
 // The order in the Express Colors menu: the new mid-tone palettes follow Daybreak
