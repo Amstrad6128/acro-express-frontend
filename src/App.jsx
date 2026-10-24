@@ -4224,11 +4224,10 @@ function AnswersAccepted({ count, total }) {
 // ── The topic desk (2026-10-24, after GPT's mock-up Damon liked) ─────────────
 // One wide panel for choosing a topic (the creator's first topic and the winner's next one): quick topics on the
 // left, the box and the big button in the middle, the topic as it will look on the right, thin dividers with a dot
-// between them. Behind it, Damon's picture (2026-10-24, public/art/topic-desk.webp, transparent sky): clouds, a platform and
+// between them. Behind it, Damon's picture (2026-10-24, public/art/topic-desk-2.webp, transparent sky): clouds, a platform and
 // a station shelter with a lamp and the "0 STATION" sign. It spans the panel's full width, bottom-aligned (2026-10-24, Damon:
 // "you didn't place it well" — the first try fitted it to the height and faded the clouds); the panel is tall enough for
-// the shelter's roof and sign (the picture is 3:1; the panel shows about its bottom 72%), the content above the clouds
-// and left of the shelter.
+// the shelter's roof and sign (the picture is 3:1, shown whole), the content left of the shelter.
 function TopicDesk({ left, center, right, narrow }) {
   const divider = (
     <div aria-hidden style={{ alignSelf: "stretch", width: 1, position: "relative", background: `linear-gradient(transparent, ${C.border} 25%, ${C.border} 75%, transparent)` }}>
@@ -4240,14 +4239,14 @@ function TopicDesk({ left, center, right, narrow }) {
     <div style={{
       position: "relative", overflow: "hidden", background: C.bgPanel,
       border: `1px solid ${C.border}`, borderRadius: 14, boxSizing: "border-box",
-      // as tall as the bottom 72% of the 3:1 picture at this width (the stage is the window less about 80 px of margins)
-      minHeight: narrow ? undefined : "calc((100vw - 80px) * 0.24)",
-      // clear of the shelter (the picture's right quarter) and of the clouds (its bottom part)
-      padding: narrow ? "18px 16px" : "24px 25% 8% 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
+      // the whole 3:1 picture at this width, so the shelter's roof shows (the stage is the window less about 80 px of margins)
+      minHeight: narrow ? undefined : "calc((100vw - 80px) / 3)",
+      // clear of the shelter's posts (its roof only overhangs at the top) and above the platform
+      padding: narrow ? "18px 16px" : "28px 21% 6% 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
       gridTemplateColumns: "minmax(0, 1.2fr) 1px minmax(0, 1.4fr) 1px minmax(0, 0.9fr)", columnGap: 28, alignItems: "center",
     }}>
       {/* the picture: the full width, bottom-aligned */}
-      <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "url(/art/topic-desk.webp)", backgroundRepeat: "no-repeat", backgroundPosition: "center bottom", backgroundSize: "100% auto", opacity: narrow ? 0.35 : 1 }} />
+      <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "url(/art/topic-desk-2.webp)", backgroundRepeat: "no-repeat", backgroundPosition: "center bottom", backgroundSize: "100% auto", opacity: narrow ? 0.35 : 1 }} />
       <div style={{ ...layer, minWidth: 0, order: narrow ? 2 : 0 }}>{left}</div>
       {!narrow && <div style={{ ...layer, alignSelf: "stretch", display: "flex" }}>{divider}</div>}
       <div style={{ ...layer, minWidth: 0, textAlign: "center" }}>{center}</div>
