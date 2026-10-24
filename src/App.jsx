@@ -4463,7 +4463,6 @@ function Room() {
   const submittedAcroRef = useRef(null);
   const handleSubmitAcroRef = useRef(null);
   const audioRef = useRef(null);      // tune 1 — plays during submission
-  const weekWord = useWordOfWeek();   // the Word of the Week, shown under the topic (a hook: up here, before any early return)
   const audio2Ref = useRef(null);     // tune 2 — plays after submission until voting
   const votingAudioRef = useRef(null); // drumroll
   const songTimeoutRef = useRef(null); // delayed start of the writing song (long rounds)
@@ -5269,15 +5268,12 @@ function Room() {
   // Topic: label and topic on one line (compact header)
   // 2026-10-24: beside the letters (right), not in the header's corner — "you don't have to turn your head"
   const topicBlock = (align) => (
-    <div style={{ textAlign: align, maxWidth: 380, margin: align === "center" ? "0 auto" : 0 }}>
+    <div style={{ textAlign: align, maxWidth: 520, margin: align === "center" ? "0 auto" : 0 }}>
       <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 2 }}>Topic</div>
       <TopicText size={isShort ? 28 : 34}>{currentTopic}</TopicText>
       {/* a special topic, in one line (2026-10-24) */}
-      {specialTopicNote(currentTopic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2, maxWidth: 380 }}>🎭 {specialTopicNote(currentTopic)}</div>}
-      {/* the Word of the Week, one slim line */}
-      {weekWord && <div data-hint={`Word of the week: use "${weekWord.word}" in your acro; if it gets at least one vote, you earn +1`}
-        style={{ fontSize: 13, color: C.textSecond, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-        📖 Word of the week: <b style={{ color: C.gold || C.teal, letterSpacing: "0.03em" }}>{weekWord.word}</b> · {weekWord.meaning} · <b style={{ color: C.textPrimary }}>+1</b></div>}
+      {specialTopicNote(currentTopic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2, maxWidth: 420 }}>🎭 {specialTopicNote(currentTopic)}</div>}
+      {/* (the Word of the Week line was here; Damon crossed it out, 2026-10-24: it's on the Station Board and in How to play) */}
     </div>
   );
   // Who chooses the first topic: whoever started the Sky Train, or the first passenger on board if
@@ -5388,14 +5384,14 @@ function Room() {
             left, the clock and a wide box in the middle, the topic as it will look on the right. */}
         <div style={{ display: isNarrow ? "flex" : "grid", flexDirection: "column", gap: isNarrow ? 16 : 32, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 560px) minmax(0, 1fr)", alignItems: "center", padding: "8px 0" }}>
           {/* left: pick one */}
-          <div style={{ justifySelf: "end", display: "flex", flexDirection: "column", gap: 8, alignItems: isNarrow ? "stretch" : "flex-end", order: isNarrow ? 2 : 0 }}>
+          <div style={{ justifySelf: "center", display: "flex", flexDirection: "column", gap: 8, alignItems: isNarrow ? "stretch" : "flex-end", order: isNarrow ? 2 : 0 }}>
             {!topicSetValue && topicIdeas.length > 0 && <>
               <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Pick one</div>
               {/* one column (the stage grows for it); long topics wrap instead of running off the side */}
               <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: isNarrow ? "stretch" : "flex-end", maxWidth: "100%" }}>
               {topicIdeas.map(t => (
                 <button key={t} onClick={async () => { if (await submitTopic(t)) goTopic(); }}   /* a suggestion departs at once (Damon, 2026-10-24) */
-                  style={{ background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 18, padding: "8px 18px", color: C.textPrimary, fontFamily: "inherit", fontSize: 16, fontWeight: 600, cursor: "pointer", maxWidth: "100%", textAlign: "right", overflowWrap: "anywhere" }}>{t}</button>
+                  style={{ background: C.bgPanel, border: `1px solid ${C.border}`, borderRadius: 14, padding: "4px 12px", color: C.textPrimary, fontFamily: "inherit", fontSize: 14, fontWeight: 600, lineHeight: 1.3, cursor: "pointer", maxWidth: "100%", textAlign: "right", overflowWrap: "anywhere" }}>{t}</button>
               ))}
               </div>
             </>}
@@ -5429,7 +5425,7 @@ function Room() {
             <div style={{ fontSize: 13, color: C.textMuted }}>{topicSetValue ? "The station starts when the clock runs out, or press GO!" : "No topic in time? The Express Server picks one."}</div>
           </div>
           {/* right: the topic as it will look */}
-          <div style={{ justifySelf: "start", minWidth: 0, order: isNarrow ? 3 : 0, display: isNarrow && !(topicSetValue || topicDraft.trim()) ? "none" : "block" }}>
+          <div style={{ justifySelf: "center", minWidth: 0, order: isNarrow ? 3 : 0, display: isNarrow && !(topicSetValue || topicDraft.trim()) ? "none" : "block" }}>
             <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 2 }}>Topic</div>
             {(topicSetValue || topicDraft.trim())
               ? <TopicText size={isShort ? 28 : 34}>{topicSetValue || topicDraft.trim()}</TopicText>
@@ -5472,7 +5468,7 @@ function Room() {
                   <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Pick one</div>
                   {firstIdeas.map(t => (
                     <button key={t} onClick={() => { setFirstTopicDraft(t); setFirstTopicError(""); }} aria-pressed={firstTopicDraft === t}
-                      style={{ background: firstTopicDraft === t ? C.navy3 : C.bgPanel, border: `1px solid ${firstTopicDraft === t ? C.teal : C.border}`, borderRadius: 18, padding: "8px 18px", color: C.textPrimary, fontFamily: "inherit", fontSize: 16, fontWeight: 600, cursor: "pointer", maxWidth: "100%", textAlign: "right", overflowWrap: "anywhere" }}>{t}</button>
+                      style={{ background: firstTopicDraft === t ? C.navy3 : C.bgPanel, border: `1px solid ${firstTopicDraft === t ? C.teal : C.border}`, borderRadius: 14, padding: "4px 12px", color: C.textPrimary, fontFamily: "inherit", fontSize: 14, fontWeight: 600, lineHeight: 1.3, cursor: "pointer", maxWidth: "100%", textAlign: "right", overflowWrap: "anywhere" }}>{t}</button>
                   ))}
                 </>}
               </div>
@@ -5517,7 +5513,7 @@ function Room() {
       {letters.length > 0 && !topicRequested && phase !== "Results" && phase !== "GameOver" && (
         <div style={{ padding: `${stagePad} 0`, display: isNarrow ? "block" : "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", alignItems: "center", columnGap: 32 }}>
         {/* left of the letters: how many acros are in (2026-10-24) */}
-        {!isNarrow && <div style={{ justifySelf: "end", minWidth: 0 }}>{phase === "Submitting" && <AnswersAccepted count={submittedIds.length} total={players.filter(p => p.isConnected !== false).length} />}</div>}
+        {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>{phase === "Submitting" && <AnswersAccepted count={submittedIds.length} total={players.filter(p => p.isConnected !== false).length} />}</div>}
         <div style={{ textAlign: "center" }}>
           {/* Countdown — number only, centred above the letters, red in the last 10 seconds.
               The line is always there; when the timer has ended it is only made invisible, so the
@@ -5551,7 +5547,8 @@ function Room() {
           {showTopic && isNarrow && <div style={{ marginTop: 16 }}>{topicBlock("center")}</div>}
         </div>
         {/* right of the letters: the topic */}
-        {!isNarrow && <div style={{ justifySelf: "start", minWidth: 0 }}>{showTopic && topicBlock("left")}</div>}
+        {/* centred in the space right of the letters, on the letters' middle (Damon's marked-up screenshot, 2026-10-24) */}
+        {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>{showTopic && topicBlock("left")}</div>}
         </div>
       )}
 
