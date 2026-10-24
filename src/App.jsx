@@ -305,12 +305,14 @@ const EXTRA_FONTS = {
   nunito: { fam: "'Nunito'", lf: 1.055, tf: 0.99, w: 800 },       // capitals 72, digits 73
   righteous: { fam: "'Righteous'", lf: 1.07, tf: 0.96, w: 400 },  // capitals 71, digits 75
   // 2026-10-22 (Damon: "Direction is Barrio, but it's not the one. Add Bricolage Grotesque and Dela Gothic One")
-  bricolage: { fam: "'Bricolage Grotesque'", lf: 1.12, tf: 1.03, w: 800 },   // capitals 68, digits 70
+  // 2026-10-24 (Damon): Goldman Bold replaces Bricolage Grotesque. Capitals 59, digits 59 (×1.29 / ×1.22 would match),
+  // but it is wide: 1.15 keeps a 7-letter station from getting much wider than Bowlby's
+  goldman: { fam: "'Goldman'", lf: 1.15, tf: 1.15, w: 700 },
   // 2026-10-24 (Damon): Michroma replaces Dela Gothic One. Capitals 75, digits 77 — but 35% wider than Bowlby, so its
   // letters are a little smaller (0.9) to keep a 7-letter station about as wide
   michroma: { fam: "'Michroma'", lf: 0.9, tf: 0.94, w: 400 },
 };
-const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", trueno: "Trueno", nunito: "Nunito", righteous: "Righteous", bricolage: "Bricolage", michroma: "Michroma" };   // key → name shown in the menu
+const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", trueno: "Trueno", nunito: "Nunito", righteous: "Righteous", goldman: "Goldman", michroma: "Michroma" };   // key → name shown in the menu
 // No choice yet (2026-10-22, Damon: "I think Honk"): brand-new players get Honk; someone who has logged in here before
 // keeps Bowlby, the old default, so a regular's letters don't suddenly change. (A saved choice that no longer exists,
 // like "pixel" or "titan", goes back to Bowlby.)
@@ -764,8 +766,8 @@ function LetterFontPicker() {
       <span style={{ gridArea: "1 / 1" }}>{LETTER_FONTS[letterFont]}</span></span></>}>
       {(close, big) => (
         <>
-          <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>The font of the big letters and the timer. Only you see it. (Or just click the letters.)</div>
-          {/* The big letters' font (and the timer's): Bowlby, Honk, Trueno, Nunito or Righteous. Each button shows "B T V" in its own font */}
+          <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 8 }}>The font of the Express Server letters and the timer. Only you see it. (Or just click the letters.)</div>
+          {/* The big letters' font (and the timer's): Bowlby, Honk, Trueno, Nunito or Righteous. Each button shows "A X P" in its own font (2026-10-24, Damon: was B T V) */}
           {/* one font per row, stacked like the floors of a building (Damon, 2026-10-22: not columns) */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {Object.entries(LETTER_FONTS).map(([key, name]) => {
@@ -779,9 +781,9 @@ function LetterFontPicker() {
                     trueno: { fontFamily: "'Trueno', sans-serif", fontSize: 18, color: C.brand },
                     nunito: { fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.brand },
                     righteous: { fontFamily: "'Righteous', sans-serif", fontSize: 18, color: C.brand },
-                    bricolage: { fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 19, color: C.brand },
+                    goldman: { fontFamily: "'Goldman', sans-serif", fontWeight: 700, fontSize: 20, color: C.brand },
                     michroma: { fontFamily: "'Michroma', sans-serif", fontSize: 15, color: C.brand },
-                  }[key]}>B T V</span>
+                  }[key]}>A X P</span>
                   <span style={{ fontSize: 13, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</span>
                 </button>
               );
@@ -1450,7 +1452,7 @@ function HowToPlay({ winScore = 30 }) {
                   <li>Click a name to message that passenger: type and press Enter.</li>
                   <li>To vote someone off a train, type <b style={{ color: C.textPrimary }}>/eject name</b> in Sky Train Chat.</li>
                   <li>More chat commands: <b style={{ color: C.textPrimary }}>/me</b> waves, <b style={{ color: C.textPrimary }}>/pc name message</b> (private), <b style={{ color: C.textPrimary }}>/mu</b> (music on or off). Type <b style={{ color: C.textPrimary }}>/?</b> for the list.</li>
-                  <li><b style={{ color: C.textPrimary }}>Colors</b>: the look of the station and the font of the big letters (or just click the big letters).</li>
+                  <li><b style={{ color: C.textPrimary }}>Colors</b>: the look of the station. <b style={{ color: C.textPrimary }}>Letters</b>: the font of the Express Server letters (or just click them).</li>
                   <li><b style={{ color: C.textPrimary }}>Music</b>: volume, button sounds, and your song while acros are written. It switches at once.</li>
                 </ul>
               </RulesSection>
@@ -3790,7 +3792,7 @@ function scheduledTrain(key, now, rooms, lastStationUtc = null) {
 const BOARD_TIPS = [
   "Tip: click a name to send that passenger a private message.",
   "Tip: click a line on the Station Board to read more.",
-  "Tip: click the big letters on a train to change their font.",
+  "Tip: click the Express Server letters on a train to change their font.",
   "Tip: pick your song for the writing time in the Music menu. It switches at once.",
   "Tip: in a Word > Chain topic, put > between the words: Fire > Truck > Driver.",
   "Tip: identical acros are shown once, and everyone who wrote it shares the votes.",
@@ -5326,7 +5328,7 @@ function Room() {
             <span data-hint="Online: who is at the station and on the trains right now" style={{ display: "contents" }}><OnlineButton /></span>
             <span data-hint="How to play: the rules, the points and the special topics" style={{ display: "contents" }}><HowToPlay winScore={data.winScore || 30} /></span>
             <span data-hint="Colors: the look of the train. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>
-            <span data-hint="Letters: the font of the big letters and the timer (or click the letters)" style={{ display: "contents" }}><LetterFontPicker /></span>
+            <span data-hint="Letters: the font of the Express Server letters and the timer (or click the letters)" style={{ display: "contents" }}><LetterFontPicker /></span>
             <span data-hint="Song: your music while you write (it switches at once)" style={{ display: "contents" }}><SongPicker /></span>
             <span data-hint="Volume: music and sounds, mute, button sounds" style={{ display: "contents" }}><SoundControl /></span>
             {/* After a game ends the room is back in Waiting, so a new game can be started */}
