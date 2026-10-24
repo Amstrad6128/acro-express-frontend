@@ -4252,9 +4252,10 @@ function TopicDesk({ left, center, right, narrow, station, departing }) {
     <div style={{
       position: "relative", overflow: "hidden", background: C.bgPanel,
       border: `1px solid ${C.border}`, borderRadius: 14, boxSizing: "border-box",
-      // shorter than the whole 3:1 picture (Damon: "takes too much vertical space"): its bottom 72%, the top of the roof
-      // cropped (the stage is the window less about 80 px of margins)
-      minHeight: narrow ? undefined : "calc((100vw - 80px) * 0.24)",
+      // shorter than the whole 3:1 picture (Damon: "takes too much vertical space"): its bottom part, the top of the roof
+      // cropped (the stage is the window less about 80 px of margins). 2026-10-24: a little more cropped (0.24 → 0.21),
+      // the height goes to the chat panel below (Damon)
+      minHeight: narrow ? undefined : "calc((100vw - 80px) * 0.21)",
       // clear of the shelter's posts (its roof only overhangs at the top) and above the platform
       padding: narrow ? "18px 16px" : "22px 21% 5% 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
       gridTemplateColumns: "minmax(0, 1.2fr) 1px minmax(0, 1.4fr) 1px minmax(0, 0.9fr)", columnGap: 28, alignItems: "center",
@@ -4398,19 +4399,22 @@ function stationResults(scores, winningAcro, entries, players) {
 
 // Damon's five lines for the station winner (2026-10-24), word for word; only the station number and the name change.
 // The name always comes last, so each line is the words before it.
-// "wins" is Damon's first mock (2026-10-24): the name on top, "WINS STATION 1!" under it
+// "wins" is Damon's first mock (2026-10-24): the name on top, "WINS THE STATION!" under it (no number)
 const STATION_CHEERS = ["wins", "applauds", "cheers for", "tips its hat to", "bows to", "is in awe of"];
 
 // Left of the results, centred on them: "Station 1 applauds" and the winner's name in Honk. One line at random per
-// station (the train page gives it a new key each station, so it picks again)
-function StationCheer({ round, names }) {
-  const [cheer] = useState(() => STATION_CHEERS[Math.floor(Math.random() * STATION_CHEERS.length)]);
+// station (the train page gives it a new key each station, so it picks again). streak: stations in a row this winner
+// has won; from 2 on it is always "wins the station again!", from 3 "… again and again!"
+function StationCheer({ round, names, streak = 1 }) {
+  const [picked] = useState(() => STATION_CHEERS[Math.floor(Math.random() * STATION_CHEERS.length)]);
+  const cheer = streak >= 2 ? "wins" : picked;
+  const again = streak >= 3 ? " again and again" : streak === 2 ? " again" : "";
   if (!names.length) return null;
   const nameStyle = { ...smallTitle, fontSize: 34, lineHeight: 1.15, color: C.brand, overflowWrap: "anywhere" };
   if (cheer === "wins") return (
     <div style={{ textAlign: "center", padding: "8px 4px" }}>
       <div style={nameStyle}>{names.join(" & ")}</div>
-      <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.teal, textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 4 }}>{names.length > 1 ? "win" : "wins"} Station {round}!</div>
+      <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.teal, textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 4 }}>{names.length > 1 ? "win" : "wins"} the station{again}!</div>
     </div>
   );
   return (
@@ -4583,6 +4587,9 @@ function Room() {
   const [topicDraft, setTopicDraft] = useState("");
   // Waits 8 s after the results appear before opening the winner's topic prompt
   const topicPromptTimerRef = useRef(null);
+  // The station winner's streak (stations won in a row), for "wins the station again!" (Damon, 2026-10-24)
+  const winStreakRef = useRef({ id: null, count: 0 });
+  const [winStreak, setWinStreak] = useState(1);
   // The others watch the desk while someone chooses: { id, first } (first = the first station of a new game)
   const [watchChooser, setWatchChooser] = useState(null);
   // Error from the server when the topic is refused (e.g. too short)
@@ -4932,6 +4939,9 @@ function Room() {
     // roundVotesMap (4th) = votes per player's acro — sent by newer servers only
     // details (5th, new): who voted for the winner, letter bonus, winner's votes, speed bonus
     onRoundEnded: useCallback((roundScores, winning, winnerPlayerId, roundVotesMap, details) => {
+      // the winner's streak: one more if they won the station before this one too, otherwise 1 (none: no winner)
+      const prev = winStreakRef.current;
+      winStreakRef.current = winnerPlayerId ? { id: winnerPlayerId, count: sameId(prev.id, winnerPlayerId) ? prev.count + 1 : 1 } : { id: null, count: 0 };
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
 
@@ -4952,6 +4962,7 @@ function Room() {
         // the Word of the Week, in the chat for everyone to see
         if (details?.wordBonus?.length) postSystemMessage(`📖 ${details.wordBonus.join(" and ")} used the word of the week, "${details.word}": +1!`);
         setWinningAcro(winning);
+        setWinStreak(winStreakRef.current.count);
         setPhase("Results");
         setTimer(null);
         setResultsClosed(false);
@@ -4983,6 +4994,7 @@ function Room() {
     onGameOver: useCallback((winner, winners) => {
       const names = Array.isArray(winners) && winners.length > 0 ? winners : [winner];
       setWatchChooser(null);
+      winStreakRef.current = { id: null, count: 0 };   // a new journey starts a new streak
       // Stop all audio
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
       if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
@@ -5622,7 +5634,7 @@ function Room() {
             <div style={{ display: "grid", gap: 16, gridTemplateColumns: isNarrow ? "1fr" : (pm.active ? "minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.4fr)" : "1fr 3fr") }}>
             {/* the station winner, left of the results and centred on them (Damon, 2026-10-24) */}
             <div style={{ gridColumn: "1", alignSelf: "center", minWidth: 0 }}>
-              <StationCheer key={currentRound} round={currentRound} names={stationResults(scores, winningAcro, entries, players).winners.map(w => w.name)} />
+              <StationCheer key={currentRound} round={currentRound} streak={winStreak} names={stationResults(scores, winningAcro, entries, players).winners.map(w => w.name)} />
             </div>
             <div style={{ gridColumn: isNarrow ? "1" : "2 / -1", minWidth: 0 }}>
             <ResultsScreen scores={scores} winningAcro={winningAcro} entries={entries} players={players}
