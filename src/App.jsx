@@ -1433,11 +1433,17 @@ function HowToPlay({ winScore = 30 }) {
               <RulesSection icon="🎭" title="Special topics">
                 Sometimes the topic is a special challenge — your acro still has to fit the letters.
                 <ul style={rulesList}>
-                  <li><b style={{ color: C.textPrimary }}>Word Bank</b> — every letter of the 2nd and 3rd words must also be in the 1st word. <span style={ex}>P A S → "Pastries Ape Sit"</span></li>
-                  <li><b style={{ color: C.textPrimary }}>Word &gt; Chain</b> — each word goes with the next one; put &gt; between the words. <span style={ex}>F T D → "Fire &gt; Truck &gt; Driver"</span></li>
-                  <li><b style={{ color: C.textPrimary }}>Rhyme</b> — use words that rhyme. <span style={ex}>F C S → "Fat Cat Sat"</span></li>
-                  <li><b style={{ color: C.textPrimary }}>A + B = C</b> — the first word plus the second word makes the third. <span style={ex}>S F S → "Sun + Flower = Sunflower"</span></li>
+                  {/* 2026-10-24 (Damon): his specials; the 3-letter ones only come on 3-letter stations, Rhyme Time on 4 */}
                   <li><b style={{ color: C.textPrimary }}>Pander</b> — make your acro about someone on the train. Be nice… or at least funny.</li>
+                  <li><b style={{ color: C.textPrimary }}>Rhyme Time</b> (4 letters) — make it rhyme. <span style={ex}>"Fat Cat Sat"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>Word Bank</b> (3 letters) — the 2nd and 3rd words use only letters from the 1st. <span style={ex}>P A S → "Pastries Ape Sit"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>Word &gt; Chain</b> (3 letters) — each word leads into the next; put &gt; between them. <span style={ex}>F T D → "Fire &gt; Truck &gt; Driver"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>Letter Link</b> (3 letters) — each word ends with the next letter. <span style={ex}>P A S → "Papa Always Slept"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>All Aboard</b> (3 letters) — every word uses every letter. <span style={ex}>P A S → "Passed Aspiring Spokesman"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>A + B = C</b> (3 letters) — the 1st word plus the 2nd makes the 3rd. <span style={ex}>S F S → "Sun + Flower = Sunflower"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>A + B = C + D</b> (4 letters) — two plus two. <span style={ex}>"Peanut + Butter = Sticky + Fingers"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>Q (one word) and A</b> (5 letters) — a one-word question, then the answer. <span style={ex}>"Why? Because Cats Dance Daily"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>3 words, similar meaning</b> (3 letters) — three words that mean almost the same. <span style={ex}>"Big Huge Giant"</span></li>
                 </ul>
                 <div style={{ marginTop: 6 }}>Tip: put spaces around &gt; + and = so they don't stick to a word ("Fire&gt;Truck" counts as one word).</div>
               </RulesSection>
@@ -1931,12 +1937,20 @@ const PRACTICE_STATIONS = [
 // The special topics, in one line each (as in How to play), shown under the topic in the practice
 // A station starts with its writing time, or first with the special topic explained (Damon, 2026-10-22)
 const practiceStart = st => (st && specialTopicNote(st.topic) ? "intro" : "write");
+// The special topics, one short game-style line each (Damon, 2026-10-24), shown under the topic: in the practice and
+// during a station. Matched loosely, since players type them their own way ("word bank", "WordBank", "Word =>Chain").
 function specialTopicNote(topic) {
-  const t = (topic || "").toLowerCase();
-  if (t.startsWith("a + b = c")) return 'The first word plus the second word makes the third: "Sun + Flower = Sunflower".';
-  if (t.startsWith("word > chain")) return 'Each word goes with the next one; put > between the words: "Fire > Truck > Driver".';
-  if (t.startsWith("word bank")) return 'Every letter of the 2nd and 3rd words must also be in the 1st word: "Pastries Ape Sit".';
-  if (t.startsWith("rhyme")) return 'Use words that rhyme: "Fat Cat Sat".';
+  const t = String(topic || "").toLowerCase(), k = t.replace(/[^a-z0-9+=>]/g, "");
+  if (k.startsWith("pander") && !k.includes("murder")) return "Make your acro about someone on the train. Be nice… or at least funny.";
+  if (k.startsWith("rhyme") || k === "letsrhyme") return 'Make it rhyme! "Fat Cat Sat"';
+  if (k.startsWith("wordbank")) return 'The 2nd and 3rd words use only letters from the 1st. PAS → "Pastries Ape Sit"';
+  if (k.startsWith("word>chain") || k.startsWith("word=>chain") || k.startsWith("wordchain")) return 'Each word leads into the next: put > between them. "Fire > Truck > Driver"';
+  if (k.startsWith("letterlink")) return 'Each word ends with the next letter. PAS → "Papa Always Slept"';
+  if (k.startsWith("allaboard")) return 'Every word uses every letter. PAS → "Passed Aspiring Spokesman"';
+  if (k.startsWith("a+b=c+d")) return 'Two plus two: "Peanut + Butter = Sticky + Fingers"';
+  if (k.startsWith("a+b=c")) return 'The 1st word plus the 2nd makes the 3rd: "Sun + Flower = Sunflower"';
+  if (k.startsWith("q(oneword)anda") || k.startsWith("qoneworda")) return 'A one-word question, then the answer: "Why? Because Cats Dance Daily"';
+  if (k.startsWith("3wordssimilarmeaning")) return 'Three words that mean almost the same: "Big Huge Giant"';
   return null;
 }
 // A ride: a 3-letter station, a 4-letter one, then a longer one, each picked at random; the acros shuffled
@@ -4340,14 +4354,16 @@ function Room() {
 
   const [maxTimer, setMaxTimer] = useState(60); // tracks initial timer value for the progress bar
   const [topicRequested, setTopicRequested] = useState(false);
-  // 4 topics from the Express Server's pool for the station winner to choose from (2026-10-24)
+  // True when the topic prompt is for round 1 (Start Game / New Game), false when the round winner sets it
+  const [topicForFirstRound, setTopicForFirstRound] = useState(false);
+  // 4 topics from the Express Server's pool for the station winner to choose from (2026-10-24), that fit the next
+  // station's letters (3 + the station number's place in 3,4,5,6,7)
   const [topicIdeas, setTopicIdeas] = useState([]);
   useEffect(() => {
     if (!topicRequested) return;
-    fetch(`${API_URL}/api/topics/suggest?n=4`).then(r => (r.ok ? r.json() : [])).then(list => setTopicIdeas(Array.isArray(list) ? list : [])).catch(() => setTopicIdeas([]));
-  }, [topicRequested]);
-  // True when the topic prompt is for round 1 (Start Game / New Game), false when the round winner sets it
-  const [topicForFirstRound, setTopicForFirstRound] = useState(false);
+    const letters = topicForFirstRound ? 3 : 3 + (currentRound % 5);
+    fetch(`${API_URL}/api/topics/suggest?n=4&letters=${letters}`).then(r => (r.ok ? r.json() : [])).then(list => setTopicIdeas(Array.isArray(list) ? list : [])).catch(() => setTopicIdeas([]));
+  }, [topicRequested]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [topicDraft, setTopicDraft] = useState("");
   // Waits 8 s after the results appear before opening the winner's topic prompt
   const topicPromptTimerRef = useRef(null);
@@ -4368,7 +4384,7 @@ function Room() {
   const [firstIdeas, setFirstIdeas] = useState([]);
   useEffect(() => {
     if (topicRequested || !["Waiting", "Paused", "GameOver"].includes(phase)) return;   // waiting for a first topic
-    fetch(`${API_URL}/api/topics/suggest?n=4`).then(r => (r.ok ? r.json() : [])).then(list => setFirstIdeas(Array.isArray(list) ? list : [])).catch(() => setFirstIdeas([]));
+    fetch(`${API_URL}/api/topics/suggest?n=4&letters=3`).then(r => (r.ok ? r.json() : [])).then(list => setFirstIdeas(Array.isArray(list) ? list : [])).catch(() => setFirstIdeas([]));
   }, [phase, topicRequested]);
   const restart = useRestartWindow();
   const restartAnnouncedRef = useRef(null);
@@ -5256,6 +5272,8 @@ function Room() {
     <div style={{ textAlign: align, maxWidth: 380, margin: align === "center" ? "0 auto" : 0 }}>
       <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 2 }}>Topic</div>
       <TopicText size={isShort ? 28 : 34}>{currentTopic}</TopicText>
+      {/* a special topic, in one line (2026-10-24) */}
+      {specialTopicNote(currentTopic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2, maxWidth: 380 }}>🎭 {specialTopicNote(currentTopic)}</div>}
       {/* the Word of the Week, one slim line */}
       {weekWord && <div data-hint={`Word of the week: use "${weekWord.word}" in your acro; if it gets at least one vote, you earn +1`}
         style={{ fontSize: 13, color: C.textSecond, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
