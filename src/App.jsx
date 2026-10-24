@@ -1778,7 +1778,7 @@ function NumbersPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
             <h1 style={{ margin: 0, fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand }}>Numbers</h1>
-            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>How the Acro Express is growing. Limassol time, weeks from Monday. You are left out of the player numbers. Only you see this page.</p>
+            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>How the Acro Express is growing. Home time, weeks from Monday. You are left out of the player numbers. Only you see this page.</p>
           </div>
           <BtnSecondary onClick={() => navigate("/log")}>← Station Log</BtnSecondary>
         </div>
@@ -1841,7 +1841,7 @@ function NumbersPage() {
             </p>
             {/* When people play */}
             <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-              <h2 style={{ margin: 0, fontSize: 16, color: C.teal }}>Busiest hours (Limassol time)</h2>
+              <h2 style={{ margin: 0, fontSize: 16, color: C.teal }}>Busiest hours (home time)</h2>
               <Bars values={data.hours} labels={data.hours.map((_, h) => String(h))} />
               <h2 style={{ margin: "8px 0 0", fontSize: 16, color: C.teal }}>Busiest days</h2>
               <Bars values={data.weekdays} labels={WEEKDAY_NAMES} />
@@ -2153,11 +2153,10 @@ const LEGAL_UPDATED = "21 October 2026";   // change when the texts below change
 
 // Acro Express's birthday (Damon, 2026-10-22: "16/08/2025"): the first commit, 02:05 Cyprus time
 const BIRTHDAY = { year: 2025, month: 8, day: 16 };
-// Is it the birthday today in Cyprus? → how many years old it turns (or 0)
+// Is it the birthday today, on the player's own calendar? → how many years old it turns (or 0)
 function birthdayToday(now = new Date()) {
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Nicosia", year: "numeric", month: "numeric", day: "numeric" })
-    .formatToParts(now).filter(x => x.type !== "literal").map(x => [x.type, Number(x.value)]));
-  return p.month === BIRTHDAY.month && p.day === BIRTHDAY.day && p.year > BIRTHDAY.year ? p.year - BIRTHDAY.year : 0;
+  const month = now.getMonth() + 1, day = now.getDate(), year = now.getFullYear();
+  return month === BIRTHDAY.month && day === BIRTHDAY.day && year > BIRTHDAY.year ? year - BIRTHDAY.year : 0;
 }
 
 // "© 2025–2026 Acro Express™ · House Rules · Privacy" — a plain line (no frame, Damon 2026-10-18) at the bottom of
@@ -3076,7 +3075,7 @@ function Lobby() {
   const [liveNow, setLiveNow] = useState(null);
   useEffect(() => {
     // also signed in: the Daily Express row needs to know if tonight's game was played (lastStationUtc)
-    const load = () => fetch(`${API_URL}/api/status`).then(r => r.json()).then(setLiveNow).catch(() => { });
+    const load = () => fetch(`${API_URL}/api/status`).then(r => r.json()).then(d => { setDailyExpressUtc(d.dailyExpressUtc); setLiveNow(d); }).catch(() => { });
     load(); const iv = setInterval(load, 30000);
     return () => clearInterval(iv);
   }, [auth]);
@@ -3732,13 +3731,23 @@ function AcroDemo() {
 // (Damon chose this over "Delayed"); "On the move" as soon as any train is playing. After 00:30 Limassol time it
 // shows the next night.
 // lastStationUtc (api/status): when the last station was played anywhere; played tonight → "Arrived 🏁"
+// Tonight's Daily Express as a moment, from the server (api/status: dailyExpressUtc). The website holds no home time
+// zone (Damon, 2026-10-23: a player worked out where he lives). Remembered in the browser, so the time shows at once
+// on the next visit.
+let dailyExpressAt = (() => { try { const v = Number(localStorage.getItem("acro.daily")); return v > 0 ? v : null; } catch { return null; } })();
+function setDailyExpressUtc(iso) {
+  const t = Date.parse(iso || "");
+  if (!t) return;
+  dailyExpressAt = t;
+  try { localStorage.setItem("acro.daily", String(t)); } catch { /* private mode */ }
+}
+fetch(`${API_URL}/api/status`).then(r => r.json()).then(d => setDailyExpressUtc(d.dailyExpressUtc)).catch(() => { });
+
 function nightExpress(now, rooms, lastStationUtc = null) {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Nicosia", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })
-    .formatToParts(now).filter(p => p.type !== "literal").map(p => [p.type, Number(p.value)]));
-  const offset = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) - Math.floor(now / 1000) * 1000;   // Limassol's lead on UTC
-  const dayShift = parts.hour * 60 + parts.minute < 30 ? -1 : 0;           // just after midnight: still last night's train
-  const departs = Date.UTC(parts.year, parts.month - 1, parts.day + dayShift, 23, 0) - offset;
-  const mins = (now - departs) / 60000;                                     // minutes since 23:00 (negative = before)
+  let departs = dailyExpressAt;
+  if (!departs) return { local: "", status: { text: "Today", color: C.teal }, room: null, canStart: false, departs: null, mins: -9999 };   // not known yet
+  while (now - departs > 90 * 60000) departs += 86400000;                   // a remembered day: on to tonight's (after 00:30)
+  const mins = (now - departs) / 60000;                                     // minutes since it left (negative = before)
   const local = new Date(departs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   // 2026-10-23: the train itself is a Sky Train named "Daily Express", started from this row from 30 minutes before
   // (open: until the row moves on to the next night at 00:30 Limassol time)
