@@ -3219,12 +3219,14 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   // Aboard a train — but never you: this page is the station, so you're here (2026-10-24: TylerDurden showed "aboard aa"
   // while standing at the station, after leaving a train the train still counted him on)
   const meName = String(auth?.username || "").toLowerCase();
-  const aboard = roomList.flatMap(r => (r.playingNames || []).filter(n => String(n).toLowerCase() !== meName).map(n => ({ name: n, where: `Aboard ${r.name}`, train: r.name, onTrain: true })));
+  const aboard = roomList.flatMap(r => (r.playingNames || []).filter(n => String(n).toLowerCase() !== meName).map(n => ({ name: n, where: `Aboard ${r.name}`, train: r.name, trainId: r.id, full: (r.playingNames || []).length + (r.awayNames || []).length >= 16, onTrain: true })));
   const aboardSet = new Set(aboard.map(a => a.name.toLowerCase()));
   const online = [
     ...players.filter(n => !aboardSet.has(String(n).toLowerCase())).map(n => ({ name: n, where: "On the platform", onTrain: false })),
     ...aboard,
   ];
+  // you, always, at the station (the Express Server leaves out of the station list anyone a train still counts aboard)
+  if (auth?.username && !online.some(o => String(o.name).toLowerCase() === meName)) online.unshift({ name: auth.username, where: "On the platform", onTrain: false });
   const [listOpen, setListOpen] = useState(true);   // phones: the "On the platform" list folded open or closed
   // Enter or Send; a chat command (/?, /mu, /pc …) is answered on your own screen instead
   const sendLobby = () => {
@@ -3459,6 +3461,9 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                         </div>
                         {/* Unread private messages from them */}
                         {(pm.unread[o.name] || 0) > 0 && <span style={{ background: C.brand, color: C.onBrand, fontSize: 11, borderRadius: 999, padding: "1px 6px" }}>{pm.unread[o.name]}</span>}
+                        {/* Board the same train (Damon, 2026-10-24: so a newcomer can join a friend in one click), unless it's full */}
+                        {!isMe && o.onTrain && !o.full && <button onClick={e => { e.stopPropagation(); navigate(`/room/${o.trainId}`); }} data-hint={`Board ${o.train}, the train ${o.name} is on`}
+                          style={{ background: C.brand, border: "none", borderRadius: 6, color: C.onBrand, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 800, lineHeight: 1, padding: "4px 8px", flexShrink: 0 }}>Board</button>}
                         {/* one click straight to a private chat (2026-10-22) */}
                         {!isMe && <button onClick={e => { e.stopPropagation(); openPm(o.name); }} title={`Message ${o.name}`} aria-label={`Message ${o.name}`} data-hint={`Send ${o.name} a private message`}
                           style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, color: C.teal, cursor: "pointer", fontSize: 13, lineHeight: 1, padding: "3px 5px", flexShrink: 0 }}>✉</button>}
