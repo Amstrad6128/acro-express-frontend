@@ -292,6 +292,8 @@ function applyTheme(key) {
   const darkHonk = `@font-palette-values --acro-dark-${key} { font-family: 'Honk'; override-colors: ${[t.brand, t.brand, t.onBrand, t.onBrand, t.onBrand, t.onBrand, t.onBrand, t.onBrand].map((c, i) => `${i} ${c}`).join(", ")}; }`;
   logoStyle.textContent = [honkPalette("--acro-logo", t.teal), honkPalette("--acro-mark", t.brand), honkPalette("--acro-letters", t.brand), honkPalette("--acro-gold", t.gold || "#FFD24A"), darkHonk].join("\n");   // dark: Honk on the gold button
   for (const p of ["logo", "mark", "letters", "gold", "dark"]) root.style.setProperty(`--fp-${p}`, `--acro-${p}-${key}`);   // which ones are in use
+  // the topic desk's picture: Golden Hour shows its own colours, every other palette tints it (2026-10-24)
+  root.style.setProperty("--art-tint", key === "goldenhour" ? "0" : "0.9");
   currentThemeKey = key;
   currentTheme = t;                // for setBigLetterSky
   setBigLetterSky(bigLetterSpot);  // the big letters' outline in this palette's sky colour
@@ -4248,6 +4250,13 @@ function TopicDesk({ left, center, right, narrow }) {
     }}>
       {/* the picture: the full width, bottom-aligned */}
       <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "url(/art/topic-desk-2.webp)", backgroundRepeat: "no-repeat", backgroundPosition: "center bottom", backgroundSize: "100% auto", opacity: narrow ? 0.35 : 1 }} />
+      {/* the picture in this palette's colours (Damon, 2026-10-24): a layer of the palette's colours that only changes the
+          hue ("color" blending keeps the picture's light and shading), drawn only where the picture is (masked by it).
+          Golden Hour, the picture's own palette, keeps the original (--art-tint 0) */}
+      <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", mixBlendMode: "color", opacity: narrow ? 0 : "var(--art-tint, 0.9)",
+        background: `linear-gradient(180deg, ${C.lavender} 20%, ${C.brand} 85%)`,
+        WebkitMaskImage: "url(/art/topic-desk-2.webp)", maskImage: "url(/art/topic-desk-2.webp)", WebkitMaskSize: "100% auto", maskSize: "100% auto",
+        WebkitMaskPosition: "center bottom", maskPosition: "center bottom", WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat" }} />
       <div style={{ ...layer, minWidth: 0, order: narrow ? 2 : 0 }}>{left}</div>
       {!narrow && <div style={{ ...layer, alignSelf: "stretch", display: "flex" }}>{divider}</div>}
       <div style={{ ...layer, minWidth: 0, textAlign: "center" }}>{center}</div>
