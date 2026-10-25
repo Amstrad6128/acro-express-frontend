@@ -3146,7 +3146,7 @@ function Lobby() {
   const [status, setStatus] = useState("");   // "ok" / "down" once checked
   const [myPass, setMyPass] = useState(null);   // my Sky Passport, for the line under the greeting
   const [roomList, setRoomList] = useState([]);
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(() => { try { return localStorage.getItem("acro.passport") || ""; } catch { return ""; } });   // a returning passenger's name, filled in
   const [password, setPassword] = useState("");
   const [auth, setAuth] = useState(() => {
     const saved = localStorage.getItem("acro.auth");
@@ -3186,9 +3186,12 @@ function Lobby() {
   const [createError, setCreateError] = useState("");
 
   // The sign-in card's state: which tab ("new" = get a Sky Passport, "login"), its message, busy while sending
-  // opens on "I have a passport" (Damon, 2026-10-26, after Zyngacita: regulars always had to switch, and their browser filled
-  // their name and password into the "I'm new" form); newcomers have the "I'm new" link there
-  const [authMode, setAuthMode] = useState("login");
+  // Newcomers see "I'm new"; a browser that has had a passport opens on "I have a passport", with the name filled in
+  // (Zyngacita, 2026-10-26: she always landed on "I'm new", even after logging out, and her browser filled her name and
+  // password into the wrong form). The note "acro.passport" (the name) is kept when logging out.
+  const passportName = (() => { try { return localStorage.getItem("acro.passport") || ""; } catch { return ""; } })();
+  const [authMode, setAuthMode] = useState(passportName ? "login" : "new");
+  useEffect(() => { if (auth?.username) try { localStorage.setItem("acro.passport", auth.username); } catch { /* private mode */ } }, [auth]);
   const [authMsg, setAuthMsg] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   // The server's answers, in friendly words (they used to pop up raw: "400: Username and password are required.")
@@ -3215,6 +3218,7 @@ function Lobby() {
       const data = await (mode === "new" ? api.register : api.login)(username.trim(), password);
       if (mode === "new") track("signup");             // counted with the source the visit came from
       localStorage.setItem("acro.auth", JSON.stringify(data));
+      try { localStorage.setItem("acro.passport", data.username || username.trim()); } catch { /* private mode */ }   // next time: "I have a passport"
       authChanged();   // the station connection logs in too
       setAuth(data); setUsername(""); setPassword("");
     } catch (e) { setAuthMsg(friendlyAuthError(e, mode)); }
