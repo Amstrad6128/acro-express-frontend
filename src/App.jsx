@@ -2325,24 +2325,14 @@ const LB_PERIODS = [["week", "This week"], ["month", "This month"], ["all", "All
 const pct = (a, b) => (b > 0 ? a / b : 0);                       // a share, 0 when there's nothing to share
 const pctText = v => `${Math.round(v * 100)}%`;
 
-// A gold laurel wreath (Damon, 2026-10-25: "we need to find a better crown or some other symbol for the winner"):
-// two branches of leaves, with what goes in the middle (the 1) as children
-function Laurel({ size = 30, color = "var(--c-gold)", children }) {
-  // each branch curves up from the bottom (angle 255°) to the upper side (145°) around the middle, leaves along it,
-  // tilted a little outwards; the right branch is the mirror image
-  const leaves = [];
-  for (let k = 0; k < 6; k++) {
-    const t = 255 - k * 22, r = (t * Math.PI) / 180;
-    const x = 16 + 11 * Math.cos(r), y = 16 - 11 * Math.sin(r);
-    const rot = t - 180 - 22;
-    leaves.push(<ellipse key={"l" + k} cx={x} cy={y} rx="1.45" ry="3.3" fill={color} transform={`rotate(${rot} ${x} ${y})`} />);
-    leaves.push(<ellipse key={"r" + k} cx={32 - x} cy={y} rx="1.45" ry="3.3" fill={color} transform={`rotate(${-rot} ${32 - x} ${y})`} />);
-  }
+// The winner's crown (Damon, 2026-10-25: "a crown icon … more abstract, more simple, more minimalistic"; it replaced
+// a laurel wreath that wasn't clear on its own): three points on a band, in gold
+function Crown({ size = 20, color = "var(--c-gold)" }) {
   return (
-    <span style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: size, height: size, verticalAlign: "middle" }}>
-      <svg aria-hidden width={size} height={size} viewBox="0 0 32 32" style={{ position: "absolute", inset: 0 }}>{leaves}</svg>
-      {children && <span style={{ position: "relative", fontWeight: 900, fontSize: size * 0.42, color, lineHeight: 1 }}>{children}</span>}
-    </span>
+    <svg aria-label="first" role="img" width={size} height={size * 0.8} viewBox="0 0 20 16" style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <path d="M1.5 4.5 L5.5 9 L10 1.5 L14.5 9 L18.5 4.5 L17 13 H3 Z" fill={color} />
+      <rect x="3" y="14" width="14" height="2" rx="1" fill={color} />
+    </svg>
   );
 }
 
@@ -2350,7 +2340,7 @@ function Laurel({ size = 30, color = "var(--c-gold)", children }) {
 // only changes the order (click Express Flyers and the speed-bonus kings go up, the rest move down). The columns in
 // order of importance: points per station, journey win %, station win %, stations, speed bonuses (total points are
 // not shown: "irrelevant"). Station Masters (points per station) is the first tab. The numbers sit right next to the
-// names (no stretching to the box's edge), 15 passengers a page with Previous / Next (no scrolling).
+// names (no stretching to the box's edge), as many passengers a page as fit the window, with Previous / Next (no scrolling).
 // The percentages and the average count from data.minJourneys / data.minStations; below that a passenger shows "–"
 // for that number, and on that tab comes after the ones who qualify, without a rank.
 const LB_COLS = [
@@ -2365,7 +2355,6 @@ const LB_COLS = [
   { id: "express", tab: "Express Flyers", icon: "⚡", head: "Speed bonuses", motto: "Fast hands, sharp minds.",
     value: p => p.speedBonuses, show: p => p.speedBonuses, ok: () => true },
 ];
-const LB_PAGE = 15;
 function SkyLeaderboard() {
   const navigate = useNavigate();
   const me = String(getAuth()?.username || "").toLowerCase();
@@ -2374,13 +2363,33 @@ function SkyLeaderboard() {
   const [page, setPage] = useState(0);
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
+  // As many rows a page as fit the window, so the page never scrolls (Damon: "There is still scrolling up and down"):
+  // from the top of the list to the window's bottom, less the pager, the note and the footer
+  const listRef = useRef(null);
+  const [perPage, setPerPage] = useState(15);
+  useEffect(() => {
+    const fit = () => {
+      const el = listRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      setPerPage(Math.max(6, Math.min(40, Math.floor((window.innerHeight - top - 150) / 34))));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [data]);
+  // ...and if the page still ends up taller than the window (a longer header, a bigger font), a few rows fewer
+  useEffect(() => {
+    const over = document.documentElement.scrollHeight - window.innerHeight;
+    if (over > 0 && perPage > 6) setPerPage(n => Math.max(6, n - Math.ceil(over / 34)));
+  }, [perPage, data, sortId]);
   useEffect(() => {
     setData(null); setErr("");
     fetch(`${API_URL}/api/leaderboard?period=${period}`, { headers: authHeaders() })
       .then(async r => { if (r.status === 401) throw new Error("Log in to see the Sky Leaderboard."); if (!r.ok) throw new Error(); setData(await r.json()); })
       .catch(e => setErr(e.message || "Couldn't load the Sky Leaderboard. Try again in a moment."));
   }, [period]);
-  useEffect(() => { setPage(0); }, [period, sortId]);
+  useEffect(() => { setPage(0); }, [period, sortId, perPage]);
   const col = LB_COLS.find(c => c.id === sortId);
   const monthName = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const inWhen = period === "month" ? ` in ${monthName}` : period === "week" ? " this week" : "";
@@ -2392,10 +2401,10 @@ function SkyLeaderboard() {
   const rows = [...ok, ...rest];
   const ranks = []; ok.forEach((p, i) => ranks.push(i > 0 && String(col.show(p)) === String(col.show(ok[i - 1])) ? ranks[i - 1] : i + 1));
   const myIndex = rows.findIndex(p => p.name.toLowerCase() === me);
-  const pages = Math.max(1, Math.ceil(rows.length / LB_PAGE));
-  const shown = rows.slice(page * LB_PAGE, page * LB_PAGE + LB_PAGE);
+  const pages = Math.max(1, Math.ceil(rows.length / perPage));
+  const shown = rows.slice(page * perPage, page * perPage + perPage);
   const gold = "var(--c-gold)";
-  const grid = "34px minmax(110px, 170px) repeat(5, 82px)";   // rank, name, the five numbers: close together
+  const grid = "30px minmax(100px, 130px) 92px 106px 100px 66px 106px";   // each number column as wide as its title (one line)   // rank, name, the five numbers: close together
   const nameBtn = name => (
     <button onClick={e => openProfile(name, e.currentTarget)} title={`Message ${name} or see their Sky Passport`}
       style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</button>
@@ -2440,8 +2449,8 @@ function SkyLeaderboard() {
             <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap", padding: "0 4px 10px" }}>
               <span style={{ fontSize: 28, ...honkTitle }}>{col.tab}</span>
               <span style={{ fontSize: 15, fontStyle: "italic", color: C.teal }}>{col.motto}</span>
-              {myIndex >= 0 && Math.floor(myIndex / LB_PAGE) !== page && (
-                <button onClick={() => setPage(Math.floor(myIndex / LB_PAGE))} style={{ marginLeft: "auto", background: "none", border: "none", color: C.teal, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
+              {myIndex >= 0 && Math.floor(myIndex / perPage) !== page && (
+                <button onClick={() => setPage(Math.floor(myIndex / perPage))} style={{ marginLeft: "auto", background: "none", border: "none", color: C.teal, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
                   Your position{myIndex < ok.length ? `: #${ranks[myIndex]}` : ""} →
                 </button>
               )}
@@ -2450,25 +2459,25 @@ function SkyLeaderboard() {
               <p style={{ margin: "4px 4px 8px", color: C.textMuted }}>No one has played a station yet{inWhen}.</p>
             ) : (
               <div style={{ overflowX: "auto" }}>
-                <div style={{ width: "max-content", minWidth: "100%" }}>
+                <div ref={listRef} style={{ width: "max-content", minWidth: "100%" }}>
                   {/* the header: the tab's number in gold */}
-                  <div style={{ display: "grid", gridTemplateColumns: grid, gap: 8, fontSize: 10.5, letterSpacing: "0.06em", alignItems: "end", textTransform: "uppercase", fontWeight: 800, padding: "0 10px 6px", borderBottom: `1px solid ${C.border}` }}>
+                  <div style={{ display: "grid", gridTemplateColumns: grid, columnGap: 12, fontSize: 11, letterSpacing: "0.04em", whiteSpace: "nowrap", alignItems: "end", textTransform: "uppercase", fontWeight: 800, padding: "0 10px 6px", borderBottom: `1px solid ${C.border}` }}>
                     <span style={{ color: C.teal }}>#</span><span style={{ color: C.teal }}>Player</span>
                     {LB_COLS.map(c => <span key={c.id} style={{ textAlign: "right", color: c.id === sortId ? gold : C.teal }}>{c.head}</span>)}
                   </div>
                   {shown.map((p, j) => {
-                    const i = page * LB_PAGE + j, ranked = i < ok.length, first = ranked && ranks[i] === 1, isMe = i === myIndex;
+                    const i = page * perPage + j, ranked = i < ok.length, first = ranked && ranks[i] === 1, isMe = i === myIndex;
                     return (
-                      <div key={p.name} style={{ display: "grid", gridTemplateColumns: grid, gap: 8, alignItems: "center", padding: "7px 10px", borderRadius: first || isMe ? 8 : 0,
+                      <div key={p.name} style={{ display: "grid", gridTemplateColumns: grid, columnGap: 12, alignItems: "center", padding: "6px 10px", lineHeight: 1.3, borderRadius: first || isMe ? 8 : 0,
                         background: first ? `color-mix(in srgb, ${gold} 16%, transparent)` : isMe ? `color-mix(in srgb, ${C.teal} 14%, transparent)` : "transparent",
                         borderBottom: first || isMe ? "none" : `1px solid ${C.border}` }}>
-                        <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums", color: first ? gold : ranked ? C.textPrimary : C.textMuted }}>{first ? <Laurel size={30}>1</Laurel> : ranked ? String(ranks[i]).padStart(2, "0") : "–"}</span>
-                        <span style={{ minWidth: 0, fontWeight: first || isMe ? 800 : 600, fontSize: 16 }}>{nameBtn(p.name)}</span>
+                        <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums", color: first ? gold : ranked ? C.textPrimary : C.textMuted }}>{first ? <Crown size={20} /> : ranked ? String(ranks[i]).padStart(2, "0") : "–"}</span>
+                        <span style={{ minWidth: 0, fontWeight: first || isMe ? 800 : 600, fontSize: 15 }}>{nameBtn(p.name)}</span>
                         {LB_COLS.map(c => {
                           const has = c.ok(p, data), on = c.id === sortId;
                           // below the minimum: the number in grey (it doesn't count for a rank yet); nothing played for it: "–"
                           const none = c.id === "champions" ? !p.journeys : !p.stations;
-                          return <span key={c.id} title={!has && !none ? "Not enough played yet to count" : undefined} style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: on && has ? 800 : 500, fontSize: on ? 17 : 15, color: !has ? C.textMuted : on ? (first ? gold : C.textPrimary) : C.textSecond, opacity: !has ? 0.7 : 1 }}>{none ? "–" : c.show(p)}</span>;
+                          return <span key={c.id} title={!has && !none ? "Not enough played yet to count" : undefined} style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: on && has ? 800 : 500, fontSize: on ? 16 : 14, color: !has ? C.textMuted : on ? (first ? gold : C.textPrimary) : C.textSecond, opacity: !has ? 0.7 : 1 }}>{none ? "–" : c.show(p)}</span>;
                         })}
                       </div>
                     );
@@ -2480,7 +2489,7 @@ function SkyLeaderboard() {
             {pages > 1 && (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 12 }}>
                 {pageBtn("← Previous", page - 1, page > 0)}
-                <span style={{ fontSize: 14, color: C.textMuted, fontVariantNumeric: "tabular-nums" }}>{page * LB_PAGE + 1}–{Math.min(rows.length, (page + 1) * LB_PAGE)} of {rows.length}</span>
+                <span style={{ fontSize: 14, color: C.textMuted, fontVariantNumeric: "tabular-nums" }}>{page * perPage + 1}–{Math.min(rows.length, (page + 1) * perPage)} of {rows.length}</span>
                 {pageBtn("Next →", page + 1, page < pages - 1)}
               </div>
             )}
@@ -2602,7 +2611,7 @@ function HallOfExpressions() {
               <>
                 {/* The featured expression: context, the line, the writer, then the details */}
                 <div style={{ background: C.bgPanel, color: C.textPrimary, border: `2px solid ${gold}`, borderRadius: 16, padding: "24px clamp(16px, 5vw, 28px) 26px", textAlign: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>
-                  <div style={{ fontSize: 13, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 800, color: gold, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Laurel size={22} />{featuredLabel}{view.tab !== "all" && data.month && data.official ? ` · ${data.month}` : ""}</div>
+                  <div style={{ fontSize: 13, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 800, color: gold, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Crown size={18} />{featuredLabel}{view.tab !== "all" && data.month && data.official ? ` · ${data.month}` : ""}</div>
                   {data.top.topic && <div style={{ fontSize: 15, marginTop: 16, color: C.textMuted }}>{data.top.topic}</div>}
                   <div style={{ fontSize: "clamp(24px, 6.4vw, 32px)", lineHeight: 1.25, fontWeight: 800, margin: "8px auto 0", maxWidth: "26ch" }}>“{data.top.sentence}”</div>
                   {/* the writer: big and in gold, being featured should mean something (Damon) */}
