@@ -2325,34 +2325,33 @@ function Privacy() {
 const LB_PERIODS = [["week", "This week"], ["month", "This month"], ["all", "All time"]];
 const pct = (a, b) => (b > 0 ? a / b : 0);                       // a share, 0 when there's nothing to share
 const pctText = v => `${Math.round(v * 100)}%`;
-// The boards: what they rank (value), how it's shown (show), and who qualifies (ok). 2026-10-25: Station Masters gone
-// (confusing next to Champions; later the same day Station Masters replaced Champions instead), the Riders are Flyers (a Sky Train flies). Revised 2026-10-19 (Damon):
-// points count, not just votes; the journey win % matters most, then stations played. Percentages need enough
-// journeys / stations in the period (data.minJourneys / data.minStations).
-const LB_BOARDS = [
-  // 2026-10-25 (Damon): "Station Masters replaces Champions" (the journey win % board)
-  { id: "masters", icon: "🥇", name: "Station Masters", sub: "Station win %", unit: "of stations won", motto: "First at every platform.",
-    value: p => pct(p.stationsWon, p.stations) + p.stationsWon / 1e4, show: p => pctText(pct(p.stationsWon, p.stations)), ok: (p, d) => p.stations >= d.minStations },
-  { id: "riders", icon: "🚉", name: "Frequent Flyers", sub: "Stations played", unit: "stations", motto: "Always on board.",
-    value: p => p.stations + p.points / 1e6, show: p => p.stations, ok: p => p.stations > 0 },
-  { id: "scorers", icon: "⭐", name: "Top Scorers", sub: "Total points", unit: "points", motto: "Every point counts.",
-    value: p => p.points + p.stations / 1e6, show: p => p.points, ok: p => p.points > 0 },
-  { id: "average", icon: "🎯", name: "Sharpshooters", sub: "Points per station", unit: "points per station", motto: "Few words, many points.",
-    value: p => pct(p.points, p.stations), show: p => pct(p.points, p.stations).toFixed(1), ok: (p, d) => p.stations >= d.minStations },
-  { id: "express", icon: "⚡", name: "Express Flyers", sub: "Speed bonuses", unit: "speed bonuses", motto: "Fast hands, sharp minds.",
-    value: p => p.speedBonuses + p.stations / 1e6, show: p => p.speedBonuses, ok: p => p.speedBonuses > 0 },
-];
 
-// The Sky Leaderboard (redesign, Damon 2026-10-25, after GPT's mock-ups and review: "a competition you want to climb").
-// One continuous ranking, centred and narrow: rank, name and number side by side. First place has the gold row and the
-// crown, your own row a quiet highlight (no "you": people know who they are); no podium, no avatar boxes, nothing
-// repeated. The boards: Top Scorers first. Your position link when your row is far down.
-const LB_ORDER = ["scorers", "masters", "average", "riders", "express"];
+// The Sky Leaderboard (Damon, 2026-10-25): ONE table with every passenger and all their numbers side by side; a tab
+// only changes the order (click Express Flyers and the speed-bonus kings go up, the rest move down). The columns in
+// order of importance: points per station, journey win %, station win %, stations, speed bonuses (total points are
+// not shown: "irrelevant"). Station Masters (points per station) is the first tab. The numbers sit right next to the
+// names (no stretching to the box's edge), 15 passengers a page with Previous / Next (no scrolling).
+// The percentages and the average count from data.minJourneys / data.minStations; below that a passenger shows "–"
+// for that number, and on that tab comes after the ones who qualify, without a rank.
+const LB_COLS = [
+  { id: "masters", tab: "Station Masters", icon: "🥇", head: "Pts / station", motto: "The most points from every station.",
+    value: p => pct(p.points, p.stations), show: p => pct(p.points, p.stations).toFixed(1), ok: (p, d) => p.stations >= d.minStations },
+  { id: "champions", tab: "Champions", icon: "🏆", head: "Journey win %", motto: "Same rails. Different legends.",
+    value: p => pct(p.journeysWon, p.journeys), show: p => pctText(pct(p.journeysWon, p.journeys)), ok: (p, d) => p.journeys >= d.minJourneys },
+  { id: "winners", tab: "Station Winners", icon: "🎯", head: "Station win %", motto: "First at every platform.",
+    value: p => pct(p.stationsWon, p.stations), show: p => pctText(pct(p.stationsWon, p.stations)), ok: (p, d) => p.stations >= d.minStations },
+  { id: "riders", tab: "Frequent Flyers", icon: "🚉", head: "Stations", motto: "Always on board.",
+    value: p => p.stations, show: p => p.stations, ok: () => true },
+  { id: "express", tab: "Express Flyers", icon: "⚡", head: "Speed bonuses", motto: "Fast hands, sharp minds.",
+    value: p => p.speedBonuses, show: p => p.speedBonuses, ok: () => true },
+];
+const LB_PAGE = 15;
 function SkyLeaderboard() {
   const navigate = useNavigate();
   const me = String(getAuth()?.username || "").toLowerCase();
   const [period, setPeriod] = useState("month");
-  const [boardId, setBoardId] = useState("scorers");
+  const [sortId, setSortId] = useState("masters");
+  const [page, setPage] = useState(0);
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
   useEffect(() => {
@@ -2361,26 +2360,34 @@ function SkyLeaderboard() {
       .then(async r => { if (r.status === 401) throw new Error("Log in to see the Sky Leaderboard."); if (!r.ok) throw new Error(); setData(await r.json()); })
       .catch(e => setErr(e.message || "Couldn't load the Sky Leaderboard. Try again in a moment."));
   }, [period]);
-  const boards = LB_ORDER.map(id => LB_BOARDS.find(b => b.id === id));
-  const board = LB_BOARDS.find(b => b.id === boardId);
+  useEffect(() => { setPage(0); }, [period, sortId]);
+  const col = LB_COLS.find(c => c.id === sortId);
   const monthName = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const when = period === "month" ? monthName : period === "week" ? "This week" : "All time";
-  const inWhen = period === "month" ? ` in ${monthName}` : period === "week" ? " this week" : "";   // for sentences
-  // The ranking: passengers who qualify for this board, best first. The same number shown, the same rank (Damon,
-  // 2026-10-25: "same points same rank"; before, the hidden tie-breaks gave 76 points ranks 1, 2 and 2)
-  const ranked = data ? data.players.filter(p => board.ok(p, data)).sort((a, b) => board.value(b) - board.value(a)) : [];
-  const ranks = []; ranked.forEach((p, i) => ranks.push(i > 0 && String(board.show(p)) === String(board.show(ranked[i - 1])) ? ranks[i - 1] : i + 1));
-  const myRank = ranked.findIndex(p => p.name.toLowerCase() === me);
+  const inWhen = period === "month" ? ` in ${monthName}` : period === "week" ? " this week" : "";
+  // Everyone who played in the period: first those who qualify for this tab, best first; then the rest, in the same
+  // order. The same number shown, the same rank; the rest have no rank.
+  const players = data ? data.players.filter(p => p.stations > 0) : [];
+  const ok = data ? players.filter(p => col.ok(p, data)).sort((a, b) => col.value(b) - col.value(a) || b.stations - a.stations) : [];
+  const rest = data ? players.filter(p => !col.ok(p, data)).sort((a, b) => col.value(b) - col.value(a) || b.stations - a.stations) : [];
+  const rows = [...ok, ...rest];
+  const ranks = []; ok.forEach((p, i) => ranks.push(i > 0 && String(col.show(p)) === String(col.show(ok[i - 1])) ? ranks[i - 1] : i + 1));
+  const myIndex = rows.findIndex(p => p.name.toLowerCase() === me);
+  const pages = Math.max(1, Math.ceil(rows.length / LB_PAGE));
+  const shown = rows.slice(page * LB_PAGE, page * LB_PAGE + LB_PAGE);
   const gold = "var(--c-gold)";
+  const grid = "34px minmax(110px, 170px) repeat(5, 82px)";   // rank, name, the five numbers: close together
   const nameBtn = name => (
     <button onClick={e => openProfile(name, e.currentTarget)} title={`Message ${name} or see their Sky Passport`}
       style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</button>
   );
-  const jumpToMe = () => document.getElementById("lb-me")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  const pageBtn = (label, to, on) => (
+    <button onClick={() => on && setPage(to)} disabled={!on}
+      style={{ background: "none", border: `1px solid ${on ? C.teal : C.border}`, borderRadius: 8, color: on ? C.teal : C.textMuted, padding: "6px 14px", fontWeight: 700, fontSize: 14, fontFamily: "inherit", cursor: on ? "pointer" : "default" }}>{label}</button>
+  );
 
   return (
     <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "18px 16px 0", boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 44, lineHeight: 1.05, ...honkTitle }}>Sky Leaderboard</h1>
@@ -2396,12 +2403,12 @@ function SkyLeaderboard() {
               style={{ border: "none", background: period === k ? gold : "transparent", color: period === k ? "#1B1A17" : C.textPrimary, padding: "8px clamp(10px, 3vw, 18px)", whiteSpace: "nowrap", fontWeight: 700, fontSize: "clamp(13px, 3.6vw, 15px)", fontFamily: "inherit", cursor: "pointer" }}>{label}</button>
           ))}
         </div>
-        {/* The boards */}
+        {/* The order */}
         <div role="tablist" style={{ display: "flex", gap: 0, overflowX: "auto", scrollbarWidth: "none", marginTop: -4 }}>
-          {boards.map(b => (
-            <button key={b.id} role="tab" aria-selected={b.id === boardId} onClick={() => setBoardId(b.id)}
-              style={{ background: "none", border: "none", borderBottom: `3px solid ${b.id === boardId ? gold : "transparent"}`, padding: "8px 9px", whiteSpace: "nowrap", flexShrink: 0, color: b.id === boardId ? C.textPrimary : C.textSecond, fontWeight: 700, fontSize: 14, fontFamily: "inherit", cursor: "pointer" }}>
-              {b.icon} {b.name}
+          {LB_COLS.map(c => (
+            <button key={c.id} role="tab" aria-selected={c.id === sortId} onClick={() => setSortId(c.id)}
+              style={{ background: "none", border: "none", borderBottom: `3px solid ${c.id === sortId ? gold : "transparent"}`, padding: "8px 9px", whiteSpace: "nowrap", flexShrink: 0, color: c.id === sortId ? C.textPrimary : C.textSecond, fontWeight: 700, fontSize: 14, fontFamily: "inherit", cursor: "pointer" }}>
+              {c.icon} {c.tab}
             </button>
           ))}
         </div>
@@ -2409,42 +2416,56 @@ function SkyLeaderboard() {
         {err && <Panel style={{ padding: 16 }}><p style={{ margin: 0, color: C.brand }}>{err}</p></Panel>}
         {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
         {data && (
-          <Panel style={{ padding: "16px 14px 12px" }}>
+          <Panel style={{ padding: "14px 14px 12px" }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap", padding: "0 4px 10px" }}>
-              <span style={{ fontSize: 28, ...honkTitle }}>{board.name}</span>
-              <span style={{ fontSize: 15, color: C.textMuted }}>{board.sub} · {when}</span>
-              {myRank >= 12 && <button onClick={jumpToMe} style={{ marginLeft: "auto", background: "none", border: "none", color: C.teal, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Your position: #{ranks[myRank]} ↓</button>}
+              <span style={{ fontSize: 28, ...honkTitle }}>{col.tab}</span>
+              <span style={{ fontSize: 15, fontStyle: "italic", color: C.teal }}>{col.motto}</span>
+              {myIndex >= 0 && Math.floor(myIndex / LB_PAGE) !== page && (
+                <button onClick={() => setPage(Math.floor(myIndex / LB_PAGE))} style={{ marginLeft: "auto", background: "none", border: "none", color: C.teal, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
+                  Your position{myIndex < ok.length ? `: #${ranks[myIndex]}` : ""} →
+                </button>
+              )}
             </div>
-            {ranked.length === 0 ? (
-              <p style={{ margin: "4px 4px 8px", color: C.textMuted }}>
-                No one on this board yet{inWhen}.
-                {(["masters", "average"].includes(boardId) ? ` It counts from ${data.minStations} stations.` : "")}
-              </p>
+            {rows.length === 0 ? (
+              <p style={{ margin: "4px 4px 8px", color: C.textMuted }}>No one has played a station yet{inWhen}.</p>
             ) : (
-              <>
-                <div style={{ display: "grid", gridTemplateColumns: "28px 44px 1fr auto", gap: 10, fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: C.teal, fontWeight: 700, padding: "0 14px 6px" }}>
-                  <span /><span>#</span><span>Player</span><span style={{ textAlign: "right" }}>{board.sub}</span>
-                </div>
-                {ranked.map((p, i) => {
-                  const first = ranks[i] === 1, isMe = i === myRank;
-                  return (
-                    <div key={p.name} id={isMe ? "lb-me" : undefined}
-                      style={{ display: "grid", gridTemplateColumns: "28px 44px 1fr auto", gap: 10, alignItems: "center", padding: first ? "11px 14px" : "8px 14px",
-                        borderRadius: first || isMe ? 10 : 0, margin: first || isMe ? "3px 0" : 0,
+              <div style={{ overflowX: "auto" }}>
+                <div style={{ width: "max-content", minWidth: "100%" }}>
+                  {/* the header: the tab's number in gold */}
+                  <div style={{ display: "grid", gridTemplateColumns: grid, gap: 8, fontSize: 10.5, letterSpacing: "0.06em", alignItems: "end", textTransform: "uppercase", fontWeight: 800, padding: "0 10px 6px", borderBottom: `1px solid ${C.border}` }}>
+                    <span style={{ color: C.teal }}>#</span><span style={{ color: C.teal }}>Player</span>
+                    {LB_COLS.map(c => <span key={c.id} style={{ textAlign: "right", color: c.id === sortId ? gold : C.teal }}>{c.head}</span>)}
+                  </div>
+                  {shown.map((p, j) => {
+                    const i = page * LB_PAGE + j, ranked = i < ok.length, first = ranked && ranks[i] === 1, isMe = i === myIndex;
+                    return (
+                      <div key={p.name} style={{ display: "grid", gridTemplateColumns: grid, gap: 8, alignItems: "center", padding: "7px 10px", borderRadius: first || isMe ? 8 : 0,
                         background: first ? `color-mix(in srgb, ${gold} 16%, transparent)` : isMe ? `color-mix(in srgb, ${C.teal} 14%, transparent)` : "transparent",
-                        border: first ? `1px solid ${gold}` : isMe ? `1px solid color-mix(in srgb, ${C.teal} 55%, transparent)` : "1px solid transparent",
-                        borderBottomColor: first || isMe ? undefined : C.border }}>
-                      <span aria-hidden="true" style={{ fontSize: 16, textAlign: "center" }}>{first ? "👑" : ""}</span>
-                      <span style={{ fontWeight: 800, fontSize: first ? 20 : 17, fontVariantNumeric: "tabular-nums", color: first ? gold : ranks[i] <= 3 ? C.textPrimary : C.textMuted }}>{two(ranks[i])}</span>
-                      <span style={{ minWidth: 0, fontSize: first ? 18 : 17, fontWeight: first || isMe ? 700 : 500 }}>{nameBtn(p.name)}</span>
-                      <span style={{ fontWeight: 800, fontSize: first ? 24 : 18, fontVariantNumeric: "tabular-nums", color: first ? gold : C.textPrimary, textAlign: "right" }}>{board.show(p)}</span>
-                    </div>
-                  );
-                })}
-              </>
+                        borderBottom: first || isMe ? "none" : `1px solid ${C.border}` }}>
+                        <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums", color: first ? gold : ranked ? C.textPrimary : C.textMuted }}>{first ? "👑" : ranked ? String(ranks[i]).padStart(2, "0") : "–"}</span>
+                        <span style={{ minWidth: 0, fontWeight: first || isMe ? 800 : 600, fontSize: 16 }}>{nameBtn(p.name)}</span>
+                        {LB_COLS.map(c => {
+                          const has = c.ok(p, data), on = c.id === sortId;
+                          // below the minimum: the number in grey (it doesn't count for a rank yet); nothing played for it: "–"
+                          const none = c.id === "champions" ? !p.journeys : !p.stations;
+                          return <span key={c.id} title={!has && !none ? "Not enough played yet to count" : undefined} style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: on && has ? 800 : 500, fontSize: on ? 17 : 15, color: !has ? C.textMuted : on ? (first ? gold : C.textPrimary) : C.textSecond, opacity: !has ? 0.7 : 1 }}>{none ? "–" : c.show(p)}</span>;
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {/* the pages */}
+            {pages > 1 && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 12 }}>
+                {pageBtn("← Previous", page - 1, page > 0)}
+                <span style={{ fontSize: 14, color: C.textMuted, fontVariantNumeric: "tabular-nums" }}>{page * LB_PAGE + 1}–{Math.min(rows.length, (page + 1) * LB_PAGE)} of {rows.length}</span>
+                {pageBtn("Next →", page + 1, page < pages - 1)}
+              </div>
             )}
             <div style={{ marginTop: 10, padding: "0 4px", fontSize: 12, color: C.textMuted }}>
-              Station win % and points per station count from {data.minStations} stations{inWhen}, so one lucky win can't top a board.
+              Points per station and station win % count from {data.minStations} stations, journey win % from {data.minJourneys} journeys{inWhen}; before that the number is grey and has no rank.
             </div>
           </Panel>
         )}
@@ -2560,13 +2581,14 @@ function HallOfExpressions() {
             ) : (
               <>
                 {/* The featured expression: context, the line, the writer, then the details */}
-                <div style={{ background: C.ivory, color: C.onBrand, borderRadius: 16, padding: "24px clamp(16px, 5vw, 28px) 26px", textAlign: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>
-                  <div style={{ fontSize: 13, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 800 }}>👑 {featuredLabel}{view.tab !== "all" && data.month && data.official ? ` · ${data.month}` : ""}</div>
+                <div style={{ background: C.bgPanel, color: C.textPrimary, border: `2px solid ${gold}`, borderRadius: 16, padding: "24px clamp(16px, 5vw, 28px) 26px", textAlign: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>
+                  <div style={{ fontSize: 13, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 800, color: gold }}>👑 {featuredLabel}{view.tab !== "all" && data.month && data.official ? ` · ${data.month}` : ""}</div>
                   {data.top.topic && <div style={{ fontSize: 15, marginTop: 16, opacity: 0.75 }}>Direction: {data.top.topic}</div>}
                   <div style={{ fontSize: "clamp(24px, 6.4vw, 32px)", lineHeight: 1.25, fontWeight: 800, margin: "8px auto 0", maxWidth: "26ch" }}>“{data.top.sentence}”</div>
-                  <div style={{ marginTop: 14 }}>{letters(data.top.letters, "inherit", 18)}</div>
-                  <div style={{ fontSize: 16, marginTop: 10 }}>
-                    by {names(data.top.by, "inherit")} <span style={{ opacity: 0.7 }}>· {data.top.points} point{data.top.points === 1 ? "" : "s"} · {date(data.top)}</span>{hideBtn(data.top)}
+                  {/* the writer: big and in gold, being featured should mean something (Damon) */}
+                  <div style={{ fontSize: 22, marginTop: 14 }}>{names(data.top.by, gold)}</div>
+                  <div style={{ fontSize: 15, marginTop: 8, color: C.textMuted }}>
+                    {letters(data.top.letters, C.textSecond, 15)} <span style={{ marginLeft: 8 }}>· {data.top.points} point{data.top.points === 1 ? "" : "s"} · {date(data.top)}</span>{hideBtn(data.top)}
                   </div>
                 </div>
 
@@ -2583,8 +2605,9 @@ function HallOfExpressions() {
                         <div style={{ minWidth: 0 }}>
                           {a.topic && <div style={{ fontSize: 14, color: C.textMuted }}>Direction: {a.topic}</div>}
                           <div style={{ fontSize: "clamp(17px, 4.6vw, 21px)", lineHeight: 1.3, fontWeight: 700, marginTop: 2 }}>“{a.sentence}”</div>
-                          <div style={{ fontSize: 14, color: C.textMuted, marginTop: 6 }}>
-                            {letters(a.letters, C.textSecond, 13)}<span style={{ marginLeft: 12 }}>by {names(a.by, C.teal)} · {date(a)}</span>{hideBtn(a)}
+                          <div style={{ fontSize: 17, marginTop: 4 }}>{names(a.by, C.teal)}</div>
+                          <div style={{ fontSize: 13, color: C.textMuted, marginTop: 4 }}>
+                            {letters(a.letters, C.textSecond, 13)}<span style={{ marginLeft: 10 }}>· {date(a)}</span>{hideBtn(a)}
                           </div>
                         </div>
                         <span style={{ border: `1px solid ${C.border}`, borderRadius: 999, padding: "5px 12px", fontWeight: 800, fontSize: 15, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{a.points} pts</span>
