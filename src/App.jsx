@@ -2343,16 +2343,16 @@ const LB_BOARDS = [
     value: p => p.speedBonuses + p.stations / 1e6, show: p => p.speedBonuses, ok: p => p.speedBonuses > 0 },
 ];
 
-// The Sky Leaderboard, cleaned up (Damon, 2026-10-25, after GPT's review: "too much about numbers, things repeating").
-// It celebrates the people who play; the Hall of Expressions celebrates what they write. One board at a time: its top
-// three as compact cards, then the rest of the field from #4 with that board's one number, and your own place in one
-// line. Gone: the second set of stats in the table, the "My Month" panel and its chart (your numbers are in your Sky
-// Passport), Station Masters (confusing next to Champions), and the Acro of the Month (now in the Hall).
+// The Sky Leaderboard (redesign, Damon 2026-10-25, after GPT's mock-ups and review: "a competition you want to climb").
+// One continuous ranking, centred and narrow: rank, name and number side by side. First place has the gold row and the
+// crown, your own row a quiet highlight (no "you": people know who they are); no podium, no avatar boxes, nothing
+// repeated. The boards: Top Scorers first. Your position link when your row is far down.
+const LB_ORDER = ["scorers", "masters", "average", "riders", "express"];
 function SkyLeaderboard() {
   const navigate = useNavigate();
   const me = String(getAuth()?.username || "").toLowerCase();
   const [period, setPeriod] = useState("month");
-  const [boardId, setBoardId] = useState("masters");
+  const [boardId, setBoardId] = useState("scorers");
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
   useEffect(() => {
@@ -2361,56 +2361,44 @@ function SkyLeaderboard() {
       .then(async r => { if (r.status === 401) throw new Error("Log in to see the Sky Leaderboard."); if (!r.ok) throw new Error(); setData(await r.json()); })
       .catch(e => setErr(e.message || "Couldn't load the Sky Leaderboard. Try again in a moment."));
   }, [period]);
+  const boards = LB_ORDER.map(id => LB_BOARDS.find(b => b.id === id));
   const board = LB_BOARDS.find(b => b.id === boardId);
-  const periodName = LB_PERIODS.find(p => p[0] === period)[1];
+  const monthName = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const when = period === "month" ? monthName : period === "week" ? "This week" : "All time";
   // The ranking: passengers who qualify for this board, best first; equal values share a rank
   const ranked = data ? data.players.filter(p => board.ok(p, data)).sort((a, b) => board.value(b) - board.value(a)) : [];
   const ranks = []; ranked.forEach((p, i) => ranks.push(i > 0 && board.value(p) === board.value(ranked[i - 1]) ? ranks[i - 1] : i + 1));
   const myRank = ranked.findIndex(p => p.name.toLowerCase() === me);
-  const podium = ranked.slice(0, 3);
-  // Each place has its metal (gold only for first)
-  const metal = ["var(--c-gold)", "#C3CAD6", "#C98A4B"];
-  const badge = (i, size) => (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: metal[i], color: "#1B1A17", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: size * 0.5, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{ranks[i]}</div>
-  );
-  const nameBtn = (name, style) => (
+  const gold = "var(--c-gold)";
+  const nameBtn = name => (
     <button onClick={e => openProfile(name, e.currentTarget)} title={`Message ${name} or see their Sky Passport`}
-      style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", ...style }}>{name}</button>
+      style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</button>
   );
-  // Your place in one line; on the counting boards also how far the podium is
-  const counting = ["riders", "scorers", "express"].includes(boardId);
-  const myLine = myRank < 0 ? null : (() => {
-    const p = ranked[myRank];
-    const gap = counting && ranks[myRank] > 3 && podium[2] ? Math.ceil(board.value(podium[2]) - board.value(p)) : 0;
-    return <>You're <b style={{ color: C.textPrimary }}>#{ranks[myRank]}</b> · {board.show(p)} {board.unit}{gap > 0 && <> · {gap} from the podium</>}</>;
-  })();
+  const jumpToMe = () => document.getElementById("lb-me")?.scrollIntoView({ behavior: "smooth", block: "center" });
 
   return (
-    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "14px 16px 0", boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
-        {/* Title, then the period and the way out */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "18px 16px 0", boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: 44, ...honkTitle }}>Sky Leaderboard</h1>
-            <div style={{ color: "var(--c-bgText)", fontSize: 15 }}>Who rules the skies {period === "all" ? "of all time" : period === "week" ? "this week" : "this month"}</div>
+            <h1 style={{ margin: 0, fontSize: 44, lineHeight: 1.05, ...honkTitle }}>Sky Leaderboard</h1>
+            <div style={{ color: "var(--c-bgText)", fontSize: 17, marginTop: 4 }}>{period === "month" ? `${monthName} standings` : period === "week" ? "This week's standings" : "All-time standings"}</div>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            <BtnSecondary onClick={() => navigate("/hall")} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px" }}>🏛 Hall of Expressions</BtnSecondary>
-            <BtnSecondary onClick={() => navigate("/")} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px" }}>← Grand Sky Station</BtnSecondary>
-          </div>
+          <BtnSecondary onClick={() => navigate("/")} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px" }}>← Grand Sky Station</BtnSecondary>
         </div>
 
-        {/* The period (segmented) and the boards (tabs): one quiet row each */}
-        <div style={{ display: "flex", gap: 0, border: `1px solid ${C.border}`, borderRadius: 999, alignSelf: "flex-start", overflow: "hidden" }}>
+        {/* The period */}
+        <div style={{ display: "flex", border: `1px solid ${C.border}`, borderRadius: 10, alignSelf: "flex-start", overflow: "hidden" }}>
           {LB_PERIODS.map(([k, label]) => (
             <button key={k} onClick={() => setPeriod(k)}
-              style={{ border: "none", background: period === k ? C.brand : "transparent", color: period === k ? C.onBrand : C.textSecond, padding: "6px 16px", fontWeight: 700, fontSize: 14, fontFamily: "inherit", cursor: "pointer" }}>{label}</button>
+              style={{ border: "none", background: period === k ? gold : "transparent", color: period === k ? "#1B1A17" : C.textPrimary, padding: "8px clamp(10px, 3vw, 18px)", whiteSpace: "nowrap", fontWeight: 700, fontSize: "clamp(13px, 3.6vw, 15px)", fontFamily: "inherit", cursor: "pointer" }}>{label}</button>
           ))}
         </div>
-        <div role="tablist" style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: `1px solid ${C.border}` }}>
-          {LB_BOARDS.map(b => (
+        {/* The boards */}
+        <div role="tablist" style={{ display: "flex", gap: 0, overflowX: "auto", scrollbarWidth: "none", marginTop: -4 }}>
+          {boards.map(b => (
             <button key={b.id} role="tab" aria-selected={b.id === boardId} onClick={() => setBoardId(b.id)}
-              style={{ background: "none", border: "none", borderBottom: `2px solid ${b.id === boardId ? C.teal : "transparent"}`, marginBottom: -1, padding: "8px 12px", color: b.id === boardId ? C.textPrimary : C.textMuted, fontWeight: 700, fontSize: 15, fontFamily: "inherit", cursor: "pointer" }}>
+              style={{ background: "none", border: "none", borderBottom: `3px solid ${b.id === boardId ? gold : "transparent"}`, padding: "8px 9px", whiteSpace: "nowrap", flexShrink: 0, color: b.id === boardId ? C.textPrimary : C.textSecond, fontWeight: 700, fontSize: 14, fontFamily: "inherit", cursor: "pointer" }}>
               {b.icon} {b.name}
             </button>
           ))}
@@ -2419,67 +2407,42 @@ function SkyLeaderboard() {
         {err && <Panel style={{ padding: 16 }}><p style={{ margin: 0, color: C.brand }}>{err}</p></Panel>}
         {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
         {data && (
-          <Panel style={{ padding: "16px 18px" }}>
-            {/* The board: what it ranks, and its motto */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "2px 14px" }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                <span style={{ fontSize: 28, ...honkTitle }}>{board.name}</span>
-                <span style={{ fontSize: 14, color: C.textMuted }}>{board.sub} · {periodName.toLowerCase()}</span>
-              </div>
-              <span style={{ fontSize: 15, fontStyle: "italic", color: C.teal }}>{board.motto}</span>
+          <Panel style={{ padding: "16px 14px 12px" }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap", padding: "0 4px 10px" }}>
+              <span style={{ fontSize: 28, ...honkTitle }}>{board.name}</span>
+              <span style={{ fontSize: 15, color: C.textMuted }}>{board.sub} · {when}</span>
+              {myRank >= 12 && <button onClick={jumpToMe} style={{ marginLeft: "auto", background: "none", border: "none", color: C.teal, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Your position: #{ranks[myRank]} ↓</button>}
             </div>
             {ranked.length === 0 ? (
-              <p style={{ margin: "14px 0 4px", color: C.textMuted }}>
-                No one on this board yet {period === "all" ? "" : periodName.toLowerCase()}.
+              <p style={{ margin: "4px 4px 8px", color: C.textMuted }}>
+                No one on this board yet {period === "all" ? "" : when.toLowerCase()}.
                 {(["masters", "average"].includes(boardId) ? ` It counts from ${data.minStations} stations.` : "")}
               </p>
             ) : (
               <>
-                {/* The top three: second, first, third; the first a little bigger, with the crown and the gold */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1.12fr 1fr", gap: 10, alignItems: "end", marginTop: 14 }}>
-                  {[1, 0, 2].map(i => {
-                    const p = podium[i];
-                    if (!p) return <div key={i} />;
-                    return (
-                      <div key={i} style={{ textAlign: "center", minWidth: 0, padding: i === 0 ? "14px 8px" : "10px 8px", borderRadius: 12, background: C.bgPanel2, border: `${i === 0 ? 2 : 1}px solid ${i === 0 ? metal[0] : C.border}` }}>
-                        {i === 0 && <div aria-hidden="true" style={{ fontSize: 20, lineHeight: 1 }}>👑</div>}
-                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: i === 0 ? 4 : 0 }}>
-                          {badge(i, i === 0 ? 28 : 24)}<AvatarSquare name={p.name} size={i === 0 ? 44 : 36} />
-                        </div>
-                        <div style={{ fontWeight: 800, fontSize: i === 0 ? 17 : 15, marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nameBtn(p.name)}</div>
-                        <div style={{ fontSize: i === 0 ? 26 : 21, fontWeight: 800, fontVariantNumeric: "tabular-nums", color: i === 0 ? "var(--c-gold)" : C.textPrimary }}>{board.show(p)}</div>
-                        <div style={{ fontSize: 12, color: C.textMuted }}>{board.unit}</div>
-                      </div>
-                    );
-                  })}
+                <div style={{ display: "grid", gridTemplateColumns: "28px 44px 1fr auto", gap: 10, fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: C.teal, fontWeight: 700, padding: "0 14px 6px" }}>
+                  <span /><span>#</span><span>Player</span><span style={{ textAlign: "right" }}>{board.sub}</span>
                 </div>
-                {/* Your place, in one line */}
-                <div style={{ marginTop: 12, fontSize: 14, color: C.textMuted }}>
-                  {myLine || <>You're not on this board yet {period === "all" ? "" : periodName.toLowerCase()}.</>}
-                </div>
-                {/* The rest of the field, from #4: one number */}
-                {ranked.length > 3 && (
-                  <div style={{ marginTop: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: C.teal, fontWeight: 700, padding: "6px 4px", borderBottom: `1px solid ${C.border}` }}>
-                      <span>The rest of the field</span><span>{board.sub}</span>
+                {ranked.map((p, i) => {
+                  const first = ranks[i] === 1, isMe = i === myRank;
+                  return (
+                    <div key={p.name} id={isMe ? "lb-me" : undefined}
+                      style={{ display: "grid", gridTemplateColumns: "28px 44px 1fr auto", gap: 10, alignItems: "center", padding: first ? "11px 14px" : "8px 14px",
+                        borderRadius: first || isMe ? 10 : 0, margin: first || isMe ? "3px 0" : 0,
+                        background: first ? `color-mix(in srgb, ${gold} 16%, transparent)` : isMe ? `color-mix(in srgb, ${C.teal} 14%, transparent)` : "transparent",
+                        border: first ? `1px solid ${gold}` : isMe ? `1px solid color-mix(in srgb, ${C.teal} 55%, transparent)` : "1px solid transparent",
+                        borderBottomColor: first || isMe ? undefined : C.border }}>
+                      <span aria-hidden="true" style={{ fontSize: 16, textAlign: "center" }}>{first ? "👑" : ""}</span>
+                      <span style={{ fontWeight: 800, fontSize: first ? 20 : 17, fontVariantNumeric: "tabular-nums", color: first ? gold : ranks[i] <= 3 ? C.textPrimary : C.textMuted }}>{two(ranks[i])}</span>
+                      <span style={{ minWidth: 0, fontSize: first ? 18 : 17, fontWeight: first || isMe ? 700 : 500 }}>{nameBtn(p.name)}</span>
+                      <span style={{ fontWeight: 800, fontSize: first ? 24 : 18, fontVariantNumeric: "tabular-nums", color: first ? gold : C.textPrimary, textAlign: "right" }}>{board.show(p)}</span>
                     </div>
-                    {ranked.slice(3).map((p, j) => {
-                      const i = j + 3, isMe = p.name.toLowerCase() === me;
-                      return (
-                        <div key={p.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "7px 4px", borderBottom: `1px solid ${C.border}`, background: isMe ? `color-mix(in srgb, ${C.teal} 10%, transparent)` : "transparent" }}>
-                          <span style={{ width: 28, textAlign: "right", fontWeight: 800, color: isMe ? C.teal : C.textMuted, fontVariantNumeric: "tabular-nums" }}>{ranks[i]}</span>
-                          <AvatarSquare name={p.name} size={24} />
-                          <span style={{ flex: 1, minWidth: 0, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nameBtn(p.name)}</span>
-                          <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{board.show(p)}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                  );
+                })}
               </>
             )}
-            <div style={{ marginTop: 10, fontSize: 12, color: C.textMuted }}>
-              Station win % and points per station count from {data.minStations} stations{period === "all" ? "" : ` ${periodName.toLowerCase()}`}, so one lucky win can't top a board.
+            <div style={{ marginTop: 10, padding: "0 4px", fontSize: 12, color: C.textMuted }}>
+              Station win % and points per station count from {data.minStations} stations{period === "all" ? "" : ` ${when.toLowerCase()}`}, so one lucky win can't top a board.
             </div>
           </Panel>
         )}
@@ -2490,105 +2453,139 @@ function SkyLeaderboard() {
   );
 }
 
-// The Hall of Expressions (Damon, 2026-10-25): what the passengers write, the best of the month as an exhibition.
-// The Expression of the Month as the centrepiece, the two runners-up, then a gallery of the month's best (no
-// "Surprise me": Damon took it out the same day). Ranked by the share of the other voters at its station who chose
-// it (server: HallController). The admin can take a line out of the Hall. (All-Time Greats and the Archive: later.)
+// The Hall of Expressions (redesign, Damon 2026-10-25, after GPT's mock-up: "a collection you'd be proud to enter").
+// An editorial layout: one featured expression on its own card, then the rest in one readable column, each with its
+// direction (context), the line itself, its writer (attribution), then letters, date and votes (provenance).
+// Three views: This month, All-time greats, The archive (every month, newest first; a month opens like This month).
+// While a month runs its first line is only "featured this month"; once the month is over it is the Expression of the
+// Month. Ranked by the share of the other voters at its station who chose it (server: HallController). The admin's
+// Hide buttons only show after "Manage" (so the Hall doesn't look like a moderation page).
 function HallOfExpressions() {
   const navigate = useNavigate();
+  const [view, setView] = useState({ tab: "month", monthKey: null });
   const [data, setData] = useState(null);
+  const [months, setMonths] = useState(null);
   const [err, setErr] = useState("");
-  const load = () => fetch(`${API_URL}/api/hall`, { headers: authHeaders() })
-    .then(async r => { if (r.status === 401) throw new Error("Log in to visit the Hall of Expressions."); if (!r.ok) throw new Error(); setData(await r.json()); })
-    .catch(e => setErr(e.message || "Couldn't open the Hall. Try again in a moment."));
-  useEffect(() => { load(); }, []);
+  const [all, setAll] = useState(false);          // "View all": the whole list, not just the first few
+  const [manage, setManage] = useState(false);    // the admin's Hide buttons
+  const load = () => {
+    if (view.tab === "archive") {
+      fetch(`${API_URL}/api/hall/months`, { headers: authHeaders() })
+        .then(async r => { if (r.status === 401) throw new Error("Log in to visit the Hall of Expressions."); if (!r.ok) throw new Error(); setMonths((await r.json()).months); })
+        .catch(e => setErr(e.message || "Couldn't open the archive. Try again in a moment."));
+      return;
+    }
+    const q = view.tab === "all" ? "?period=all" : view.monthKey ? `?month=${view.monthKey}` : "";
+    fetch(`${API_URL}/api/hall${q}`, { headers: authHeaders() })
+      .then(async r => { if (r.status === 401) throw new Error("Log in to visit the Hall of Expressions."); if (!r.ok) throw new Error(); setData(await r.json()); })
+      .catch(e => setErr(e.message || "Couldn't open the Hall. Try again in a moment."));
+  };
+  useEffect(() => { setErr(""); setData(null); setAll(false); load(); }, [view.tab, view.monthKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   async function hide(id) {
     await fetch(`${API_URL}/api/hall/${id}/hide`, { method: "POST", headers: authHeaders() }).catch(() => { });
     load();
   }
-  const nameBtn = (name, style) => (
+  const gold = "var(--c-gold)";
+  const names = (by, color) => (
     // two writers of the same line: each name opens its own passport
-    <>{name.split(" & ").map((n, i) => (
+    <>{by.split(" & ").map((n, i) => (
       <span key={n}>{i > 0 && " & "}<button onClick={e => openProfile(n, e.currentTarget)} title={`Message ${n} or see their Sky Passport`}
-        style={{ background: "none", border: "none", padding: 0, color: C.teal, font: "inherit", fontWeight: 700, cursor: "pointer", ...style }}>{n}</button></span>
+        style={{ background: "none", border: "none", padding: 0, color, font: "inherit", fontWeight: 800, cursor: "pointer" }}>{n}</button></span>
     ))}</>
   );
-  const eyebrow = { fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: C.textMuted };
-  const spaced = l => l.split("").join(" ");
-  const votes = n => `${n} vote${n === 1 ? "" : "s"}`;
-  const hideBtn = a => data?.isAdmin && (
-    <button onClick={() => hide(a.id)} style={{ marginLeft: 8, background: "none", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textMuted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{a.hidden ? "Show in the Hall" : "Hide"}</button>
+  const date = a => new Date(a.atUtc).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const letters = (l, color, size = 14) => <span style={{ fontFamily: "'Goldman', sans-serif", letterSpacing: "0.22em", fontSize: size, color }}>{l}</span>;
+  const hideBtn = a => manage && (
+    <button onClick={() => hide(a.id)} style={{ marginLeft: 10, background: "none", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textMuted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{a.hidden ? "Show in the Hall" : "Hide"}</button>
   );
-  // the quote marks in Honk, the line in Nunito
-  const quote = (text, size) => (
-    <div style={{ fontSize: size, lineHeight: 1.25, fontWeight: 800, color: C.textPrimary }}>
-      <span style={{ ...honkTitle, fontSize: size * 1.1 }}>“</span>{text}<span style={{ ...honkTitle, fontSize: size * 1.1 }}>”</span>
-    </div>
-  );
-  const meta = a => (
-    <div style={{ fontSize: 14, color: C.textMuted, marginTop: 8 }}>
-      <span style={{ fontFamily: "'Goldman', sans-serif", letterSpacing: "0.12em", color: C.textSecond }}>{spaced(a.letters)}</span>
-      {a.topic && <> · {a.topic}</>} · by {nameBtn(a.by)} · {votes(a.votes)}{hideBtn(a)}
-    </div>
-  );
+  const tabs = [["month", "This month"], ["all", "All-time greats"], ["archive", "The archive"]];
+  const tabOn = t => (t === "month" ? view.tab === "month" : view.tab === t);
+  const featuredLabel = view.tab === "all" ? "The greatest so far" : data?.official ? "Expression of the Month" : "Featured this month";
+  const list = data ? (all ? data.list : data.list.slice(0, 6)) : [];
 
   return (
-    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "14px 16px 0", boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", flexDirection: "column", gap: 18 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "18px 16px 0", boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 780, margin: "0 auto", display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: 44, ...honkTitle }}>Hall of Expressions</h1>
-            <div style={{ color: "var(--c-bgText)", fontSize: 15 }}>Some words deserve to be remembered.</div>
+            <h1 style={{ margin: 0, fontSize: 44, lineHeight: 1.05, ...honkTitle }}>Hall of Expressions</h1>
+            <div style={{ color: "var(--c-bgText)", fontSize: 17, marginTop: 4 }}>Some words deserve to be remembered.</div>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <BtnSecondary onClick={() => navigate("/leaderboard")} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px" }}>🏆 Sky Leaderboard</BtnSecondary>
-            <BtnSecondary onClick={() => navigate("/")} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px" }}>← Grand Sky Station</BtnSecondary>
+          <BtnSecondary onClick={() => navigate("/")} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px" }}>← Grand Sky Station</BtnSecondary>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+            {tabs.map(([t, label]) => (
+              <button key={t} onClick={() => setView({ tab: t, monthKey: null })}
+                style={{ border: "none", background: tabOn(t) ? gold : "transparent", color: tabOn(t) ? "#1B1A17" : C.textPrimary, padding: "8px clamp(10px, 3vw, 18px)", whiteSpace: "nowrap", fontWeight: 700, fontSize: "clamp(13px, 3.6vw, 15px)", fontFamily: "inherit", cursor: "pointer" }}>{label}</button>
+            ))}
           </div>
+          {(data?.isAdmin) && <button onClick={() => setManage(m => !m)} style={{ marginLeft: "auto", background: "none", border: "none", color: manage ? C.teal : C.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>{manage ? "Done managing" : "Manage"}</button>}
         </div>
 
         {err && <Panel style={{ padding: 16 }}><p style={{ margin: 0, color: C.brand }}>{err}</p></Panel>}
-        {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
-        {data && (
+
+        {/* The archive: every month, newest first */}
+        {view.tab === "archive" && !err && (!months ? <p style={{ color: "var(--c-bgText)" }}>Loading…</p> : months.length === 0 ? (
+          <p style={{ color: "var(--c-bgText)" }}>The archive is still empty.</p>
+        ) : (
+          <Panel style={{ padding: "4px 18px" }}>
+            {months.map((m, i) => (
+              <button key={m.monthKey} onClick={() => setView({ tab: "month", monthKey: m.monthKey })}
+                style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", borderTop: i > 0 ? `1px solid ${C.border}` : "none", padding: "16px 4px", color: C.textPrimary, cursor: "pointer", fontFamily: "inherit" }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 24, ...honkTitle }}>{m.month}</span>
+                  <span style={{ fontSize: 14, color: C.textMuted }}>{m.count} expression{m.count === 1 ? "" : "s"}{m.official ? "" : " · this month"}</span>
+                  <span style={{ marginLeft: "auto", color: C.teal, fontWeight: 700, fontSize: 14 }}>Open →</span>
+                </div>
+                <div style={{ marginTop: 6, fontSize: 18, fontWeight: 700 }}>“{m.top.sentence}”</div>
+                <div style={{ fontSize: 14, color: C.textMuted, marginTop: 2 }}>by {m.top.by}</div>
+              </button>
+            ))}
+          </Panel>
+        ))}
+
+        {view.tab !== "archive" && !err && !data && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
+        {view.tab !== "archive" && data && (
           <>
-            <span style={{ fontSize: 22, ...honkTitle }}>{data.month}</span>
+            {view.monthKey && <button onClick={() => setView({ tab: "archive", monthKey: null })} style={{ alignSelf: "flex-start", marginTop: -6, background: "none", border: "none", color: C.teal, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>← The archive</button>}
             {!data.top ? (
-              <Panel style={{ padding: 20 }}><p style={{ margin: 0, color: C.textMuted }}>No expressions with votes yet this month. Board a Sky Train and write one!</p></Panel>
+              <p style={{ color: "var(--c-bgText)", fontSize: 16 }}>No expressions with votes yet {view.tab === "all" ? "" : `in ${data.month}`}. Board a Sky Train and write one!</p>
             ) : (
               <>
-                {/* The centrepiece */}
-                <Panel style={{ padding: "26px 28px", textAlign: "center", border: `2px solid var(--c-gold)` }}>
-                  <div style={{ ...eyebrow, color: "var(--c-gold)" }}>Expression of the Month</div>
-                  <div style={{ marginTop: 14 }}>{quote(data.top.sentence, 34)}</div>
-                  <div style={{ marginTop: 12, fontFamily: "'Goldman', sans-serif", letterSpacing: "0.2em", fontSize: 18, color: C.textSecond }}>{spaced(data.top.letters)}</div>
-                  <div style={{ fontSize: 15, color: C.textMuted, marginTop: 8 }}>
-                    {data.top.topic && <>{data.top.topic} · </>}by {nameBtn(data.top.by, { fontSize: 16 })} · {votes(data.top.votes)}{hideBtn(data.top)}
+                {/* The featured expression: context, the line, the writer, then the details */}
+                <div style={{ background: C.ivory, color: C.onBrand, borderRadius: 16, padding: "24px clamp(16px, 5vw, 28px) 26px", textAlign: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>
+                  <div style={{ fontSize: 13, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 800 }}>👑 {featuredLabel}{view.tab !== "all" && data.month && data.official ? ` · ${data.month}` : ""}</div>
+                  {data.top.topic && <div style={{ fontSize: 15, marginTop: 16, opacity: 0.75 }}>Direction: {data.top.topic}</div>}
+                  <div style={{ fontSize: "clamp(24px, 6.4vw, 32px)", lineHeight: 1.25, fontWeight: 800, margin: "8px auto 0", maxWidth: "26ch" }}>“{data.top.sentence}”</div>
+                  <div style={{ marginTop: 14 }}>{letters(data.top.letters, "inherit", 18)}</div>
+                  <div style={{ fontSize: 16, marginTop: 10 }}>
+                    by {names(data.top.by, "inherit")} <span style={{ opacity: 0.7 }}>· {data.top.votes} vote{data.top.votes === 1 ? "" : "s"} · {date(data.top)}</span>{hideBtn(data.top)}
                   </div>
-                </Panel>
-                {/* The runners-up */}
-                {data.runnersUp.length > 0 && (
-                  <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))" }}>
-                    {data.runnersUp.map((a, i) => (
-                      <div key={a.id} style={{ padding: "4px 6px", borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
-                        <div style={eyebrow}>{i === 0 ? "Second" : "Third"}</div>
-                        <div style={{ marginTop: 6 }}>{quote(a.sentence, 22)}</div>
-                        {meta(a)}
+                </div>
+
+                {/* The rest, one readable column */}
+                {data.list.length > 0 && (
+                  <Panel style={{ padding: "14px 18px 4px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, borderBottom: `1px solid ${C.border}`, paddingBottom: 8 }}>
+                      <span style={{ fontSize: 14, letterSpacing: "0.14em", textTransform: "uppercase", color: C.teal, fontWeight: 800 }}>{view.tab === "all" ? "More all-time greats" : `More expressions from ${data.month}`}</span>
+                      {data.list.length > 6 && <button onClick={() => setAll(a => !a)} style={{ background: "none", border: "none", color: C.textPrimary, fontWeight: 700, fontSize: 14, whiteSpace: "nowrap", cursor: "pointer", fontFamily: "inherit" }}>{all ? "Show fewer" : "View all →"}</button>}
+                    </div>
+                    {list.map((a, i) => (
+                      <div key={a.id} style={{ display: "grid", gridTemplateColumns: "clamp(28px, 8vw, 44px) 1fr auto", gap: "clamp(8px, 2.5vw, 14px)", alignItems: "center", padding: "16px 4px", borderBottom: i < list.length - 1 ? `1px solid ${C.border}` : "none", opacity: a.hidden ? 0.45 : 1 }}>
+                        <span style={{ fontSize: "clamp(22px, 6vw, 30px)", fontWeight: 800, fontVariantNumeric: "tabular-nums", color: i < 2 ? gold : C.textMuted, textAlign: "center" }}>{a.hidden ? "–" : i + 2}</span>
+                        <div style={{ minWidth: 0 }}>
+                          {a.topic && <div style={{ fontSize: 14, color: C.textMuted }}>Direction: {a.topic}</div>}
+                          <div style={{ fontSize: "clamp(17px, 4.6vw, 21px)", lineHeight: 1.3, fontWeight: 700, marginTop: 2 }}>“{a.sentence}”</div>
+                          <div style={{ fontSize: 14, color: C.textMuted, marginTop: 6 }}>
+                            {letters(a.letters, C.textSecond, 13)}<span style={{ marginLeft: 12 }}>by {names(a.by, C.teal)} · {date(a)}</span>{hideBtn(a)}
+                          </div>
+                        </div>
+                        <span title={`${a.votes} vote${a.votes === 1 ? "" : "s"}`} style={{ border: `1px solid ${C.border}`, borderRadius: 999, padding: "5px 12px", fontWeight: 800, fontSize: 15, whiteSpace: "nowrap" }}>♥ {a.votes}</span>
                       </div>
                     ))}
-                  </div>
-                )}
-                {/* The gallery: the rest of the month's best */}
-                {data.gallery.length > 0 && (
-                  <div>
-                    <div style={{ ...eyebrow, marginBottom: 8 }}>More from {data.month}</div>
-                    <div style={{ display: "grid", gap: "4px 22px", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 380px), 1fr))" }}>
-                      {data.gallery.map(a => (
-                        <div key={a.id} style={{ padding: "12px 4px", borderTop: `1px solid ${C.border}`, opacity: a.hidden ? 0.45 : 1 }}>
-                          {quote(a.sentence, 17)}
-                          {meta(a)}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  </Panel>
                 )}
               </>
             )}
