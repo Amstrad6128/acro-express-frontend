@@ -2326,12 +2326,13 @@ const LB_PERIODS = [["week", "This week"], ["month", "This month"], ["all", "All
 const pct = (a, b) => (b > 0 ? a / b : 0);                       // a share, 0 when there's nothing to share
 const pctText = v => `${Math.round(v * 100)}%`;
 // The boards: what they rank (value), how it's shown (show), and who qualifies (ok). 2026-10-25: Station Masters gone
-// (confusing next to Champions), the Riders are Flyers (a Sky Train flies). Revised 2026-10-19 (Damon):
+// (confusing next to Champions; later the same day Station Masters replaced Champions instead), the Riders are Flyers (a Sky Train flies). Revised 2026-10-19 (Damon):
 // points count, not just votes; the journey win % matters most, then stations played. Percentages need enough
 // journeys / stations in the period (data.minJourneys / data.minStations).
 const LB_BOARDS = [
-  { id: "champions", icon: "🏆", name: "Champions", sub: "Journey win %", unit: "of journeys won", motto: "Same rails. Different legends.",
-    value: p => pct(p.journeysWon, p.journeys) + p.journeysWon / 1e4, show: p => pctText(pct(p.journeysWon, p.journeys)), ok: (p, d) => p.journeys >= d.minJourneys },
+  // 2026-10-25 (Damon): "Station Masters replaces Champions" (the journey win % board)
+  { id: "masters", icon: "🥇", name: "Station Masters", sub: "Station win %", unit: "of stations won", motto: "First at every platform.",
+    value: p => pct(p.stationsWon, p.stations) + p.stationsWon / 1e4, show: p => pctText(pct(p.stationsWon, p.stations)), ok: (p, d) => p.stations >= d.minStations },
   { id: "riders", icon: "🚉", name: "Frequent Flyers", sub: "Stations played", unit: "stations", motto: "Always on board.",
     value: p => p.stations + p.points / 1e6, show: p => p.stations, ok: p => p.stations > 0 },
   { id: "scorers", icon: "⭐", name: "Top Scorers", sub: "Total points", unit: "points", motto: "Every point counts.",
@@ -2351,7 +2352,7 @@ function SkyLeaderboard() {
   const navigate = useNavigate();
   const me = String(getAuth()?.username || "").toLowerCase();
   const [period, setPeriod] = useState("month");
-  const [boardId, setBoardId] = useState("champions");
+  const [boardId, setBoardId] = useState("masters");
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
   useEffect(() => {
@@ -2430,7 +2431,7 @@ function SkyLeaderboard() {
             {ranked.length === 0 ? (
               <p style={{ margin: "14px 0 4px", color: C.textMuted }}>
                 No one on this board yet {period === "all" ? "" : periodName.toLowerCase()}.
-                {(boardId === "champions" ? ` It counts from ${data.minJourneys} journeys.` : boardId === "average" ? ` It counts from ${data.minStations} stations.` : "")}
+                {(["masters", "average"].includes(boardId) ? ` It counts from ${data.minStations} stations.` : "")}
               </p>
             ) : (
               <>
@@ -2478,7 +2479,7 @@ function SkyLeaderboard() {
               </>
             )}
             <div style={{ marginTop: 10, fontSize: 12, color: C.textMuted }}>
-              Journey win % counts from {data.minJourneys} journeys and points per station from {data.minStations} stations{period === "all" ? "" : ` ${periodName.toLowerCase()}`}, so one lucky win can't top a board.
+              Station win % and points per station count from {data.minStations} stations{period === "all" ? "" : ` ${periodName.toLowerCase()}`}, so one lucky win can't top a board.
             </div>
           </Panel>
         )}
