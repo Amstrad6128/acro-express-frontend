@@ -2463,7 +2463,11 @@ function SkyLeaderboard() {
                       <button key={c.id} onClick={() => setSortId(c.id)} aria-pressed={c.id === sortId} title={`Order by ${c.head.toLowerCase()}: ${c.tab}`} className="lb-head"
                         style={{ background: "none", border: "none", padding: 0, font: "inherit", letterSpacing: "inherit", textTransform: "inherit", textAlign: "right", cursor: "pointer", color: c.id === sortId ? gold : C.teal, whiteSpace: "nowrap" }}>
                         {/* the ▼ sits left of the title, outside its width, so the columns keep their place */}
-                        <span style={{ position: "relative" }}>{c.id === sortId && <span aria-hidden style={{ position: "absolute", right: "100%", marginRight: 3, fontSize: 9, top: 1 }}>▼</span>}{c.head}</span>
+                        {/* clearly clickable (Damon: "Will they know these are buttons?"): a faint ⇅ and a dotted underline on the
+                            others, the chosen one gold with ▼ */}
+                        <span style={{ position: "relative", textDecoration: c.id === sortId ? "none" : "underline dotted", textUnderlineOffset: 4 }}>
+                          <span aria-hidden style={{ position: "absolute", right: "100%", marginRight: 3, fontSize: c.id === sortId ? 9 : 11, top: c.id === sortId ? 1 : -1, opacity: c.id === sortId ? 1 : 0.55 }}>{c.id === sortId ? "▼" : "⇅"}</span>{c.head}
+                        </span>
                       </button>
                     ))}
                   </div>
