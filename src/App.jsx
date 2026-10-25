@@ -2461,10 +2461,11 @@ function SkyLeaderboard() {
                         on the words above the top player … the two should merge"); no frames, the chosen one in gold */}
                     {LB_COLS.map(c => (
                       <button key={c.id} onClick={() => setSortId(c.id)} aria-pressed={c.id === sortId} title={`Order by ${c.head.toLowerCase()}: ${c.tab}`} className="lb-head"
-                        style={{ justifySelf: "end", border: "none", borderRadius: 999, padding: "5px 11px", font: "inherit", letterSpacing: "inherit", textTransform: "inherit", cursor: "pointer", whiteSpace: "nowrap",
+                        style={{ width: "100%", boxSizing: "border-box", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", border: "none", borderRadius: 999, padding: "5px 8px", font: "inherit", letterSpacing: "inherit", textTransform: "inherit", cursor: "pointer", whiteSpace: "nowrap",
                           background: c.id === sortId ? gold : `color-mix(in srgb, ${C.teal} 16%, transparent)`, color: c.id === sortId ? "#1B1A17" : C.textPrimary, transition: "background 0.15s" }}>
-                        {/* real buttons, soft pills (Damon: "make them look like buttons, just not ugly ones"); the chosen one gold */}
-                        {c.head}{c.id === sortId ? " ▼" : ""}
+                        {/* real buttons, soft pills (Damon: "make them look like buttons, just not ugly ones"); the chosen one gold.
+                            Each exactly as wide as its column, so they never overlap (a ▼ made the chosen one wider, 2026-10-26) */}
+                        {c.head}
                       </button>
                     ))}
                   </div>
@@ -2480,7 +2481,7 @@ function SkyLeaderboard() {
                           const has = c.ok(p, data), on = c.id === sortId;
                           // below the minimum: the number in grey (it doesn't count for a rank yet); nothing played for it: "–"
                           const none = c.id === "champions" ? !p.journeys : !p.stations;
-                          return <span key={c.id} title={!has && !none ? "Not enough played yet to count" : undefined} style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: on && has ? 800 : 500, fontSize: on ? 16 : 14, color: !has ? C.textMuted : on ? (first ? gold : C.textPrimary) : C.textSecond, opacity: !has ? 0.7 : 1 }}>{none ? "–" : c.show(p)}</span>;
+                          return <span key={c.id} title={!has && !none ? "Not enough played yet to count" : undefined} style={{ textAlign: "center", fontVariantNumeric: "tabular-nums", fontWeight: on && has ? 800 : 500, fontSize: on ? 16 : 14, color: !has ? C.textMuted : on ? (first ? gold : C.textPrimary) : C.textSecond, opacity: !has ? 0.7 : 1 }}>{none ? "–" : c.show(p)}</span>;
                         })}
                       </div>
                     );
