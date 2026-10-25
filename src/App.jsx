@@ -5662,7 +5662,7 @@ function Room() {
   const phaseTitle =
     topicRequested || phase === "Starting" ? "Choosing the direction"
     : phase === "Results" || phase === "Ended" ? "Results"
-    : phase === "Submitting" ? "Write your acro"
+    : phase === "Submitting" ? "Accepting Expressions"   // (Damon, 2026-10-25; was "Write your acro")
     : phase === "Voting" ? "Voting"
     : phase === "Tallying" ? "Counting votes"
     : phase === "GameOver" ? "Final Stop"
@@ -5755,7 +5755,7 @@ function Room() {
             {/* Rounds are stations: a game travels Station 0 → 1 → 2 … → Final Stop (round N = Station N) */}
             Station {headerStation}
             {/* What's happening now, in words (first step towards the "Departure Board" announcer) */}
-            {" · "}{phaseTitle}
+            {": "}{phaseTitle}   {/* "Station 3: Accepting Expressions" (Damon, 2026-10-25) */}
             {/* The timer moved to the centre, above the letters */}
           </div>
         </div>
