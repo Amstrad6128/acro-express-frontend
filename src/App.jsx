@@ -3185,7 +3185,9 @@ function Lobby() {
   const [createError, setCreateError] = useState("");
 
   // The sign-in card's state: which tab ("new" = get a Sky Passport, "login"), its message, busy while sending
-  const [authMode, setAuthMode] = useState("new");
+  // opens on "I have a passport" (Damon, 2026-10-26, after Zyngacita: regulars always had to switch, and their browser filled
+  // their name and password into the "I'm new" form); newcomers have the "I'm new" link there
+  const [authMode, setAuthMode] = useState("login");
   const [authMsg, setAuthMsg] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   // The server's answers, in friendly words (they used to pop up raw: "400: Username and password are required.")
