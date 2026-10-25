@@ -1471,7 +1471,7 @@ function HowToPlay({ winScore = 30 }) {
                   <li><b style={{ color: C.textPrimary }}>A + B = C + D</b> (4 letters) — two plus two. <span style={ex}>"Peanut + Butter = Sticky + Fingers"</span></li>
                   <li><b style={{ color: C.textPrimary }}>Q (one word) and A</b> (5 letters) — a one-word question, then the answer. <span style={ex}>"Why? Because Cats Dance Daily"</span></li>
                   <li><b style={{ color: C.textPrimary }}>3 words, similar meaning</b> (3 letters) — three words that mean almost the same. <span style={ex}>"Big Huge Giant"</span></li>
-                  <li><b style={{ color: C.textPrimary }}>Real word and its definition</b> — a real word, then its dictionary definition (Zyngacita's). <span style={ex}>B F T L → "Ballet: Flowing Theatrical Leaps"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>Real word and its definition</b> — a real word followed by its dictionary-style definition (Zyngacita's). <span style={ex}>B F T L → "Ballet: Flowing Theatrical Leaps"</span></li>
                 </ul>
                 <div style={{ marginTop: 6 }}>Tip: put spaces around &gt; + and = so they don't stick to a word ("Fire&gt;Truck" counts as one word).</div>
               </RulesSection>
@@ -1979,7 +1979,7 @@ function specialTopicNote(topic) {
   if (k.startsWith("a+b=c")) return 'The 1st word plus the 2nd makes the 3rd: "Sun + Flower = Sunflower"';
   if (k.startsWith("q(oneword)anda") || k.startsWith("qoneworda")) return 'A one-word question, then the answer: "Why? Because Cats Dance Daily"';
   if (k.startsWith("3wordssimilarmeaning")) return 'Three words that mean almost the same: "Big Huge Giant"';
-  if (k.startsWith("realword")) return 'A real word, then its dictionary definition. BFTL → "Ballet: Flowing Theatrical Leaps"';   // Zyngacita's, 2026-10-26
+  if (k.startsWith("realword")) return 'A real word followed by its dictionary-style definition. BFTL → "Ballet: Flowing Theatrical Leaps"';   // Zyngacita's, 2026-10-26
   return null;
 }
 // A ride: a 3-letter station, a 4-letter one, then a longer one, each picked at random; the acros shuffled
