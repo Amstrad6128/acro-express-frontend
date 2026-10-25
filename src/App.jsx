@@ -2164,7 +2164,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
           <div style={{ display: "flex", gap: 8 }}>
             <input ref={inputRef} value={text} onChange={e => { setText(e.target.value); textRef.current = e.target.value; setProblem(""); }} maxLength={300} placeholder="Type your acro and press Enter"
               style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "12px 14px", color: C.textPrimary, fontSize: 18, outline: "none", fontFamily: "inherit", textAlign: "center" }} />
-            <Btn onClick={() => finish(false)}>Submit</Btn>
+            <Btn>Submit</Btn>   {/* submits the form (an onClick too would run it twice) */}
           </div>
           <div style={{ minHeight: 20, textAlign: "center", fontSize: 14, color: problem ? C.brand : C.textMuted }}>{problem || "One word for each letter, in order. Have fun with the direction!"}</div>
         </form>
@@ -2924,6 +2924,7 @@ function PassengerCard({ inTrain = false }) {
   const [err, setErr] = useState("");
   const [text, setText] = useState("");
   const cardRef = useRef(null);
+  const sendingRef = useRef(false);   // a message on its way (no second send meanwhile)
   const [top, setTop] = useState(null);                    // measured: the card's top, kept inside the window
   useEffect(() => {
     const open = e => {
@@ -2954,7 +2955,9 @@ function PassengerCard({ inTrain = false }) {
   const send = async () => {
     const t = text.trim();
     if (!t) { openPm(name); setName(null); return; }      // nothing typed: just open the chat
-    const ok = await sendPm(name, t);
+    if (sendingRef.current) return;                         // one on its way: not again
+    sendingRef.current = true;
+    const ok = await sendPm(name, t).finally(() => { sendingRef.current = false; });
     openPm(name);                                           // the chat shows the message (or the error)
     if (ok !== false) setName(null);
   };
@@ -2976,7 +2979,8 @@ function PassengerCard({ inTrain = false }) {
           <form onSubmit={e => { e.preventDefault(); send(); }} style={{ display: "flex", gap: 8 }}>
             <input autoFocus value={text} onChange={e => setText(e.target.value)} placeholder={`Message ${name}…`} maxLength={500}
               style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
-            <Btn onClick={send} style={{ padding: "6px 14px" }}>Send</Btn>
+            {/* no onClick: the button submits the form; with both, Enter and Send sent every message twice (2026-10-26) */}
+            <Btn style={{ padding: "6px 14px" }}>Send</Btn>
           </form>
         )}
         {err && <div style={{ color: C.textMuted, fontSize: 14 }}>{err}</div>}
