@@ -1454,6 +1454,8 @@ function HowToPlay({ winScore = 30 }) {
               <RulesSection icon="🎯" title="Directions">
                 The direction is the station's topic: what your acro should be about. The winner of a station picks the
                 next one. No direction in time? Then it's "General Acro".
+                {/* Highball! explained (2026-10-25: players didn't know what it does; Fran and Debbie know it as a drink) */}
+                <br />The chooser presses <b style={{ color: C.textPrimary }}>Highball!</b> to depart: the old railway signal for "clear to go".
               </RulesSection>
               <RulesSection icon="🎭" title="Special directions">
                 Sometimes the direction is a special challenge — your acro still has to fit the letters.
@@ -4367,16 +4369,21 @@ function DeskInput({ id, value, onChange, onEnter, placeholder, pulse }) {
 // The big button: a word in Honk, dark on gold, with a ▶
 // ready = false: the signal hasn't cleared yet (no direction): dimmed and not clickable; ready: lit, with a glow.
 // flash: the moment it is pressed
-function DeskButton({ children, onClick, disabled, ready = true, flash }) {
+// hint: the hover line, on a wrapper (a disabled button gets no mouse events, so the dim button lets the mouse through
+// to the wrapper)
+function DeskButton({ children, onClick, disabled, ready = true, flash, hint }) {
+  const off = disabled || !ready;
   return (
-    <button onClick={onClick} disabled={disabled || !ready} className={flash ? "acro-highball" : undefined}
-      style={{ ...smallTitle, color: C.onBrand, fontPalette: "var(--fp-dark)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", background: C.brand, border: "none", borderRadius: 14,
+    <span data-hint={hint} style={{ display: "inline-flex", cursor: off ? (disabled ? "wait" : "not-allowed") : undefined }}>
+    <button onClick={onClick} disabled={off} className={flash ? "acro-highball" : undefined}
+      style={{ pointerEvents: off ? "none" : "auto", ...smallTitle, color: C.onBrand, fontPalette: "var(--fp-dark)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", background: C.brand, border: "none", borderRadius: 14,
         padding: "10px 40px", fontSize: 34, lineHeight: 1.1, cursor: disabled ? "wait" : ready ? "pointer" : "not-allowed", display: "inline-flex", alignItems: "center", gap: 14,
         opacity: ready ? 1 : 0.4, filter: ready ? "none" : "saturate(0.4)", transition: "opacity 0.35s, filter 0.35s, box-shadow 0.35s",
         boxShadow: ready ? `0 6px 18px rgba(0,0,0,0.3), 0 0 22px color-mix(in srgb, ${C.brand} 55%, transparent)` : "none" }}>
       {children}
       <svg aria-hidden width="16" height="18" viewBox="0 0 16 18"><path d="M1 1l14 8-14 8z" fill={C.onBrand} /></svg>
     </button>
+    </span>
   );
 }
 
@@ -5712,7 +5719,7 @@ function Room() {
             <DeskInput id="topicInput" pulse value={topicDraft} placeholder="Write a direction, or pick one"
               onChange={v => { setTopicDraft(v); setTopicError(""); }} onEnter={highballTopic} />
             <DeskButton onClick={highballTopic} disabled={topicGoing && !highballFlash} flash={highballFlash}
-              ready={(topicDraft.match(/[\p{L}\p{N}]/gu) || []).length >= 2}>Highball!</DeskButton>
+              ready={(topicDraft.match(/[\p{L}\p{N}]/gu) || []).length >= 2} hint="Highball! The old railway signal for clear to go: it sends the train on its way">Highball!</DeskButton>
             <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Give the signal to depart. No direction in time? The Express Server picks one.</div>
             {topicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{topicError}</p>}
           </div>}
@@ -5765,7 +5772,7 @@ function Room() {
               <DeskInput id="firstTopicInput" value={firstTopicDraft} placeholder="Write a direction, or pick one"
                 onChange={v => { setFirstTopicDraft(v); setFirstTopicError(""); }} onEnter={startDeparture} />
               {/* "Highball!": the railway signal to go (Damon, 2026-10-24: "It doesn't say start, it says Highball!") */}
-              <DeskButton onClick={startDeparture} ready={(firstTopicDraft.match(/[\p{L}\p{N}]/gu) || []).length >= 2} flash={highballFlash}>Highball!</DeskButton>
+              <DeskButton onClick={startDeparture} ready={(firstTopicDraft.match(/[\p{L}\p{N}]/gu) || []).length >= 2} flash={highballFlash} hint="Highball! The old railway signal for clear to go: it sends the train on its way">Highball!</DeskButton>
               <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Give the signal to depart.</div>
               {firstTopicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{firstTopicError}</p>}
             </div>
