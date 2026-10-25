@@ -2365,9 +2365,11 @@ function SkyLeaderboard() {
   const board = LB_BOARDS.find(b => b.id === boardId);
   const monthName = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const when = period === "month" ? monthName : period === "week" ? "This week" : "All time";
-  // The ranking: passengers who qualify for this board, best first; equal values share a rank
+  const inWhen = period === "month" ? ` in ${monthName}` : period === "week" ? " this week" : "";   // for sentences
+  // The ranking: passengers who qualify for this board, best first. The same number shown, the same rank (Damon,
+  // 2026-10-25: "same points same rank"; before, the hidden tie-breaks gave 76 points ranks 1, 2 and 2)
   const ranked = data ? data.players.filter(p => board.ok(p, data)).sort((a, b) => board.value(b) - board.value(a)) : [];
-  const ranks = []; ranked.forEach((p, i) => ranks.push(i > 0 && board.value(p) === board.value(ranked[i - 1]) ? ranks[i - 1] : i + 1));
+  const ranks = []; ranked.forEach((p, i) => ranks.push(i > 0 && String(board.show(p)) === String(board.show(ranked[i - 1])) ? ranks[i - 1] : i + 1));
   const myRank = ranked.findIndex(p => p.name.toLowerCase() === me);
   const gold = "var(--c-gold)";
   const nameBtn = name => (
@@ -2415,7 +2417,7 @@ function SkyLeaderboard() {
             </div>
             {ranked.length === 0 ? (
               <p style={{ margin: "4px 4px 8px", color: C.textMuted }}>
-                No one on this board yet {period === "all" ? "" : when.toLowerCase()}.
+                No one on this board yet{inWhen}.
                 {(["masters", "average"].includes(boardId) ? ` It counts from ${data.minStations} stations.` : "")}
               </p>
             ) : (
@@ -2442,7 +2444,7 @@ function SkyLeaderboard() {
               </>
             )}
             <div style={{ marginTop: 10, padding: "0 4px", fontSize: 12, color: C.textMuted }}>
-              Station win % and points per station count from {data.minStations} stations{period === "all" ? "" : ` ${when.toLowerCase()}`}, so one lucky win can't top a board.
+              Station win % and points per station count from {data.minStations} stations{inWhen}, so one lucky win can't top a board.
             </div>
           </Panel>
         )}
@@ -2458,7 +2460,7 @@ function SkyLeaderboard() {
 // direction (context), the line itself, its writer (attribution), then letters, date and votes (provenance).
 // Three views: This month, All-time greats, The archive (every month, newest first; a month opens like This month).
 // While a month runs its first line is only "featured this month"; once the month is over it is the Expression of the
-// Month. Ranked by the share of the other voters at its station who chose it (server: HallController). The admin's
+// Month. Ranked by points (Damon: "count points", not votes; server: HallController). The admin's
 // Hide buttons only show after "Manage" (so the Hall doesn't look like a moderation page).
 function HallOfExpressions() {
   const navigate = useNavigate();
@@ -2502,6 +2504,9 @@ function HallOfExpressions() {
   const tabOn = t => (t === "month" ? view.tab === "month" : view.tab === t);
   const featuredLabel = view.tab === "all" ? "The greatest so far" : data?.official ? "Expression of the Month" : "Featured this month";
   const list = data ? (all ? data.list : data.list.slice(0, 6)) : [];
+  // ranks in the list: the same points, the same rank (the featured expression is 1)
+  const listRank = [];
+  if (data?.top) data.list.forEach((a, i) => { const prev = i === 0 ? data.top : data.list[i - 1]; listRank.push(a.points === prev.points ? (i === 0 ? 1 : listRank[i - 1]) : i + 2); });
 
   return (
     <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "18px 16px 0", boxSizing: "border-box" }}>
@@ -2561,7 +2566,7 @@ function HallOfExpressions() {
                   <div style={{ fontSize: "clamp(24px, 6.4vw, 32px)", lineHeight: 1.25, fontWeight: 800, margin: "8px auto 0", maxWidth: "26ch" }}>“{data.top.sentence}”</div>
                   <div style={{ marginTop: 14 }}>{letters(data.top.letters, "inherit", 18)}</div>
                   <div style={{ fontSize: 16, marginTop: 10 }}>
-                    by {names(data.top.by, "inherit")} <span style={{ opacity: 0.7 }}>· {data.top.votes} vote{data.top.votes === 1 ? "" : "s"} · {date(data.top)}</span>{hideBtn(data.top)}
+                    by {names(data.top.by, "inherit")} <span style={{ opacity: 0.7 }}>· {data.top.points} point{data.top.points === 1 ? "" : "s"} · {date(data.top)}</span>{hideBtn(data.top)}
                   </div>
                 </div>
 
@@ -2574,7 +2579,7 @@ function HallOfExpressions() {
                     </div>
                     {list.map((a, i) => (
                       <div key={a.id} style={{ display: "grid", gridTemplateColumns: "clamp(28px, 8vw, 44px) 1fr auto", gap: "clamp(8px, 2.5vw, 14px)", alignItems: "center", padding: "16px 4px", borderBottom: i < list.length - 1 ? `1px solid ${C.border}` : "none", opacity: a.hidden ? 0.45 : 1 }}>
-                        <span style={{ fontSize: "clamp(22px, 6vw, 30px)", fontWeight: 800, fontVariantNumeric: "tabular-nums", color: i < 2 ? gold : C.textMuted, textAlign: "center" }}>{a.hidden ? "–" : i + 2}</span>
+                        <span style={{ fontSize: "clamp(22px, 6vw, 30px)", fontWeight: 800, fontVariantNumeric: "tabular-nums", color: listRank[i] <= 3 ? gold : C.textMuted, textAlign: "center" }}>{a.hidden ? "–" : listRank[i]}</span>
                         <div style={{ minWidth: 0 }}>
                           {a.topic && <div style={{ fontSize: 14, color: C.textMuted }}>Direction: {a.topic}</div>}
                           <div style={{ fontSize: "clamp(17px, 4.6vw, 21px)", lineHeight: 1.3, fontWeight: 700, marginTop: 2 }}>“{a.sentence}”</div>
@@ -2582,7 +2587,7 @@ function HallOfExpressions() {
                             {letters(a.letters, C.textSecond, 13)}<span style={{ marginLeft: 12 }}>by {names(a.by, C.teal)} · {date(a)}</span>{hideBtn(a)}
                           </div>
                         </div>
-                        <span title={`${a.votes} vote${a.votes === 1 ? "" : "s"}`} style={{ border: `1px solid ${C.border}`, borderRadius: 999, padding: "5px 12px", fontWeight: 800, fontSize: 15, whiteSpace: "nowrap" }}>♥ {a.votes}</span>
+                        <span style={{ border: `1px solid ${C.border}`, borderRadius: 999, padding: "5px 12px", fontWeight: 800, fontSize: 15, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{a.points} pts</span>
                       </div>
                     ))}
                   </Panel>
