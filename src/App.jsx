@@ -2469,7 +2469,7 @@ function SkyLeaderboard() {
                         <div key={p.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "7px 4px", borderBottom: `1px solid ${C.border}`, background: isMe ? `color-mix(in srgb, ${C.teal} 10%, transparent)` : "transparent" }}>
                           <span style={{ width: 28, textAlign: "right", fontWeight: 800, color: isMe ? C.teal : C.textMuted, fontVariantNumeric: "tabular-nums" }}>{ranks[i]}</span>
                           <AvatarSquare name={p.name} size={24} />
-                          <span style={{ flex: 1, minWidth: 0, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nameBtn(p.name)}{isMe && <span style={{ color: C.teal, fontWeight: 400 }}> · you</span>}</span>
+                          <span style={{ flex: 1, minWidth: 0, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nameBtn(p.name)}</span>
                           <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{board.show(p)}</span>
                         </div>
                       );
@@ -2491,22 +2491,17 @@ function SkyLeaderboard() {
 }
 
 // The Hall of Expressions (Damon, 2026-10-25): what the passengers write, the best of the month as an exhibition.
-// The Expression of the Month as the centrepiece, the two runners-up, then a gallery of the month's best; "Surprise
-// me" brings back one memorable line from any time. Ranked by the share of the other voters at its station who chose
+// The Expression of the Month as the centrepiece, the two runners-up, then a gallery of the month's best (no
+// "Surprise me": Damon took it out the same day). Ranked by the share of the other voters at its station who chose
 // it (server: HallController). The admin can take a line out of the Hall. (All-Time Greats and the Archive: later.)
 function HallOfExpressions() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
-  const [surprise, setSurprise] = useState(null);
   const load = () => fetch(`${API_URL}/api/hall`, { headers: authHeaders() })
     .then(async r => { if (r.status === 401) throw new Error("Log in to visit the Hall of Expressions."); if (!r.ok) throw new Error(); setData(await r.json()); })
     .catch(e => setErr(e.message || "Couldn't open the Hall. Try again in a moment."));
   useEffect(() => { load(); }, []);
-  async function surpriseMe() {
-    try { const r = await fetch(`${API_URL}/api/hall/surprise`, { headers: authHeaders() }); const j = await r.json(); setSurprise(j.item ? { ...j.item, month: j.month } : { none: true }); }
-    catch { setSurprise({ none: true }); }
-  }
   async function hide(id) {
     await fetch(`${API_URL}/api/hall/${id}/hide`, { method: "POST", headers: authHeaders() }).catch(() => { });
     load();
@@ -2555,23 +2550,7 @@ function HallOfExpressions() {
         {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
         {data && (
           <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 22, ...honkTitle }}>{data.month}</span>
-              <BtnSecondary onClick={surpriseMe} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px" }}>🎲 Surprise me</BtnSecondary>
-            </div>
-            {/* A memorable line from any time */}
-            {surprise && (
-              <Panel style={{ padding: "16px 18px", position: "relative" }}>
-                <button onClick={() => setSurprise(null)} aria-label="Close" style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", color: C.textMuted, fontSize: 18, cursor: "pointer" }}>×</button>
-                {surprise.none ? <div style={{ color: C.textMuted }}>The archives are still filling up. Come back soon!</div> : (
-                  <>
-                    <div style={eyebrow}>From the archives · {surprise.month}</div>
-                    <div style={{ marginTop: 8 }}>{quote(surprise.sentence, 24)}</div>
-                    {meta(surprise)}
-                  </>
-                )}
-              </Panel>
-            )}
+            <span style={{ fontSize: 22, ...honkTitle }}>{data.month}</span>
             {!data.top ? (
               <Panel style={{ padding: 20 }}><p style={{ margin: 0, color: C.textMuted }}>No expressions with votes yet this month. Board a Sky Train and write one!</p></Panel>
             ) : (
