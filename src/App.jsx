@@ -4708,6 +4708,9 @@ function Room() {
   const [topicDraft, setTopicDraft] = useState("");
   // Waits 8 s after the results appear before opening the winner's topic prompt
   const topicPromptTimerRef = useRef(null);
+  // The Word of the Week, shown under the direction on ordinary stations (Damon, 2026-10-25: "We would like Word of
+  // the week showing back into the room again")
+  const roomWord = useWordOfWeek();
   // Every passenger's name by id, kept after they leave (the chooser may have just got off: "Someone is choosing…")
   const nameByIdRef = useRef({});
   // The station winner's streak (stations won in a row), for "wins the station again!" (Damon, 2026-10-24)
@@ -5691,7 +5694,8 @@ function Room() {
     <div style={{ textAlign: align, maxWidth: 520, margin: align === "center" ? "0 auto" : 0 }}>
       <TopicText size={isShort ? 28 : 34}>{currentTopic}</TopicText>
       {/* a special topic, in one line (2026-10-24) */}
-      {specialTopicNote(currentTopic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2, maxWidth: 420 }}>🎭 {specialTopicNote(currentTopic)}</div>}
+      {specialTopicNote(currentTopic) ? <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2, maxWidth: 420 }}>🎭 {specialTopicNote(currentTopic)}</div>
+        : roomWord && <div style={{ fontSize: 14, color: C.textMuted, marginTop: 2 }}>📖 Word of the week: <b style={{ color: C.textPrimary }}>{roomWord.word}</b> (+1)</div>}
       {/* (the Word of the Week line was here; Damon crossed it out, 2026-10-24: it's on the Station Board and in How to play) */}
     </div>
   );
@@ -5906,7 +5910,8 @@ function Room() {
           <div style={{ minHeight: topicRow, textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", paddingBottom: 6, boxSizing: "border-box" }}>
             {showTopic && <>
               <TopicText size={currentTopic.length > 44 ? Math.round(topicSize * 0.8) : currentTopic.length > 32 ? Math.round(topicSize * 0.9) : topicSize}>{currentTopic}</TopicText>
-              {specialTopicNote(currentTopic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2 }}>🎭 {specialTopicNote(currentTopic)}</div>}
+              {specialTopicNote(currentTopic) ? <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2 }}>🎭 {specialTopicNote(currentTopic)}</div>
+                : roomWord && <div title={`${roomWord.word}: ${roomWord.meaning}. Use it in an acro that gets a vote: +1`} style={{ fontSize: 14, color: C.textMuted, marginTop: 2 }}>📖 Word of the week: <b style={{ color: C.textPrimary }}>{roomWord.word}</b> (+1)</div>}
             </>}
           </div>
         )}
