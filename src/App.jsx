@@ -2144,7 +2144,6 @@ function PracticeTrain({ onClose = null, boarding = null }) {
     <>
       {/* the stage: topic, timer, letters — the game's look, in the player's own letter font */}
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: C.textMuted }}>Direction</div>
         <div style={{ ...honkTitle, fontSize: 30, lineHeight: 1.15 }}>{st.topic}</div>
         {specialTopicNote(st.topic) && <div style={{ color: C.textSecond, fontSize: 15, marginTop: 4 }}>🎭 Special topic: {specialTopicNote(st.topic)}</div>}
         {phase === "write" && (
@@ -2326,6 +2325,27 @@ const LB_PERIODS = [["week", "This week"], ["month", "This month"], ["all", "All
 const pct = (a, b) => (b > 0 ? a / b : 0);                       // a share, 0 when there's nothing to share
 const pctText = v => `${Math.round(v * 100)}%`;
 
+// A gold laurel wreath (Damon, 2026-10-25: "we need to find a better crown or some other symbol for the winner"):
+// two branches of leaves, with what goes in the middle (the 1) as children
+function Laurel({ size = 30, color = "var(--c-gold)", children }) {
+  // each branch curves up from the bottom (angle 255°) to the upper side (145°) around the middle, leaves along it,
+  // tilted a little outwards; the right branch is the mirror image
+  const leaves = [];
+  for (let k = 0; k < 6; k++) {
+    const t = 255 - k * 22, r = (t * Math.PI) / 180;
+    const x = 16 + 11 * Math.cos(r), y = 16 - 11 * Math.sin(r);
+    const rot = t - 180 - 22;
+    leaves.push(<ellipse key={"l" + k} cx={x} cy={y} rx="1.45" ry="3.3" fill={color} transform={`rotate(${rot} ${x} ${y})`} />);
+    leaves.push(<ellipse key={"r" + k} cx={32 - x} cy={y} rx="1.45" ry="3.3" fill={color} transform={`rotate(${-rot} ${32 - x} ${y})`} />);
+  }
+  return (
+    <span style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: size, height: size, verticalAlign: "middle" }}>
+      <svg aria-hidden width={size} height={size} viewBox="0 0 32 32" style={{ position: "absolute", inset: 0 }}>{leaves}</svg>
+      {children && <span style={{ position: "relative", fontWeight: 900, fontSize: size * 0.42, color, lineHeight: 1 }}>{children}</span>}
+    </span>
+  );
+}
+
 // The Sky Leaderboard (Damon, 2026-10-25): ONE table with every passenger and all their numbers side by side; a tab
 // only changes the order (click Express Flyers and the speed-bonus kings go up, the rest move down). The columns in
 // order of importance: points per station, journey win %, station win %, stations, speed bonuses (total points are
@@ -2442,7 +2462,7 @@ function SkyLeaderboard() {
                       <div key={p.name} style={{ display: "grid", gridTemplateColumns: grid, gap: 8, alignItems: "center", padding: "7px 10px", borderRadius: first || isMe ? 8 : 0,
                         background: first ? `color-mix(in srgb, ${gold} 16%, transparent)` : isMe ? `color-mix(in srgb, ${C.teal} 14%, transparent)` : "transparent",
                         borderBottom: first || isMe ? "none" : `1px solid ${C.border}` }}>
-                        <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums", color: first ? gold : ranked ? C.textPrimary : C.textMuted }}>{first ? "👑" : ranked ? String(ranks[i]).padStart(2, "0") : "–"}</span>
+                        <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums", color: first ? gold : ranked ? C.textPrimary : C.textMuted }}>{first ? <Laurel size={30}>1</Laurel> : ranked ? String(ranks[i]).padStart(2, "0") : "–"}</span>
                         <span style={{ minWidth: 0, fontWeight: first || isMe ? 800 : 600, fontSize: 16 }}>{nameBtn(p.name)}</span>
                         {LB_COLS.map(c => {
                           const has = c.ok(p, data), on = c.id === sortId;
@@ -2509,11 +2529,11 @@ function HallOfExpressions() {
     load();
   }
   const gold = "var(--c-gold)";
-  const names = (by, color) => (
-    // two writers of the same line: each name opens its own passport
+  // the writers, in Honk (Damon, 2026-10-25); two writers of the same line: each name opens its own passport
+  const names = (by, size) => (
     <>{by.split(" & ").map((n, i) => (
-      <span key={n}>{i > 0 && " & "}<button onClick={e => openProfile(n, e.currentTarget)} title={`Message ${n} or see their Sky Passport`}
-        style={{ background: "none", border: "none", padding: 0, color, font: "inherit", fontWeight: 800, cursor: "pointer" }}>{n}</button></span>
+      <span key={n}>{i > 0 && <span style={{ color: C.textMuted, fontSize: size * 0.7 }}> & </span>}<button onClick={e => openProfile(n, e.currentTarget)} title={`Message ${n} or see their Sky Passport`}
+        style={{ background: "none", border: "none", padding: 0, ...honkTitle, fontSize: size, lineHeight: 1.15, cursor: "pointer" }}>{n}</button></span>
     ))}</>
   );
   const date = a => new Date(a.atUtc).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -2582,11 +2602,11 @@ function HallOfExpressions() {
               <>
                 {/* The featured expression: context, the line, the writer, then the details */}
                 <div style={{ background: C.bgPanel, color: C.textPrimary, border: `2px solid ${gold}`, borderRadius: 16, padding: "24px clamp(16px, 5vw, 28px) 26px", textAlign: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>
-                  <div style={{ fontSize: 13, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 800, color: gold }}>👑 {featuredLabel}{view.tab !== "all" && data.month && data.official ? ` · ${data.month}` : ""}</div>
-                  {data.top.topic && <div style={{ fontSize: 15, marginTop: 16, opacity: 0.75 }}>Direction: {data.top.topic}</div>}
+                  <div style={{ fontSize: 13, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 800, color: gold, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Laurel size={22} />{featuredLabel}{view.tab !== "all" && data.month && data.official ? ` · ${data.month}` : ""}</div>
+                  {data.top.topic && <div style={{ fontSize: 15, marginTop: 16, color: C.textMuted }}>{data.top.topic}</div>}
                   <div style={{ fontSize: "clamp(24px, 6.4vw, 32px)", lineHeight: 1.25, fontWeight: 800, margin: "8px auto 0", maxWidth: "26ch" }}>“{data.top.sentence}”</div>
                   {/* the writer: big and in gold, being featured should mean something (Damon) */}
-                  <div style={{ fontSize: 22, marginTop: 14 }}>{names(data.top.by, gold)}</div>
+                  <div style={{ marginTop: 14 }}>{names(data.top.by, 40)}</div>
                   <div style={{ fontSize: 15, marginTop: 8, color: C.textMuted }}>
                     {letters(data.top.letters, C.textSecond, 15)} <span style={{ marginLeft: 8 }}>· {data.top.points} point{data.top.points === 1 ? "" : "s"} · {date(data.top)}</span>{hideBtn(data.top)}
                   </div>
@@ -2603,9 +2623,9 @@ function HallOfExpressions() {
                       <div key={a.id} style={{ display: "grid", gridTemplateColumns: "clamp(28px, 8vw, 44px) 1fr auto", gap: "clamp(8px, 2.5vw, 14px)", alignItems: "center", padding: "16px 4px", borderBottom: i < list.length - 1 ? `1px solid ${C.border}` : "none", opacity: a.hidden ? 0.45 : 1 }}>
                         <span style={{ fontSize: "clamp(22px, 6vw, 30px)", fontWeight: 800, fontVariantNumeric: "tabular-nums", color: listRank[i] <= 3 ? gold : C.textMuted, textAlign: "center" }}>{a.hidden ? "–" : listRank[i]}</span>
                         <div style={{ minWidth: 0 }}>
-                          {a.topic && <div style={{ fontSize: 14, color: C.textMuted }}>Direction: {a.topic}</div>}
+                          {a.topic && <div style={{ fontSize: 14, color: C.textMuted }}>{a.topic}</div>}
                           <div style={{ fontSize: "clamp(17px, 4.6vw, 21px)", lineHeight: 1.3, fontWeight: 700, marginTop: 2 }}>“{a.sentence}”</div>
-                          <div style={{ fontSize: 17, marginTop: 4 }}>{names(a.by, C.teal)}</div>
+                          <div style={{ marginTop: 4 }}>{names(a.by, 26)}</div>
                           <div style={{ fontSize: 13, color: C.textMuted, marginTop: 4 }}>
                             {letters(a.letters, C.textSecond, 13)}<span style={{ marginLeft: 10 }}>· {date(a)}</span>{hideBtn(a)}
                           </div>
@@ -4199,7 +4219,6 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
           {/* The round's topic — players asked "what was the topic?" while voting */}
           {topic && (
             <div style={{ margin: "10px 0 0", textAlign: "center" }}>
-              <div style={{ fontSize: 12, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Direction</div>
               <div style={{ fontSize: 34, ...smallTitle, overflowWrap: "anywhere" }}>{topic}</div>   {/* Honk (Damon, 2026-10-18) */}
             </div>
           )}
@@ -4415,7 +4434,6 @@ function QuickTopics({ ideas, selected, onPick }) {
 function TopicPreview({ topic, size, empty = "Yours shows here" }) {
   return (
     <div style={{ maxWidth: 360, margin: "0 auto" }}>
-      <div style={{ ...deskEyebrow, marginBottom: 6 }}>Direction</div>
       {topic ? <TopicText size={size}>{topic}</TopicText> : <span style={{ fontSize: 16, color: C.textMuted, fontStyle: "italic" }}>{empty}</span>}
       {topic && specialTopicNote(topic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 6 }}>🎭 {specialTopicNote(topic)}</div>}
     </div>
@@ -5657,7 +5675,6 @@ function Room() {
   // 2026-10-24: beside the letters (right), not in the header's corner — "you don't have to turn your head"
   const topicBlock = (align) => (
     <div style={{ textAlign: align, maxWidth: 520, margin: align === "center" ? "0 auto" : 0 }}>
-      <div style={{ fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 2 }}>Direction</div>
       <TopicText size={isShort ? 28 : 34}>{currentTopic}</TopicText>
       {/* a special topic, in one line (2026-10-24) */}
       {specialTopicNote(currentTopic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2, maxWidth: 420 }}>🎭 {specialTopicNote(currentTopic)}</div>}
@@ -5913,7 +5930,6 @@ function Room() {
             lines if needed), with "TOPIC" just above it */}
         {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>{showTopic && (
           <div style={{ position: "relative", maxWidth: 400, textAlign: "left" }}>
-            <div style={{ position: "absolute", bottom: "100%", left: 0, marginBottom: 4, fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", whiteSpace: "nowrap" }}>Direction</div>
             <TopicText size={isShort ? 28 : 34}>{currentTopic}</TopicText>
             {specialTopicNote(currentTopic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2 }}>🎭 {specialTopicNote(currentTopic)}</div>}
           </div>
