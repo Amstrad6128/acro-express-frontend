@@ -2341,7 +2341,8 @@ function Crown({ size = 20, color = "var(--c-gold)" }) {
 // The Sky Leaderboard (Damon, 2026-10-25): ONE table with every passenger and all their numbers side by side; a tab
 // only changes the order (click Express Flyers and the speed-bonus kings go up, the rest move down). The columns in
 // order of importance: points per station, journey win %, station win %, stations, speed bonuses (total points are
-// not shown: "irrelevant"). Station Masters (points per station) is the first tab. The numbers sit right next to the
+// not shown: "irrelevant"). The column titles are the buttons (2026-10-26; there was a row of tabs above); Station
+// Masters (points per station) is the first. The numbers sit right next to the
 // names (no stretching to the box's edge), as many passengers a page as fit the window, with Previous / Next (no scrolling).
 // The percentages and the average count from data.minJourneys / data.minStations; below that a passenger shows "–"
 // for that number, and on that tab comes after the ones who qualify, without a rank.
@@ -2434,15 +2435,6 @@ function SkyLeaderboard() {
               style={{ border: "none", background: period === k ? gold : "transparent", color: period === k ? "#1B1A17" : C.textPrimary, padding: "8px clamp(10px, 3vw, 18px)", whiteSpace: "nowrap", fontWeight: 700, fontSize: "clamp(13px, 3.6vw, 15px)", fontFamily: "inherit", cursor: "pointer" }}>{label}</button>
           ))}
         </div>
-        {/* The order */}
-        <div role="tablist" style={{ display: "flex", gap: 0, overflowX: "auto", scrollbarWidth: "none", marginTop: -4 }}>
-          {LB_COLS.map(c => (
-            <button key={c.id} role="tab" aria-selected={c.id === sortId} onClick={() => setSortId(c.id)}
-              style={{ background: "none", border: "none", borderBottom: `3px solid ${c.id === sortId ? gold : "transparent"}`, padding: "8px 9px", whiteSpace: "nowrap", flexShrink: 0, color: c.id === sortId ? C.textPrimary : C.textSecond, fontWeight: 700, fontSize: 14, fontFamily: "inherit", cursor: "pointer" }}>
-              {c.icon} {c.tab}
-            </button>
-          ))}
-        </div>
 
         {err && <Panel style={{ padding: 16 }}><p style={{ margin: 0, color: C.brand }}>{err}</p></Panel>}
         {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
@@ -2465,7 +2457,15 @@ function SkyLeaderboard() {
                   {/* the header: the tab's number in gold */}
                   <div style={{ display: "grid", gridTemplateColumns: grid, columnGap: 12, fontSize: 11, letterSpacing: "0.04em", whiteSpace: "nowrap", alignItems: "end", textTransform: "uppercase", fontWeight: 800, padding: "0 10px 6px", borderBottom: `1px solid ${C.border}` }}>
                     <span style={{ color: C.teal }}>#</span><span style={{ color: C.teal }}>Player</span>
-                    {LB_COLS.map(c => <span key={c.id} style={{ textAlign: "right", color: c.id === sortId ? gold : C.teal }}>{c.head}</span>)}
+                    {/* the titles are the buttons: click one to order the table by it (Damon, 2026-10-26: "I've been clicking
+                        on the words above the top player … the two should merge"); no frames, the chosen one in gold */}
+                    {LB_COLS.map(c => (
+                      <button key={c.id} onClick={() => setSortId(c.id)} aria-pressed={c.id === sortId} title={`Order by ${c.head.toLowerCase()}: ${c.tab}`} className="lb-head"
+                        style={{ background: "none", border: "none", padding: 0, font: "inherit", letterSpacing: "inherit", textTransform: "inherit", textAlign: "right", cursor: "pointer", color: c.id === sortId ? gold : C.teal, whiteSpace: "nowrap" }}>
+                        {/* the ▼ sits left of the title, outside its width, so the columns keep their place */}
+                        <span style={{ position: "relative" }}>{c.id === sortId && <span aria-hidden style={{ position: "absolute", right: "100%", marginRight: 3, fontSize: 9, top: 1 }}>▼</span>}{c.head}</span>
+                      </button>
+                    ))}
                   </div>
                   {shown.map((p, j) => {
                     const i = page * perPage + j, ranked = i < ok.length, first = ranked && ranks[i] === 1, isMe = i === myIndex;
@@ -2496,7 +2496,7 @@ function SkyLeaderboard() {
               </div>
             )}
             <div style={{ marginTop: 10, padding: "0 4px", fontSize: 12, color: C.textMuted }}>
-              Points per station and station win % count from {data.minStations} stations, journey win % from {data.minJourneys} journeys{inWhen}; before that the number is grey and has no rank.
+              Click a column's title to order by it. Points per station and station win % count from {data.minStations} stations, journey win % from {data.minJourneys} journeys{inWhen} (a journey counts when you played 3 stations of it or more); before that the number is grey and has no rank.
             </div>
           </Panel>
         )}

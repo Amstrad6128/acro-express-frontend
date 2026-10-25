@@ -170,6 +170,9 @@ body {
 .acro-stretch { display: inline-block; animation: acroStretch 0.45s cubic-bezier(.2,.9,.3,1.2); transform-origin: center; }
 @media (prefers-reduced-motion: reduce) { .acro-stretch { animation: none; } }
 
+/* The Sky Leaderboard's column titles are its buttons (2026-10-26): underlined on hover, no frame */
+.lb-head:hover { text-decoration: underline; text-underline-offset: 3px; }
+
 /* A train with passengers at the station: its dot pulses gently (2026-10-25) */
 @keyframes acroLive { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .acro-live { animation: acroLive 1.6s ease-in-out infinite; }
