@@ -3853,6 +3853,15 @@ const SCHEDULED = [
   { key: "daily", name: "Daily Express", label: "DX", field: "dailyExpressUtc" },
 ];
 let scheduledAt = (() => { try { return JSON.parse(localStorage.getItem("acro.sched") || "{}") || {}; } catch { return {}; } })();
+// The home station's UTC offset at a moment, in minutes (Cyprus: +180 in summer, +120 in winter). Only for rolling a
+// remembered departure on when the server can't be reached; players are always shown their own time.
+function homeOffset(ms) {
+  try {
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Nicosia", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+      .formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+    return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - Math.floor(ms / 60000) * 60000) / 60000;
+  } catch { return 0; }
+}
 function setSchedule(status) {
   let changed = false;
   for (const t of SCHEDULED) { const ms = Date.parse(status?.[t.field] || ""); if (ms) { scheduledAt[t.key] = ms; changed = true; } }
@@ -3871,7 +3880,9 @@ function scheduledTrain(key, now, rooms, lastStationUtc = null) {
   const train = SCHEDULED.find(t => t.key === key);
   let departs = scheduledAt[key];
   if (!departs) return { ...train, local: "", status: { text: "Today", color: C.teal }, room: null, canStart: false, departs: null, mins: -9999 };   // not known yet
-  while (now - departs > 90 * 60000) departs += 86400000;                   // a remembered day: on to tonight's (after 00:30)
+  // a remembered day: on to tonight's (after 00:30), same home time: across a clock change the next day is 23 or 25
+  // hours later, not 24 (2026-10-25: Cyprus went back an hour; "+24 h" would have shown 22:00 home time)
+  while (now - departs > 90 * 60000) { const next = departs + 86400000; departs = next + (homeOffset(departs) - homeOffset(next)) * 60000; }
   const mins = (now - departs) / 60000;                                     // minutes since it left (negative = before)
   const local = new Date(departs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   // 2026-10-23: the train itself is a Sky Train named "Daily Express", started from this row from 30 minutes before
