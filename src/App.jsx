@@ -3907,11 +3907,12 @@ const SCHEDULED = [
   { key: "daily", name: "Daily Express", label: "DX", field: "dailyExpressUtc" },
 ];
 let scheduledAt = (() => { try { return JSON.parse(localStorage.getItem("acro.sched") || "{}") || {}; } catch { return {}; } })();
-// The home station's UTC offset at a moment, in minutes (Cyprus: +180 in summer, +120 in winter). Only for rolling a
-// remembered departure on when the server can't be reached; players are always shown their own time.
+// The schedule's UTC offset at a moment, in minutes (New York: -240 in summer, -300 in winter; the trains follow US
+// Eastern time since 2026-10-25). Only for rolling a remembered departure on when the server can't be reached; players
+// are always shown their own time.
 function homeOffset(ms) {
   try {
-    const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Nicosia", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "America/New_York", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
       .formatToParts(new Date(ms)).map(x => [x.type, x.value]));
     return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - Math.floor(ms / 60000) * 60000) / 60000;
   } catch { return 0; }
@@ -3934,8 +3935,8 @@ function scheduledTrain(key, now, rooms, lastStationUtc = null) {
   const train = SCHEDULED.find(t => t.key === key);
   let departs = scheduledAt[key];
   if (!departs) return { ...train, local: "", status: { text: "Today", color: C.teal }, room: null, canStart: false, departs: null, mins: -9999 };   // not known yet
-  // a remembered day: on to tonight's (after 00:30), same home time: across a clock change the next day is 23 or 25
-  // hours later, not 24 (2026-10-25: Cyprus went back an hour; "+24 h" would have shown 22:00 home time)
+  // a remembered day: on to today's, at the same schedule time: across a clock change the next day is 23 or 25 hours
+  // later, not 24
   while (now - departs > 90 * 60000) { const next = departs + 86400000; departs = next + (homeOffset(departs) - homeOffset(next)) * 60000; }
   const mins = (now - departs) / 60000;                                     // minutes since it left (negative = before)
   const local = new Date(departs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -5744,9 +5745,9 @@ function Room() {
             <span style={{ fontSize: isShort ? 24 : 28, ...smallTitle, color: C.brand, fontPalette: "var(--fp-letters)" }}>› {data.name || roomNameRef.current || "Sky Train"}</span>
           </h1>
           {/* div instead of p — a <div> (the timer) inside a <p> is invalid HTML */}
-          {/* "Station 2 · Results", in Honk (Damon, 2026-10-18). "First to 30 wins" was removed here
-              (Damon: not necessary; How to play still says it) */}
-          <div style={{ margin: "4px 0 0", fontSize: isShort ? 30 : 34, ...smallTitle, whiteSpace: "nowrap" }}>   {/* one line, never "Write your / acro" */}
+          {/* "Station 2 · Results": in Nunito since 2026-10-25 (Damon: in Honk the letters were too close together; it
+              was Honk from 2026-10-18). "First to 30 wins" was removed here (not necessary; How to play still says it) */}
+          <div style={{ margin: "4px 0 0", fontSize: isShort ? 22 : 25, fontFamily: "'Nunito', sans-serif", fontWeight: 800, color: C.teal, lineHeight: 1.2, whiteSpace: "nowrap" }}>   {/* one line, never "Write your / acro" */}
             {/* Rounds are stations: a game travels Station 0 → 1 → 2 … → Final Stop (round N = Station N) */}
             Station {headerStation}
             {/* What's happening now, in words (first step towards the "Departure Board" announcer) */}
