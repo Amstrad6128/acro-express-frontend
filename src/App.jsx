@@ -5719,7 +5719,7 @@ function Room() {
             <DeskInput id="topicInput" pulse value={topicDraft} placeholder="Write a direction, or pick one"
               onChange={v => { setTopicDraft(v); setTopicError(""); }} onEnter={highballTopic} />
             <DeskButton onClick={highballTopic} disabled={topicGoing && !highballFlash} flash={highballFlash}
-              ready={(topicDraft.match(/[\p{L}\p{N}]/gu) || []).length >= 2} hint="Highball! The old railway signal for clear to go: it sends the train on its way">Highball!</DeskButton>
+              ready={(topicDraft.match(/[\p{L}\p{N}]/gu) || []).length >= 2}>Highball!</DeskButton>
             <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Give the signal to depart. No direction in time? The Express Server picks one.</div>
             {topicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{topicError}</p>}
           </div>}
@@ -5772,7 +5772,7 @@ function Room() {
               <DeskInput id="firstTopicInput" value={firstTopicDraft} placeholder="Write a direction, or pick one"
                 onChange={v => { setFirstTopicDraft(v); setFirstTopicError(""); }} onEnter={startDeparture} />
               {/* "Highball!": the railway signal to go (Damon, 2026-10-24: "It doesn't say start, it says Highball!") */}
-              <DeskButton onClick={startDeparture} ready={(firstTopicDraft.match(/[\p{L}\p{N}]/gu) || []).length >= 2} flash={highballFlash} hint="Highball! The old railway signal for clear to go: it sends the train on its way">Highball!</DeskButton>
+              <DeskButton onClick={startDeparture} ready={(firstTopicDraft.match(/[\p{L}\p{N}]/gu) || []).length >= 2} flash={highballFlash}>Highball!</DeskButton>
               <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Give the signal to depart.</div>
               {firstTopicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{firstTopicError}</p>}
             </div>
