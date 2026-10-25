@@ -2407,7 +2407,7 @@ function SkyLeaderboard() {
   const pages = Math.max(1, Math.ceil(rows.length / perPage));
   const shown = rows.slice(page * perPage, page * perPage + perPage);
   const gold = "var(--c-gold)";
-  const grid = "30px minmax(100px, 130px) 92px 106px 100px 66px 106px";   // each number column as wide as its title (one line)   // rank, name, the five numbers: close together
+  const grid = "30px minmax(110px, 170px) repeat(5, 118px)";   // rank, name, the five numbers (each column wide enough for its button)
   const nameBtn = name => (
     <button onClick={e => openProfile(name, e.currentTarget)} title={`Message ${name} or see their Sky Passport`}
       style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</button>
@@ -2419,7 +2419,7 @@ function SkyLeaderboard() {
 
   return (
     <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "18px 16px 0", boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ maxWidth: 920, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 44, lineHeight: 1.05, ...honkTitle }}>Sky Leaderboard</h1>
@@ -2461,13 +2461,10 @@ function SkyLeaderboard() {
                         on the words above the top player … the two should merge"); no frames, the chosen one in gold */}
                     {LB_COLS.map(c => (
                       <button key={c.id} onClick={() => setSortId(c.id)} aria-pressed={c.id === sortId} title={`Order by ${c.head.toLowerCase()}: ${c.tab}`} className="lb-head"
-                        style={{ background: "none", border: "none", padding: 0, font: "inherit", letterSpacing: "inherit", textTransform: "inherit", textAlign: "right", cursor: "pointer", color: c.id === sortId ? gold : C.teal, whiteSpace: "nowrap" }}>
-                        {/* the ▼ sits left of the title, outside its width, so the columns keep their place */}
-                        {/* clearly clickable (Damon: "Will they know these are buttons?"): a faint ⇅ and a dotted underline on the
-                            others, the chosen one gold with ▼ */}
-                        <span style={{ position: "relative", textDecoration: c.id === sortId ? "none" : "underline dotted", textUnderlineOffset: 4 }}>
-                          <span aria-hidden style={{ position: "absolute", right: "100%", marginRight: 3, fontSize: c.id === sortId ? 9 : 11, top: c.id === sortId ? 1 : -1, opacity: c.id === sortId ? 1 : 0.55 }}>{c.id === sortId ? "▼" : "⇅"}</span>{c.head}
-                        </span>
+                        style={{ justifySelf: "end", border: "none", borderRadius: 999, padding: "5px 11px", font: "inherit", letterSpacing: "inherit", textTransform: "inherit", cursor: "pointer", whiteSpace: "nowrap",
+                          background: c.id === sortId ? gold : `color-mix(in srgb, ${C.teal} 16%, transparent)`, color: c.id === sortId ? "#1B1A17" : C.textPrimary, transition: "background 0.15s" }}>
+                        {/* real buttons, soft pills (Damon: "make them look like buttons, just not ugly ones"); the chosen one gold */}
+                        {c.head}{c.id === sortId ? " ▼" : ""}
                       </button>
                     ))}
                   </div>
