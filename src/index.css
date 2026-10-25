@@ -170,6 +170,11 @@ body {
 .acro-stretch { display: inline-block; animation: acroStretch 0.45s cubic-bezier(.2,.9,.3,1.2); transform-origin: center; }
 @media (prefers-reduced-motion: reduce) { .acro-stretch { animation: none; } }
 
+/* A train with passengers at the station: its dot pulses gently (2026-10-25) */
+@keyframes acroLive { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.acro-live { animation: acroLive 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .acro-live { animation: none; } }
+
 /* Highball! (2026-10-24): the button flashes when pressed */
 @keyframes acroHighball { 0% { filter: brightness(1); } 35% { filter: brightness(1.55); box-shadow: 0 0 36px var(--c-brand, #FF7A6B); } 100% { filter: brightness(1.15); } }
 .acro-highball { animation: acroHighball 0.6s ease-out forwards; }

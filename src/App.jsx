@@ -3414,7 +3414,13 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   // free platform, the row where you start a new Sky Train
   const used = new Set(roomList.map(r => r.platform));
   const freeRows = shortWin ? 1 : Math.max(1, 1 - roomList.length);   // short windows: just the New Sky Train row (the two scheduled rows count among the 3)
-  const scheduled = scheduledTrains(Date.now(), roomList, liveNow?.lastStationUtc);   // The Continental and the Daily Express (re-worked out on every refresh)
+  const scheduled = scheduledTrains(Date.now(), roomList, liveNow?.lastStationUtc);
+  // Trains with passengers stand out (2026-10-25): a lit row, a pulsing dot, and who is aboard
+  const aliveRow = { background: `color-mix(in srgb, ${C.teal} 10%, transparent)`, boxShadow: `inset 3px 0 0 ${C.success}` };
+  const liveDot = <span className="acro-live" aria-hidden style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: C.success, marginRight: 7, verticalAlign: "middle", flexShrink: 0 }} />;
+  const whoAboard = names => (names.length <= 3 ? names.join(", ") : `${names.slice(0, 3).join(", ")} +${names.length - 3}`);
+  // the busiest train with passengers, for the line under Departures
+  const liveTrain = [...roomList].filter(r => (r.playingNames || []).length > 0).sort((a, b) => b.playingNames.length - a.playingNames.length)[0] || null;   // The Continental and the Daily Express (re-worked out on every refresh)
   const freeNumbers = []; for (let n = 1; freeNumbers.length < freeRows; n++) if (!used.has(n)) freeNumbers.push(n);
   const boardCols = "76px minmax(0, 2.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) 132px";   // platform · train · aboard · status · button
 
@@ -3642,7 +3648,14 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
               <Icon name="train" size={30} color={C.teal} />
               <div>
                 <h2 style={boxTitle}>Departures</h2>
-                <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}</div>
+                {liveTrain ? (
+                  // who is playing where, with the way in (2026-10-25)
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 15, color: C.textSecond }}>
+                    <span>{liveDot}<b style={{ color: C.textPrimary }}>{liveTrain.playingNames.length <= 2 ? liveTrain.playingNames.join(" and ") : `${liveTrain.playingNames[0]} and ${liveTrain.playingNames.length - 1} others`}</b>
+                      {" "}{liveTrain.playingNames.length === 1 ? "is" : "are"} {liveTrain.gameOn ? "playing" : "waiting for passengers"} on <b style={{ color: C.textPrimary }}>{liveTrain.name}</b></span>
+                    {(liveTrain.playingNames.length + (liveTrain.awayNames || []).length) < 16 && <Btn onClick={() => navigate(`/room/${liveTrain.id}`)} style={smallBtn}>Board →</Btn>}
+                  </div>
+                ) : <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}</div>}
               </div>
             </div>
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
@@ -3702,17 +3715,17 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                   const pill = isFull ? { text: "Full", color: C.textMuted } : room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand };
                   const board = () => navigate(`/room/${room.id}`);
                   return (
-                    <div key={room.id} data-hint={room.gameOn ? "A game is on: board now and join in from the next station" : "Waiting for passengers: board and the game starts with the first direction"} style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
+                    <div key={room.id} data-hint={room.gameOn ? "A game is on: board now and join in from the next station" : "Waiting for passengers: board and the game starts with the first direction"} style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`, ...(names.length ? aliveRow : {}),
                       gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
                       <PlatformBox n={room.platform} />
                       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                         {!phone && <Icon name="train" size={22} color={C.textSecond} />}
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{room.name}</div>
-                          <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {room.gameOn && room.station > 0
-                              ? <>Station {room.station}{room.leaderName && <> · leader <span style={{ color: C.teal }}>{room.leaderName}</span> {room.leaderScore} of {room.winScore || 30}</>}</>
-                              : (names.length ? names.join(", ") : "No one aboard yet")}
+                          <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{names.length > 0 && liveDot}{room.name}</div>
+                          <div style={{ fontSize: 13, color: names.length ? C.textSecond : C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {/* who is aboard (2026-10-25: before, a running game only showed its station and leader) */}
+                            {names.length === 0 ? "No one aboard yet"
+                              : <>{room.gameOn && room.station > 0 ? `Station ${room.station} · ` : ""}<span style={{ color: C.textPrimary }}>{whoAboard(names)}</span>{!room.gameOn && " · waiting to start"}</>}
                           </div>
                           {phone && (
                             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
@@ -3733,16 +3746,20 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                 {/* The scheduled trains, The Continental and the Daily Express (the next to leave first), on platforms TC
                     and DX: below the players' own trains, which have passengers on them (2026-10-24: "nobody could find
                     the new game, because it was hidden in the scroll") */}
-                {scheduled.map(night => (
+                {scheduled.map(night => {
+                const aboard = night.room && isScheduledName(night.room.name) ? (night.room.playingNames || []) : [];
+                return (
                 <div key={night.key} data-hint="One of our daily games: every day at the same time, shown here in your own time"
-                  style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
+                  style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`, ...(aboard.length ? aliveRow : {}),
                     gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
                   <PlatformBox n={night.label} />
                   <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                     {!phone && <Icon name="train" size={22} color={C.teal} />}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{night.name}</div>
-                      <div style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Every day · departs {night.local} your time</div>
+                      <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{aboard.length > 0 && liveDot}{night.name}</div>
+                      <div style={{ fontSize: 13, color: aboard.length ? C.textSecond : C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {aboard.length ? <>{night.room.gameOn && night.room.station > 0 ? `Station ${night.room.station} · ` : ""}<span style={{ color: C.textPrimary }}>{whoAboard(aboard)}</span></> : <>Every day · departs {night.local} your time</>}
+                      </div>
                       {phone && <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}><StatusPill {...night.status} />{night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={smallBtn}>Board →</Btn> : night.canStart && <Btn onClick={() => startScheduled(night.name)} style={smallBtn}>Start it →</Btn>}</div>}
                     </div>
                   </div>
@@ -3751,7 +3768,8 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                   {!phone && (night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>Board now →</Btn>
                     : night.canStart ? <span data-hint={`Start ${night.name}: everyone boards it from this row`} style={{ display: "contents" }}><Btn onClick={() => startScheduled(night.name)} style={{ ...smallBtn, justifyContent: "center" }}>Start it →</Btn></span> : <span />)}
                 </div>
-                ))}
+                );
+                })}
               </div>
             </div>
           </Panel>
