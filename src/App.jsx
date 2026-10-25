@@ -2083,7 +2083,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
       <div style={{ borderBottom: `1px solid ${C.border}` }}>
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <span style={{ fontFamily: "'Honk', 'Nunito', sans-serif", fontSize: 34, color: "var(--c-logo)", fontPalette: "var(--fp-mark)", fontVariationSettings: "'SHLN' 41, 'MORF' 15", lineHeight: 1.05 }}>Acro Express</span>
-          <span style={{ color: C.teal, fontWeight: 700 }}>🚂 Practice ride{st && n < 3 ? ` · Station ${n + 1} of 3` : ""}</span>
+          <span style={{ color: C.teal, fontWeight: 700 }}>🚂 Practice journey{st && n < 3 ? ` · Station ${n + 1} of 3` : ""}</span>
           {/* the letters' font, as on a train (Damon, 2026-10-22: "the practice font doesn't change") */}
           {/* make it yours, as on a train (Damon, 2026-10-23: Colors here too) */}
           <span style={{ display: "flex", gap: 8, flexWrap: "wrap", position: "relative" }}>
@@ -2117,14 +2117,14 @@ function PracticeTrain({ onClose = null, boarding = null }) {
     return shell(
       <Panel style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14, textAlign: "center", alignItems: "center" }}>
         <h1 style={{ margin: 0, fontSize: 38, ...honkTitle }}>End of the line!</h1>
-        <p style={{ margin: 0, color: C.textSecond, fontSize: 17 }}>You wrote {written} acro{written === 1 ? "" : "s"} on this ride.</p>
+        <p style={{ margin: 0, color: C.textSecond, fontSize: 17 }}>You wrote {written} acro{written === 1 ? "" : "s"} on this journey.</p>
         {mine.map((m, i) => m && <div key={i} style={{ fontSize: 18 }}><span style={{ color: C.brand, letterSpacing: "0.1em", fontWeight: 800 }}>{stations[i].letters.split("").join(" ")}</span> · "{m}"</div>)}
         {/* Damon's closing message */}
         <p style={{ margin: "8px 0 0", fontSize: 19, color: C.textPrimary, fontWeight: 700 }}>Wonder how your acros would fare with the passengers?</p>
-        <p style={{ margin: 0, fontSize: 17, color: C.textSecond }}>Join free (just a name and a password) and ride with us, every day: The Continental at {scheduledTrain("continental", Date.now(), []).local} or the Daily Express at {nightExpress(Date.now(), []).local}, your time.</p>
+        <p style={{ margin: 0, fontSize: 17, color: C.textSecond }}>Join free (just a name and a password) and fly with us, every day: The Continental at {scheduledTrain("continental", Date.now(), []).local} or the Daily Express at {nightExpress(Date.now(), []).local}, your time.</p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
           <Btn onClick={leave}>{getAuth()?.token ? "Back to the Grand Sky Station" : "Join free"}</Btn>
-          <BtnSecondary onClick={() => { const ride = practiceRide(); setStations(ride); setMine([]); setN(0); setPhase(practiceStart(ride[0])); track("practice_start"); }}>Another practice ride</BtnSecondary>
+          <BtnSecondary onClick={() => { const ride = practiceRide(); setStations(ride); setMine([]); setN(0); setPhase(practiceStart(ride[0])); track("practice_start"); }}>Another practice journey</BtnSecondary>
         </div>
       </Panel>
     );
@@ -2182,7 +2182,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
             </div>
           ))}
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-            <Btn onClick={next}>{n < 2 ? "Next station →" : "Finish the ride →"}</Btn>
+            <Btn onClick={next}>{n < 2 ? "Next station →" : "Finish the journey →"}</Btn>
           </div>
         </Panel>
       )}
@@ -2241,10 +2241,10 @@ function LegalPage({ title, intro, children }) {
 
 function HouseRules() {
   return (
-    <LegalPage title="House Rules" intro="The rules of the ride, for every passenger. The Acro Express has been running since 16 August 2025.">
+    <LegalPage title="House Rules" intro="The rules of the journey, for every passenger. The Acro Express has been running since 16 August 2025.">
       <RulesSection icon="🎫" title="Your ticket">
-        Acro Express is free to play. By riding you agree to these House Rules. Passengers should be 13 or older;
-        younger passengers can ride with a parent's OK.
+        Acro Express is free to play. By boarding you agree to these House Rules. Passengers should be 13 or older;
+        younger passengers can fly with a parent's OK.
       </RulesSection>
       <RulesSection icon="😊" title="Be a good passenger">
         <ul style={rulesList}>
@@ -2325,24 +2325,28 @@ function Privacy() {
 const LB_PERIODS = [["week", "This week"], ["month", "This month"], ["all", "All time"]];
 const pct = (a, b) => (b > 0 ? a / b : 0);                       // a share, 0 when there's nothing to share
 const pctText = v => `${Math.round(v * 100)}%`;
-// The boards: what they rank (value), how it's shown (show), and who qualifies (ok). Revised 2026-10-19 (Damon):
+// The boards: what they rank (value), how it's shown (show), and who qualifies (ok). 2026-10-25: Station Masters gone
+// (confusing next to Champions), the Riders are Flyers (a Sky Train flies). Revised 2026-10-19 (Damon):
 // points count, not just votes; the journey win % matters most, then stations played. Percentages need enough
 // journeys / stations in the period (data.minJourneys / data.minStations).
 const LB_BOARDS = [
   { id: "champions", icon: "🏆", name: "Champions", sub: "Journey win %", unit: "of journeys won", motto: "Same rails. Different legends.",
     value: p => pct(p.journeysWon, p.journeys) + p.journeysWon / 1e4, show: p => pctText(pct(p.journeysWon, p.journeys)), ok: (p, d) => p.journeys >= d.minJourneys },
-  { id: "riders", icon: "🚉", name: "Frequent Riders", sub: "Stations played", unit: "stations", motto: "Always on board.",
+  { id: "riders", icon: "🚉", name: "Frequent Flyers", sub: "Stations played", unit: "stations", motto: "Always on board.",
     value: p => p.stations + p.points / 1e6, show: p => p.stations, ok: p => p.stations > 0 },
   { id: "scorers", icon: "⭐", name: "Top Scorers", sub: "Total points", unit: "points", motto: "Every point counts.",
     value: p => p.points + p.stations / 1e6, show: p => p.points, ok: p => p.points > 0 },
   { id: "average", icon: "🎯", name: "Sharpshooters", sub: "Points per station", unit: "points per station", motto: "Few words, many points.",
     value: p => pct(p.points, p.stations), show: p => pct(p.points, p.stations).toFixed(1), ok: (p, d) => p.stations >= d.minStations },
-  { id: "masters", icon: "🥇", name: "Station Masters", sub: "Station win %", unit: "of stations won", motto: "First at every platform.",
-    value: p => pct(p.stationsWon, p.stations), show: p => pctText(pct(p.stationsWon, p.stations)), ok: (p, d) => p.stations >= d.minStations },
-  { id: "express", icon: "⚡", name: "Express Riders", sub: "Speed bonuses", unit: "speed bonuses", motto: "Fast hands, sharp minds.",
+  { id: "express", icon: "⚡", name: "Express Flyers", sub: "Speed bonuses", unit: "speed bonuses", motto: "Fast hands, sharp minds.",
     value: p => p.speedBonuses + p.stations / 1e6, show: p => p.speedBonuses, ok: p => p.speedBonuses > 0 },
 ];
 
+// The Sky Leaderboard, cleaned up (Damon, 2026-10-25, after GPT's review: "too much about numbers, things repeating").
+// It celebrates the people who play; the Hall of Expressions celebrates what they write. One board at a time: its top
+// three as compact cards, then the rest of the field from #4 with that board's one number, and your own place in one
+// line. Gone: the second set of stats in the table, the "My Month" panel and its chart (your numbers are in your Sky
+// Passport), Station Masters (confusing next to Champions), and the Acro of the Month (now in the Hall).
 function SkyLeaderboard() {
   const navigate = useNavigate();
   const me = String(getAuth()?.username || "").toLowerCase();
@@ -2361,49 +2365,52 @@ function SkyLeaderboard() {
   // The ranking: passengers who qualify for this board, best first; equal values share a rank
   const ranked = data ? data.players.filter(p => board.ok(p, data)).sort((a, b) => board.value(b) - board.value(a)) : [];
   const ranks = []; ranked.forEach((p, i) => ranks.push(i > 0 && board.value(p) === board.value(ranked[i - 1]) ? ranks[i - 1] : i + 1));
-  const myEntry = data?.players.find(p => p.name.toLowerCase() === me);
   const myRank = ranked.findIndex(p => p.name.toLowerCase() === me);
   const podium = ranked.slice(0, 3);
-  const medal = [C.ivory, C.textSecond, C.brand];     // 1st, 2nd, 3rd: the palette's warm, silver-ish and accent colours
-  // Podium polish (Damon liked GPT's version, 2026-10-20): each place has its metal for tints, borders and badges
+  // Each place has its metal (gold only for first)
   const metal = ["var(--c-gold)", "#C3CAD6", "#C98A4B"];
-  const tint = (i, pc) => `color-mix(in srgb, ${metal[i]} ${pc}%, transparent)`;
   const badge = (i, size) => (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: metal[i], color: "#1B1A17", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: size * 0.5, fontVariantNumeric: "tabular-nums", boxShadow: "0 2px 6px rgba(0,0,0,0.3)" }}>{ranks[i]}</div>
+    <div style={{ width: size, height: size, borderRadius: "50%", background: metal[i], color: "#1B1A17", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: size * 0.5, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{ranks[i]}</div>
   );
   const nameBtn = (name, style) => (
     <button onClick={e => openProfile(name, e.currentTarget)} title={`Message ${name} or see their Sky Passport`}
       style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", ...style }}>{name}</button>
   );
-  const th = { textAlign: "left", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: C.teal, fontWeight: 700, padding: "8px 10px", borderBottom: `1px solid ${C.border}` };
-  const td = { padding: "8px 10px", borderBottom: `1px solid ${C.border}` };
-  const num = { textAlign: "right", fontVariantNumeric: "tabular-nums" };
+  // Your place in one line; on the counting boards also how far the podium is
+  const counting = ["riders", "scorers", "express"].includes(boardId);
+  const myLine = myRank < 0 ? null : (() => {
+    const p = ranked[myRank];
+    const gap = counting && ranks[myRank] > 3 && podium[2] ? Math.ceil(board.value(podium[2]) - board.value(p)) : 0;
+    return <>You're <b style={{ color: C.textPrimary }}>#{ranks[myRank]}</b> · {board.show(p)} {board.unit}{gap > 0 && <> · {gap} from the podium</>}</>;
+  })();
 
   return (
     <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "14px 16px 0", boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 1180, margin: "0 auto", display: "flex", flexDirection: "column", gap: 10 }}>
-        {/* Title, the period, back to the station */}
+      <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Title, then the period and the way out */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
+          <div>
             <h1 style={{ margin: 0, fontSize: 44, ...honkTitle }}>Sky Leaderboard</h1>
-            <span style={{ color: "var(--c-bgText)", fontSize: 15 }}>Who rules the rails {period === "all" ? "of all time" : period === "week" ? "this week" : "this month"}</span>
+            <div style={{ color: "var(--c-bgText)", fontSize: 15 }}>Who rules the skies {period === "all" ? "of all time" : period === "week" ? "this week" : "this month"}</div>
           </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            {LB_PERIODS.map(([k, label]) => (
-              <button key={k} onClick={() => setPeriod(k)}
-                style={{ border: `1px solid ${period === k ? C.brand : C.border}`, background: period === k ? C.brand : C.navy2, color: period === k ? C.onBrand : C.textSecond, borderRadius: 999, padding: "6px 14px", fontWeight: 700, fontSize: 14, fontFamily: "inherit", cursor: "pointer" }}>{label}</button>
-            ))}
-            <BtnSecondary onClick={() => navigate("/")} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px", marginLeft: 6 }}>← Grand Sky Station</BtnSecondary>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <BtnSecondary onClick={() => navigate("/hall")} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px" }}>🏛 Hall of Expressions</BtnSecondary>
+            <BtnSecondary onClick={() => navigate("/")} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px" }}>← Grand Sky Station</BtnSecondary>
           </div>
         </div>
 
-        {/* The six boards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 }}>
+        {/* The period (segmented) and the boards (tabs): one quiet row each */}
+        <div style={{ display: "flex", gap: 0, border: `1px solid ${C.border}`, borderRadius: 999, alignSelf: "flex-start", overflow: "hidden" }}>
+          {LB_PERIODS.map(([k, label]) => (
+            <button key={k} onClick={() => setPeriod(k)}
+              style={{ border: "none", background: period === k ? C.brand : "transparent", color: period === k ? C.onBrand : C.textSecond, padding: "6px 16px", fontWeight: 700, fontSize: 14, fontFamily: "inherit", cursor: "pointer" }}>{label}</button>
+          ))}
+        </div>
+        <div role="tablist" style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: `1px solid ${C.border}` }}>
           {LB_BOARDS.map(b => (
-            <button key={b.id} onClick={() => setBoardId(b.id)}
-              style={{ textAlign: "left", padding: "9px 12px", borderRadius: 12, background: C.bgPanel2, border: `1px solid ${b.id === boardId ? C.teal : C.border}`, boxShadow: b.id === boardId ? `inset 0 0 0 1px ${C.teal}` : "none", color: C.textPrimary, cursor: "pointer", fontFamily: "inherit" }}>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{b.icon} {b.name}</div>
-              <div style={{ fontSize: 12, color: C.textMuted }}>{b.sub}</div>
+            <button key={b.id} role="tab" aria-selected={b.id === boardId} onClick={() => setBoardId(b.id)}
+              style={{ background: "none", border: "none", borderBottom: `2px solid ${b.id === boardId ? C.teal : "transparent"}`, marginBottom: -1, padding: "8px 12px", color: b.id === boardId ? C.textPrimary : C.textMuted, fontWeight: 700, fontSize: 15, fontFamily: "inherit", cursor: "pointer" }}>
+              {b.icon} {b.name}
             </button>
           ))}
         </div>
@@ -2411,141 +2418,201 @@ function SkyLeaderboard() {
         {err && <Panel style={{ padding: 16 }}><p style={{ margin: 0, color: C.brand }}>{err}</p></Panel>}
         {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
         {data && (
-          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))" }}>
-            <Panel style={{ padding: 0, overflow: "hidden", gridColumn: "span 2", minWidth: 0 }}>
-              {ranked.length === 0 ? (
-                <p style={{ margin: 0, padding: 20, color: C.textMuted }}>
-                  No one on this board yet {period === "all" ? "" : periodName.toLowerCase()}.
-                  {(boardId === "champions" ? ` It counts from ${data.minJourneys} journeys.` : ["average", "masters"].includes(boardId) ? ` It counts from ${data.minStations} stations.` : "")}
-                </p>
-              ) : (
-                <>
-                  {/* The board's name and motto */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "2px 14px", padding: "12px 14px 0" }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                      <span style={{ fontSize: 30, ...honkTitle }}>{board.icon} {board.name}</span>
-                      <span style={{ fontSize: 14, color: C.textMuted }}>{board.sub}</span>
+          <Panel style={{ padding: "16px 18px" }}>
+            {/* The board: what it ranks, and its motto */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "2px 14px" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                <span style={{ fontSize: 28, ...honkTitle }}>{board.name}</span>
+                <span style={{ fontSize: 14, color: C.textMuted }}>{board.sub} · {periodName.toLowerCase()}</span>
+              </div>
+              <span style={{ fontSize: 15, fontStyle: "italic", color: C.teal }}>{board.motto}</span>
+            </div>
+            {ranked.length === 0 ? (
+              <p style={{ margin: "14px 0 4px", color: C.textMuted }}>
+                No one on this board yet {period === "all" ? "" : periodName.toLowerCase()}.
+                {(boardId === "champions" ? ` It counts from ${data.minJourneys} journeys.` : boardId === "average" ? ` It counts from ${data.minStations} stations.` : "")}
+              </p>
+            ) : (
+              <>
+                {/* The top three: second, first, third; the first a little bigger, with the crown and the gold */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1.12fr 1fr", gap: 10, alignItems: "end", marginTop: 14 }}>
+                  {[1, 0, 2].map(i => {
+                    const p = podium[i];
+                    if (!p) return <div key={i} />;
+                    return (
+                      <div key={i} style={{ textAlign: "center", minWidth: 0, padding: i === 0 ? "14px 8px" : "10px 8px", borderRadius: 12, background: C.bgPanel2, border: `${i === 0 ? 2 : 1}px solid ${i === 0 ? metal[0] : C.border}` }}>
+                        {i === 0 && <div aria-hidden="true" style={{ fontSize: 20, lineHeight: 1 }}>👑</div>}
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: i === 0 ? 4 : 0 }}>
+                          {badge(i, i === 0 ? 28 : 24)}<AvatarSquare name={p.name} size={i === 0 ? 44 : 36} />
+                        </div>
+                        <div style={{ fontWeight: 800, fontSize: i === 0 ? 17 : 15, marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nameBtn(p.name)}</div>
+                        <div style={{ fontSize: i === 0 ? 26 : 21, fontWeight: 800, fontVariantNumeric: "tabular-nums", color: i === 0 ? "var(--c-gold)" : C.textPrimary }}>{board.show(p)}</div>
+                        <div style={{ fontSize: 12, color: C.textMuted }}>{board.unit}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Your place, in one line */}
+                <div style={{ marginTop: 12, fontSize: 14, color: C.textMuted }}>
+                  {myLine || <>You're not on this board yet {period === "all" ? "" : periodName.toLowerCase()}.</>}
+                </div>
+                {/* The rest of the field, from #4: one number */}
+                {ranked.length > 3 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: C.teal, fontWeight: 700, padding: "6px 4px", borderBottom: `1px solid ${C.border}` }}>
+                      <span>The rest of the field</span><span>{board.sub}</span>
                     </div>
-                    <span style={{ fontSize: 15, fontStyle: "italic", color: C.teal }}>{board.motto}</span>
-                  </div>
-                  {/* Podium: the top three, the winner in the middle and highest */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1.15fr 1fr", gap: 10, alignItems: "end", padding: "14px 14px 0" }}>
-                    {[1, 0, 2].map(i => {
-                      const p = podium[i];
-                      if (!p) return <div key={i} />;
+                    {ranked.slice(3).map((p, j) => {
+                      const i = j + 3, isMe = p.name.toLowerCase() === me;
                       return (
-                        <div key={i} style={{ textAlign: "center", minWidth: 0 }}>
-                          {i === 0 && <div aria-hidden="true" style={{ fontSize: 22, lineHeight: 1, marginBottom: 2 }}>👑</div>}
-                          <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}><AvatarSquare name={p.name} size={i === 0 ? 64 : 52} /></div>
-                          <div style={{ position: "relative", borderRadius: "12px 12px 0 0", padding: "22px 8px 12px", background: `linear-gradient(180deg, ${tint(i, 26)}, ${tint(i, 6)}), ${C.bgPanel2}`, border: `${i === 0 ? 2 : 1}px solid ${metal[i]}`, borderBottom: "none", minHeight: [150, 122, 108][i], boxSizing: "border-box" }}>
-                            <div style={{ position: "absolute", top: -17, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                              {badge(i, i === 0 ? 34 : 30)}
-                            </div>
-                            <div style={{ fontWeight: 800, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nameBtn(p.name)}</div>
-                            <div style={{ fontSize: 12, color: C.textMuted }}>{p.level}</div>
-                            <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{board.show(p)} <span style={{ fontSize: 12, fontWeight: 400, color: C.textMuted }}>{board.unit}</span></div>
-                          </div>
+                        <div key={p.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "7px 4px", borderBottom: `1px solid ${C.border}`, background: isMe ? `color-mix(in srgb, ${C.teal} 10%, transparent)` : "transparent" }}>
+                          <span style={{ width: 28, textAlign: "right", fontWeight: 800, color: isMe ? C.teal : C.textMuted, fontVariantNumeric: "tabular-nums" }}>{ranks[i]}</span>
+                          <AvatarSquare name={p.name} size={24} />
+                          <span style={{ flex: 1, minWidth: 0, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nameBtn(p.name)}{isMe && <span style={{ color: C.teal, fontWeight: 400 }}> · you</span>}</span>
+                          <span style={{ fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{board.show(p)}</span>
                         </div>
                       );
                     })}
                   </div>
-                  {/* The full ranking: the board's number first, then the context */}
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 560 }}>
-                      <thead><tr>
-                        <th style={th}>#</th><th style={th}>Passenger</th><th style={{ ...th, ...num }}>{board.sub} ▼</th>
-                        <th style={{ ...th, ...num }}>Journeys won</th><th style={{ ...th, ...num }}>Stations</th><th style={{ ...th, ...num }}>Points</th><th style={{ ...th, ...num }}>Points / station</th>
-                      </tr></thead>
-                      <tbody>
-                        {ranked.map((p, i) => {
-                          const isMe = p.name.toLowerCase() === me;
-                          return (
-                            <tr key={p.name} style={{ background: isMe ? C.navy2 : ranks[i] <= 3 ? tint(ranks[i] - 1, 14) : "transparent", boxShadow: ranks[i] === 1 ? `inset 0 0 0 2px ${metal[0]}` : "none" }}>
-                              <td style={{ ...td, width: 40 }}>{ranks[i] <= 3 ? badge(ranks[i] - 1, 26) : <span style={{ fontWeight: 800, fontSize: 16, color: isMe ? C.teal : C.textPrimary, paddingLeft: 8 }}>{ranks[i]}</span>}</td>
-                              <td style={td}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><AvatarSquare name={p.name} size={26} />{nameBtn(p.name, { fontWeight: 600 })}</span></td>
-                              <td style={{ ...td, ...num, fontWeight: 800, color: C.teal }}>{board.show(p)}</td>
-                              <td style={{ ...td, ...num }}>{p.journeysWon}/{p.journeys}{p.journeys > 0 && <span style={{ color: C.textMuted }}> · {pctText(pct(p.journeysWon, p.journeys))}</span>}</td>
-                              <td style={{ ...td, ...num }}>{p.stations}</td>
-                              <td style={{ ...td, ...num }}>{p.points}</td>
-                              <td style={{ ...td, ...num }}>{pct(p.points, p.stations).toFixed(1)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div style={{ padding: "8px 12px 10px", fontSize: 12, color: C.textMuted }}>
-                    Journey win % counts from {data.minJourneys} journeys, the other percentages and averages from {data.minStations} stations{period === "all" ? "" : ` ${periodName.toLowerCase()}`}, so one lucky win can't top a board. Journeys won: won / ridden to the Final Stop.
-                  </div>
-                </>
-              )}
-            </Panel>
+                )}
+              </>
+            )}
+            <div style={{ marginTop: 10, fontSize: 12, color: C.textMuted }}>
+              Journey win % counts from {data.minJourneys} journeys and points per station from {data.minStations} stations{period === "all" ? "" : ` ${periodName.toLowerCase()}`}, so one lucky win can't top a board.
+            </div>
+          </Panel>
+        )}
+      </div>
+      <Footer />
+      <PassengerCard />
+    </div>
+  );
+}
 
-            {/* My period: Wordle-style personal numbers, and the best acro of the period */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
-              <Panel style={{ padding: 14 }}>
-                <div style={{ fontSize: 24, ...honkTitle }}>{period === "all" ? "My Journey" : period === "week" ? "My Week" : "My Month"}</div>
-                {!myEntry ? (
-                  <div style={{ fontSize: 14, color: C.textMuted, marginTop: 6 }}>You haven't played a station {period === "all" ? "yet" : periodName.toLowerCase()}. Board a Sky Train!</div>
-                ) : (
+// The Hall of Expressions (Damon, 2026-10-25): what the passengers write, the best of the month as an exhibition.
+// The Expression of the Month as the centrepiece, the two runners-up, then a gallery of the month's best; "Surprise
+// me" brings back one memorable line from any time. Ranked by the share of the other voters at its station who chose
+// it (server: HallController). The admin can take a line out of the Hall. (All-Time Greats and the Archive: later.)
+function HallOfExpressions() {
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState("");
+  const [surprise, setSurprise] = useState(null);
+  const load = () => fetch(`${API_URL}/api/hall`, { headers: authHeaders() })
+    .then(async r => { if (r.status === 401) throw new Error("Log in to visit the Hall of Expressions."); if (!r.ok) throw new Error(); setData(await r.json()); })
+    .catch(e => setErr(e.message || "Couldn't open the Hall. Try again in a moment."));
+  useEffect(() => { load(); }, []);
+  async function surpriseMe() {
+    try { const r = await fetch(`${API_URL}/api/hall/surprise`, { headers: authHeaders() }); const j = await r.json(); setSurprise(j.item ? { ...j.item, month: j.month } : { none: true }); }
+    catch { setSurprise({ none: true }); }
+  }
+  async function hide(id) {
+    await fetch(`${API_URL}/api/hall/${id}/hide`, { method: "POST", headers: authHeaders() }).catch(() => { });
+    load();
+  }
+  const nameBtn = (name, style) => (
+    // two writers of the same line: each name opens its own passport
+    <>{name.split(" & ").map((n, i) => (
+      <span key={n}>{i > 0 && " & "}<button onClick={e => openProfile(n, e.currentTarget)} title={`Message ${n} or see their Sky Passport`}
+        style={{ background: "none", border: "none", padding: 0, color: C.teal, font: "inherit", fontWeight: 700, cursor: "pointer", ...style }}>{n}</button></span>
+    ))}</>
+  );
+  const eyebrow = { fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: C.textMuted };
+  const spaced = l => l.split("").join(" ");
+  const votes = n => `${n} vote${n === 1 ? "" : "s"}`;
+  const hideBtn = a => data?.isAdmin && (
+    <button onClick={() => hide(a.id)} style={{ marginLeft: 8, background: "none", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textMuted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{a.hidden ? "Show in the Hall" : "Hide"}</button>
+  );
+  // the quote marks in Honk, the line in Nunito
+  const quote = (text, size) => (
+    <div style={{ fontSize: size, lineHeight: 1.25, fontWeight: 800, color: C.textPrimary }}>
+      <span style={{ ...honkTitle, fontSize: size * 1.1 }}>“</span>{text}<span style={{ ...honkTitle, fontSize: size * 1.1 }}>”</span>
+    </div>
+  );
+  const meta = a => (
+    <div style={{ fontSize: 14, color: C.textMuted, marginTop: 8 }}>
+      <span style={{ fontFamily: "'Goldman', sans-serif", letterSpacing: "0.12em", color: C.textSecond }}>{spaced(a.letters)}</span>
+      {a.topic && <> · {a.topic}</>} · by {nameBtn(a.by)} · {votes(a.votes)}{hideBtn(a)}
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "14px 16px 0", boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 44, ...honkTitle }}>Hall of Expressions</h1>
+            <div style={{ color: "var(--c-bgText)", fontSize: 15 }}>Some words deserve to be remembered.</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <BtnSecondary onClick={() => navigate("/leaderboard")} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px" }}>🏆 Sky Leaderboard</BtnSecondary>
+            <BtnSecondary onClick={() => navigate("/")} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px" }}>← Grand Sky Station</BtnSecondary>
+          </div>
+        </div>
+
+        {err && <Panel style={{ padding: 16 }}><p style={{ margin: 0, color: C.brand }}>{err}</p></Panel>}
+        {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
+        {data && (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 22, ...honkTitle }}>{data.month}</span>
+              <BtnSecondary onClick={surpriseMe} style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: 15, padding: "6px 14px" }}>🎲 Surprise me</BtnSecondary>
+            </div>
+            {/* A memorable line from any time */}
+            {surprise && (
+              <Panel style={{ padding: "16px 18px", position: "relative" }}>
+                <button onClick={() => setSurprise(null)} aria-label="Close" style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", color: C.textMuted, fontSize: 18, cursor: "pointer" }}>×</button>
+                {surprise.none ? <div style={{ color: C.textMuted }}>The archives are still filling up. Come back soon!</div> : (
                   <>
-                    <div style={{ fontSize: 13, color: C.textMuted }}>{myEntry.name} · {myEntry.level}
-                      {myRank >= 0 && <span style={{ marginLeft: 6, fontSize: 12, padding: "2px 8px", borderRadius: 999, background: C.navy2, color: C.success, fontWeight: 700 }}>#{ranks[myRank]} {board.name}</span>}
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-                      {[[myEntry.journeys ? pctText(pct(myEntry.journeysWon, myEntry.journeys)) : "–", `Journeys won (${myEntry.journeysWon}/${myEntry.journeys})`], [myEntry.stations, "Stations played"], [myEntry.points, "Total points"], [pct(myEntry.points, myEntry.stations).toFixed(1), "Points per station"]].map(([n, l]) => (
-                        <div key={l} style={{ background: C.bgApp, borderRadius: 10, padding: 8, textAlign: "center" }}>
-                          <div style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{n}</div>
-                          <div style={{ fontSize: 12, color: C.textMuted }}>{l}</div>
-                        </div>
-                      ))}
-                    </div>
-                    {/* How many points my acros earned: 0, 1–2, 3–4, 5–7, 8–10, 11+ (the tallest bar highlighted) */}
-                    <div style={{ fontSize: 13, color: C.textSecond, marginTop: 12 }}>Points per acro</div>
-                    <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 64, marginTop: 6 }}>
-                      {(myEntry.pointsHist || []).map((n, i) => {
-                        const maxN = Math.max(1, ...myEntry.pointsHist);
-                        return (
-                          <div key={i} style={{ flex: 1, textAlign: "center" }}>
-                            <div title={`${n} acro${n === 1 ? "" : "s"}`} style={{ height: Math.max(3, Math.round(48 * n / maxN)), background: n === maxN && n > 0 ? C.brand : C.navy3, borderRadius: "4px 4px 0 0" }} />
-                            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{["0", "1–2", "3–4", "5–7", "8–10", "11+"][i]}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <div style={eyebrow}>From the archives · {surprise.month}</div>
+                    <div style={{ marginTop: 8 }}>{quote(surprise.sentence, 24)}</div>
+                    {meta(surprise)}
                   </>
                 )}
               </Panel>
-              {/* Stretches to the bottom of the board (Damon, 2026-10-20): the winning acro bigger, the runners-up under it */}
-              <Panel style={{ padding: 14, flex: 1, display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 22, ...honkTitle }}>{period === "all" ? "Acro of All Time" : period === "week" ? "Acro of the Week" : "Acro of the Month"}</div>
-                {data.acroOfPeriod ? (
-                  <>
-                    <div style={{ fontSize: 22, lineHeight: 1.3, marginTop: 8 }}>“{data.acroOfPeriod.sentence}”</div>
-                    <div style={{ fontSize: 13, color: C.textMuted, marginTop: 6 }}>
-                      {data.acroOfPeriod.letters.split("").join(" ")} · {data.acroOfPeriod.topic} · <b style={{ color: C.teal }}>{data.acroOfPeriod.points} points</b> · {data.acroOfPeriod.votes} vote{data.acroOfPeriod.votes === 1 ? "" : "s"} · by {nameBtn(data.acroOfPeriod.by, { color: C.teal })}
-                    </div>
-                    {(data.runnersUp || []).length > 0 && (
-                      <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-                        <div style={{ fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", color: C.teal, fontWeight: 700, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>Runners-up</div>
-                        {data.runnersUp.map((a, i) => (
-                          <div key={i} style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
-                            <span style={{ fontWeight: 800, color: [C.textSecond, C.brand][i], fontVariantNumeric: "tabular-nums" }}>{i + 2}</span>
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ fontSize: 16 }}>“{a.sentence}”</div>
-                              <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
-                                {a.letters.split("").join(" ")} · {a.topic} · <b style={{ color: C.teal }}>{a.points} points</b> · by {nameBtn(a.by, { color: C.teal })}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+            )}
+            {!data.top ? (
+              <Panel style={{ padding: 20 }}><p style={{ margin: 0, color: C.textMuted }}>No expressions with votes yet this month. Board a Sky Train and write one!</p></Panel>
+            ) : (
+              <>
+                {/* The centrepiece */}
+                <Panel style={{ padding: "26px 28px", textAlign: "center", border: `2px solid var(--c-gold)` }}>
+                  <div style={{ ...eyebrow, color: "var(--c-gold)" }}>Expression of the Month</div>
+                  <div style={{ marginTop: 14 }}>{quote(data.top.sentence, 34)}</div>
+                  <div style={{ marginTop: 12, fontFamily: "'Goldman', sans-serif", letterSpacing: "0.2em", fontSize: 18, color: C.textSecond }}>{spaced(data.top.letters)}</div>
+                  <div style={{ fontSize: 15, color: C.textMuted, marginTop: 8 }}>
+                    {data.top.topic && <>{data.top.topic} · </>}by {nameBtn(data.top.by, { fontSize: 16 })} · {votes(data.top.votes)}{hideBtn(data.top)}
+                  </div>
+                </Panel>
+                {/* The runners-up */}
+                {data.runnersUp.length > 0 && (
+                  <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))" }}>
+                    {data.runnersUp.map((a, i) => (
+                      <div key={a.id} style={{ padding: "4px 6px", borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
+                        <div style={eyebrow}>{i === 0 ? "Second" : "Third"}</div>
+                        <div style={{ marginTop: 6 }}>{quote(a.sentence, 22)}</div>
+                        {meta(a)}
                       </div>
-                    )}
-                  </>
-                ) : <div style={{ fontSize: 14, color: C.textMuted, marginTop: 6 }}>No points yet {periodName.toLowerCase()}.</div>}
-              </Panel>
-            </div>
-          </div>
+                    ))}
+                  </div>
+                )}
+                {/* The gallery: the rest of the month's best */}
+                {data.gallery.length > 0 && (
+                  <div>
+                    <div style={{ ...eyebrow, marginBottom: 8 }}>More from {data.month}</div>
+                    <div style={{ display: "grid", gap: "4px 22px", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 380px), 1fr))" }}>
+                      {data.gallery.map(a => (
+                        <div key={a.id} style={{ padding: "12px 4px", borderTop: `1px solid ${C.border}`, opacity: a.hidden ? 0.45 : 1 }}>
+                          {quote(a.sentence, 17)}
+                          {meta(a)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </>
         )}
       </div>
       <Footer />
@@ -3266,7 +3333,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
       {/* the practice ride, for every player (Damon, 2026-10-22: "it's cool and reminds the players of past games"; not
           under Departures, where it competed with the trains — its own button, explained) */}
       <span data-hint="Three stations from our past games to write acros for, on your own: then see what the passengers wrote. No scores, just fun" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-        <BtnSecondary onClick={() => setPracticing(true)} style={smallBtn}>🚂 Practice ride</BtnSecondary>
+        <BtnSecondary onClick={() => setPracticing(true)} style={smallBtn}>🚂 Practice journey</BtnSecondary>
         {!phone && !shortWin && <span style={{ fontSize: 13, color: C.textMuted, whiteSpace: "nowrap" }}>try a solo warm-up session</span>}
       </span>
       <button data-hint="Log out on this computer" onClick={doLogout} style={{ background: "none", border: "none", color: C.textMuted, fontFamily: "inherit", fontSize: 14, cursor: "pointer", padding: 4, whiteSpace: "nowrap" }}>Log out</button>
@@ -3281,8 +3348,8 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   useEffect(() => { if (auth && bdayConfetti) try { localStorage.setItem("acro.birthday", String(bdayAge)); } catch { /* private mode */ } }, [auth, bdayConfetti, bdayAge]);
   const movingTrains = roomList.filter(r => r.gameOn);
   const boardNews = [
-    ...(bdayAge ? [{ key: "birthday", icon: "🎂", text: `Acro Express turns ${bdayAge} today! On the rails since 16 August 2025. Thank you for riding with us!`,
-      title: `Acro Express turns ${bdayAge} today!`, detail: "Thank you for riding with us!" }] : []),
+    ...(bdayAge ? [{ key: "birthday", icon: "🎂", text: `Acro Express turns ${bdayAge} today! On the rails since 16 August 2025. Thank you for flying with us!`,
+      title: `Acro Express turns ${bdayAge} today!`, detail: "Thank you for flying with us!" }] : []),
     { key: "daily", icon: "🚂", text: dailyNow.status.text === "On the move" ? `${dailyNow.name} is on the move: hop on!`
         : dailyNow.status.text === "Running a little late 🚂" ? `${dailyNow.name} is running a little late. Start it, or wait on the platform!`
         : `Next: ${dailyNow.name} at ${dailyNow.local} your time · ${dailyNow.mins < 0 ? untilText(dailyNow.mins) : "now"}`,
@@ -3340,6 +3407,8 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
               songs play — your settings carry over) */}
           {auth && <span data-hint="Sky Leaderboard: the champions of the week, the month and all time" style={{ display: "contents" }}>
             <button onClick={() => navigate("/leaderboard")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏆 Sky Leaderboard</button></span>}
+          {auth && <span data-hint="Hall of Expressions: the best lines written on the Sky Trains" style={{ display: "contents" }}>
+            <button onClick={() => navigate("/hall")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏛 Hall of Expressions</button></span>}
           <span data-hint="How to play: the rules, the points and the special directions" style={{ display: "contents" }}><HowToPlay winScore={roomList[0]?.winScore || 30} /></span>
           {auth && <span data-hint="Colors: the look of the station and the trains. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>}
           {/* ("All lines running" moved to the Station Board's right end, 2026-10-22: loose text broke the row of buttons) */}
@@ -3388,7 +3457,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                 </div>
                 <AcroDemo />
                 {/* the Practice Train: play right away, no sign-up (2026-10-22) */}
-                <button onClick={() => navigate("/practice")} style={{ alignSelf: "flex-start", background: "transparent", border: `2px solid ${C.teal}`, borderRadius: 999, color: C.teal, fontFamily: "inherit", fontSize: 16, fontWeight: 700, padding: "9px 18px", cursor: "pointer" }}>🚂 Take a practice ride · 3 stations · 2 minutes</button>
+                <button onClick={() => navigate("/practice")} style={{ alignSelf: "flex-start", background: "transparent", border: `2px solid ${C.teal}`, borderRadius: 999, color: C.teal, fontFamily: "inherit", fontSize: 16, fontWeight: 700, padding: "9px 18px", cursor: "pointer" }}>🚂 Take a practice journey · 3 stations · 2 minutes</button>
                 <div style={{ display: "grid", gridTemplateColumns: phone ? "1fr" : "repeat(3, 1fr)", gap: 10 }}>
                   {step("1", "Letters arrive", "And a direction.")}
                   {step("2", "Write a phrase", "One word per letter, about a minute.")}
@@ -3852,7 +3921,7 @@ const BOARD_TIPS = [
   "Tip: in a Word > Chain direction, put > between the words: Fire > Truck > Driver.",
   "Tip: identical acros are shown once, and everyone who wrote it shares the votes.",
   "Tip: the winner of a station picks the next direction.",
-  "Tip: warm up with a practice ride: three stations from our past games, and what the passengers wrote.",
+  "Tip: warm up with a practice journey: three stations from our past games, and what the passengers wrote.",
 ];
 // "in 3 h 20 min" / "in 12 min"
 const untilText = mins => { const m = Math.max(0, Math.round(-mins)); return m >= 60 ? `in ${Math.floor(m / 60)} h ${m % 60} min` : `in ${m} min`; };
@@ -6047,6 +6116,7 @@ export default function App() {
       <Route path="/admin/palettes" element={<PaletteStats />} />
       <Route path="/admin/numbers" element={<NumbersPage />} />
       <Route path="/leaderboard" element={<SkyLeaderboard />} />
+      <Route path="/hall" element={<HallOfExpressions />} />
       <Route path="/practice" element={<PracticeTrain />} />
       <Route path="/rules" element={<HouseRules />} />
       <Route path="/privacy" element={<Privacy />} />
