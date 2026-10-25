@@ -5677,7 +5677,11 @@ function Room() {
   const ACRO_BOX = 76;                                                                   // the acro box + its line + margin (no panel)
   const timerSize = isShort ? "clamp(28px, 5vh, 46px)" : "clamp(28px, 6vh, 46px)";     // countdown number
   const letterSize = isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters
-  const stageHeight = `calc(${stagePad} + ${letterGap} + ${timerSize} + ${timerGap} + ${letterSize} + ${ACRO_BOX}px)`;
+  // the direction above the letters (wide screens): its line, plus a line for a special direction's note
+  const topicSize = isShort ? 34 : 44;
+  const topicRow = `${Math.round(topicSize * 1.15) + 24}px`;
+  const aboveLetters = isNarrow ? `${timerSize} + ${timerGap}` : topicRow;
+  const stageHeight = `calc(${stagePad} + ${letterGap} + ${aboveLetters} + ${letterSize} + ${ACRO_BOX}px)`;
   // Results showing: the stage may grow to fit all passengers (option C, Damon 2026-10-16)
   // The stage grows for the results, and for the Final Stop celebration (the winner panel is taller than the letters)
   // Topic: label and topic on one line (compact header)
@@ -5894,12 +5898,21 @@ function Room() {
 
       {/* Letters */}
       {letters.length > 0 && !topicRequested && phase !== "Results" && phase !== "GameOver" && (
-        <div style={{ padding: `${stagePad} 0 ${letterGap}`, display: isNarrow ? "block" : "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", alignItems: "center", columnGap: 32 }}>
+        <div style={{ padding: `${stagePad} 0 ${letterGap}` }}>
+        {/* above the letters (wide screens): the direction, across the stage; its font switches with a click. The row
+            keeps its height when there is no direction (voting), so the letters never move */}
+        {!isNarrow && (
+          <div style={{ minHeight: topicRow, textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", paddingBottom: 6, boxSizing: "border-box" }}>
+            {showTopic && <>
+              <TopicText size={currentTopic.length > 44 ? Math.round(topicSize * 0.8) : currentTopic.length > 32 ? Math.round(topicSize * 0.9) : topicSize}>{currentTopic}</TopicText>
+              {specialTopicNote(currentTopic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2 }}>🎭 {specialTopicNote(currentTopic)}</div>}
+            </>}
+          </div>
+        )}
+        <div style={{ display: isNarrow ? "block" : "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", alignItems: "center", columnGap: 32 }}>
         {/* left of the letters: how many acros are in (2026-10-24) */}
         {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>{phase === "Submitting" && (
-          <AnswersAccepted count={submittedIds.length} total={players.filter(p => p.isConnected !== false).length} twoLines={view.w < 1250}>
-            {showTopic && <><TopicText size={isShort ? 28 : 34}>{currentTopic}</TopicText>{specialTopicNote(currentTopic) && <div style={{ fontSize: 14, marginTop: 2 }}>🎭 {specialTopicNote(currentTopic)}</div>}</>}
-          </AnswersAccepted>
+          <AnswersAccepted count={submittedIds.length} total={players.filter(p => p.isConnected !== false).length} twoLines={view.w < 1250} />
         )}</div>}
         <div style={{ textAlign: "center" }}>
           {/* Countdown — number only, centred above the letters, red in the last 10 seconds.
@@ -5907,10 +5920,12 @@ function Room() {
               letters below keep their place (before, they jumped up when the timer ended). */}
           {/* Font: the player's big-letters choice (--tf-family: Honk, or the plain number font). In Honk the
               colour comes from its palette: accent normally, letters colour in the last 10 seconds */}
-          <div style={{ fontSize: `calc(${timerSize} * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: "var(--tf-lh, 1)", marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
-            {/* "0" keeps the line one number tall while it is hidden */}
-            {two(timer)}
-          </div>
+          {isNarrow && (
+            <div style={{ fontSize: `calc(${timerSize} * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: "var(--tf-lh, 1)", marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
+              {/* "0" keeps the line one number tall while it is hidden */}
+              {two(timer)}
+            </div>
+            )}
           <div ref={lettersRef} title="Click to change the letters' font"
             onClick={() => { cycleLetterFont(); document.getElementById("acroInput")?.focus(); }}
             style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", cursor: "pointer", userSelect: "none" }}>
@@ -5933,16 +5948,15 @@ function Room() {
           </div>
           {showTopic && isNarrow && <div style={{ marginTop: 16 }}>{topicBlock("center")}</div>}
         </div>
-        {/* right of the letters: the topic */}
-        {/* centred in the space right of the letters, on the letters' middle (Damon's marked-up screenshot, 2026-10-24) */}
-        {/* (2026-10-24, Damon's second markup) the topic fills the band of the letters' height, at most 400 px wide (two
-            lines if needed), with "TOPIC" just above it */}
-        {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>{showTopic && (
-          <div style={{ position: "relative", maxWidth: 400, textAlign: "left" }}>
-            <TopicText size={isShort ? 28 : 34}>{currentTopic}</TopicText>
-            {specialTopicNote(currentTopic) && <div style={{ fontSize: 14, color: C.textPrimary, marginTop: 2 }}>🎭 {specialTopicNote(currentTopic)}</div>}
-          </div>
-        )}</div>}
+        {/* right of the letters (wide screens): the clock, on the letters' middle, opposite the lights (layout C,
+            2026-10-25; the direction was here before, it moved above the letters) */}
+        {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>
+            <div style={{ fontSize: `calc(${timerSize} * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: "var(--tf-lh, 1)", visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
+              {/* "0" keeps the line one number tall while it is hidden */}
+              {two(timer)}
+            </div>
+          </div>}
+        </div>
         </div>
       )}
 
