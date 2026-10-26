@@ -3490,25 +3490,28 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   // the busiest train with passengers, for the line under Departures
   const liveTrain = [...roomList].filter(r => (r.playingNames || []).length > 0).sort((a, b) => b.playingNames.length - a.playingNames.length)[0] || null;   // The Continental and the Daily Express (re-worked out on every refresh)
   const freeNumbers = []; for (let n = 1; freeNumbers.length < freeRows; n++) if (!used.has(n)) freeNumbers.push(n);
-  const boardCols = "72px minmax(0, 2.6fr) 116px 64px minmax(0, 1fr) 170px";   // platform · train · departs · aboard · status · button
+  const boardCols = "72px minmax(0, 2.6fr) 140px 64px minmax(0, 1fr) 170px";   // platform · train · departs · aboard · status · button
   // ── The Departures board's rows (Damon, 2026-10-26): one line each, the same columns for every train ─────────
   // platform (plain letters, no box) · the train (icon, name, a short note) · the departure time in its own box ·
   // aboard · status · the button. A row: { key, code, name, note, time, aboard, status, action, lit, hint }
   const rowGrid = { display: "grid", gridTemplateColumns: phone ? "40px minmax(0, 1fr) auto" : boardCols, gap: 12, alignItems: "center", height: phone ? undefined : 46, minHeight: phone ? 46 : undefined, boxSizing: "border-box", padding: phone ? "6px 12px" : "0 14px", borderBottom: `1px solid ${C.border}` };
   const codeStyle = free => ({ ...smallTitle, fontSize: 20, lineHeight: 1, color: free ? C.textMuted : C.teal });
-  // the time: its own box, digits that don't jump; the day in front when it isn't today ("NOW" for a train running)
+  // the time: its own box with only the time in it, digits that don't jump; the day just before the box, outside it,
+  // when it isn't today (Damon: "Day shouldn't be inside the clock"); "NOW" for a train running
   const timeBox = ms => {
     if (ms == null) return null;
     const d = new Date(ms), today = new Date().toDateString();
     const day = d.toDateString() === today ? "" : d.toLocaleDateString([], { weekday: "short" });
     return (
-      <span style={{ display: "inline-flex", alignItems: "baseline", justifyContent: "flex-end", gap: 6, minWidth: 104, boxSizing: "border-box", padding: "3px 9px", borderRadius: 6, background: C.bgApp, border: `1px solid ${C.border}`, fontFamily: "'Goldman', sans-serif", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
-        {day && <span style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>{day}</span>}
-        <span style={{ fontSize: 16, color: "var(--c-gold)" }}>{d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
+        <span style={{ width: 32, textAlign: "right", fontSize: 13, color: C.textMuted }}>{day}</span>
+        <span style={{ display: "inline-flex", justifyContent: "center", minWidth: 92, boxSizing: "border-box", padding: "3px 9px", borderRadius: 6, background: C.bgApp, border: `1px solid ${C.border}`, fontFamily: "'Goldman', sans-serif", fontVariantNumeric: "tabular-nums", fontSize: 16, color: "var(--c-gold)" }}>
+          {d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+        </span>
       </span>
     );
   };
-  const nowBox = <span style={{ display: "inline-flex", justifyContent: "center", minWidth: 104, boxSizing: "border-box", padding: "3px 9px", borderRadius: 6, background: C.bgApp, border: `1px solid ${C.success}`, fontFamily: "'Goldman', sans-serif", fontSize: 15, color: C.success, letterSpacing: "0.1em" }}>NOW</span>;
+  const nowBox = <span style={{ display: "inline-flex", justifyContent: "center", minWidth: 92, marginLeft: 39, boxSizing: "border-box", padding: "3px 9px", borderRadius: 6, background: C.bgApp, border: `1px solid ${C.success}`, fontFamily: "'Goldman', sans-serif", fontSize: 15, color: C.success, letterSpacing: "0.1em" }}>NOW</span>;
   const linkBtn = (label, onClick, color = C.textSecond) => <button onClick={onClick} style={{ background: "none", border: "none", padding: 0, color, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>{label}</button>;
   const trainCell = r => (
     <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, whiteSpace: "nowrap" }}>
