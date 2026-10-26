@@ -2148,12 +2148,6 @@ function PracticeTrain({ onClose = null, boarding = null }) {
       <div style={{ textAlign: "center" }}>
         <div style={{ ...honkTitle, fontSize: 30, lineHeight: 1.15 }}>{st.topic}</div>
         {specialTopicNote(st.topic) && <div style={{ color: C.textSecond, fontSize: 15, marginTop: 4 }}>🎭 Special topic: {specialTopicNote(st.topic)}</div>}
-        {phase === "write" && (
-          <div style={{ fontSize: `calc(clamp(28px, 6vh, 46px) * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, lineHeight: "var(--tf-lh, 1)", color: left <= 10 ? C.brand : C.teal, marginTop: 6,
-            // as on the train: with Honk, the palette's colours (the letters' colours in the last 10 s), no shadow — without
-            // fontPalette Honk shows its own yellow-pink gradient (Damon spotted it, 2026-10-22)
-            fontPalette: left <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", fontVariantNumeric: "tabular-nums" }}>{two(left)}</div>
-        )}
         <div title="Click to change the letters' font" onClick={() => { cycleLetterFont(); inputRef.current?.focus(); }}
           style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 6, cursor: "pointer", userSelect: "none" }}>
           {letters.map((L, i) => (
@@ -2166,7 +2160,9 @@ function PracticeTrain({ onClose = null, boarding = null }) {
           <div style={{ display: "flex", gap: 8 }}>
             <input ref={inputRef} value={text} onChange={e => { setText(e.target.value); textRef.current = e.target.value; setProblem(""); }} maxLength={300} placeholder="Type your acro and press Enter"
               style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "12px 14px", color: C.textPrimary, fontSize: 18, outline: "none", fontFamily: "inherit", textAlign: "center" }} />
-            <Btn>Submit</Btn>   {/* submits the form (an onClick too would run it twice) */}
+            {/* the clock between the box and Submit, as on the train (Damon, 2026-10-26); with Honk, the palette's colours */}
+            <div style={{ flex: "0 0 clamp(46px, 12vw, 64px)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "calc(32px * var(--tf-scale, 1))", fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, lineHeight: "var(--tf-lh, 1)", color: left <= 10 ? C.brand : C.teal, fontPalette: left <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", fontVariantNumeric: "tabular-nums" }}>{two(left)}</div>
+            <Btn style={{ minWidth: "clamp(84px, 22vw, 110px)", padding: "0 12px", justifyContent: "center" }}>Submit</Btn>   {/* submits the form (an onClick too would run it twice) */}
           </div>
           <div style={{ minHeight: 20, textAlign: "center", fontSize: 14, color: problem ? C.brand : C.textMuted }}>{problem || "One word for each letter, in order. Have fun with the direction!"}</div>
         </form>
@@ -5859,14 +5855,19 @@ function Room() {
   const stagePad = isShort ? "clamp(2px, 0.5vh, 10px)" : "clamp(4px, 1vh, 16px)";      // space above and below the letters
   // between the letters and the acro box (Damon, 2026-10-24: "this is too little")
   const letterGap = isShort ? "clamp(8px, 2vh, 18px)" : "clamp(12px, 3vh, 28px)";
-  const timerGap = "clamp(2px, 0.8vh, 8px)";                                            // between the timer and the letters
   const ACRO_BOX = 76;                                                                   // the acro box + its line + margin (no panel)
-  const timerSize = isShort ? "clamp(28px, 5vh, 46px)" : "clamp(28px, 6vh, 46px)";     // countdown number
+  // the countdown, between the acro box and Submit (Damon, 2026-10-26): its own fixed slot, so neither the box nor
+  // the button moves as the numbers change; hidden (not removed) when the time is up
+  const timerSlot = (
+    <div aria-label="Time left" style={{ flex: isNarrow ? "0 0 46px" : "0 0 64px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "calc(32px * var(--tf-scale, 1))", fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: "var(--tf-lh, 1)", visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
+      {two(timer)}
+    </div>
+  );
   const letterSize = isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters
   // the direction above the letters (wide screens): its line, plus a line for a special direction's note
   const topicSize = isShort ? 34 : 44;
   const topicRow = `${Math.round(topicSize * 1.15) + 24}px`;
-  const aboveLetters = isNarrow ? `${timerSize} + ${timerGap}` : topicRow;
+  const aboveLetters = isNarrow ? "0px" : topicRow;
   const stageHeight = `calc(${stagePad} + ${letterGap} + ${aboveLetters} + ${letterSize} + ${ACRO_BOX}px)`;
   // Results showing: the stage may grow to fit all passengers (option C, Damon 2026-10-16)
   // The stage grows for the results, and for the Final Stop celebration (the winner panel is taller than the letters)
@@ -6108,17 +6109,6 @@ function Room() {
           <AnswersAccepted count={submittedIds.length} total={players.filter(p => p.isConnected !== false).length} twoLines={view.w < 1250} />
         )}</div>}
         <div style={{ textAlign: "center" }}>
-          {/* Countdown — number only, centred above the letters, red in the last 10 seconds.
-              The line is always there; when the timer has ended it is only made invisible, so the
-              letters below keep their place (before, they jumped up when the timer ended). */}
-          {/* Font: the player's big-letters choice (--tf-family: Honk, or the plain number font). In Honk the
-              colour comes from its palette: accent normally, letters colour in the last 10 seconds */}
-          {isNarrow && (
-            <div style={{ fontSize: `calc(${timerSize} * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: "var(--tf-lh, 1)", marginBottom: timerGap, visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
-              {/* "0" keeps the line one number tall while it is hidden */}
-              {two(timer)}
-            </div>
-            )}
           <div ref={lettersRef} title="Click to change the letters' font"
             onClick={() => { cycleLetterFont(); document.getElementById("acroInput")?.focus(); }}
             style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", cursor: "pointer", userSelect: "none" }}>
@@ -6141,14 +6131,9 @@ function Room() {
           </div>
           {showTopic && isNarrow && <div style={{ marginTop: 16 }}>{topicBlock("center")}</div>}
         </div>
-        {/* right of the letters (wide screens): the clock, on the letters' middle, opposite the lights (layout C,
-            2026-10-25; the direction was here before, it moved above the letters) */}
-        {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>
-            <div style={{ fontSize: `calc(${timerSize} * var(--tf-scale, 1))`, fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: "var(--tf-lh, 1)", visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
-              {/* "0" keeps the line one number tall while it is hidden */}
-              {two(timer)}
-            </div>
-          </div>}
+        {/* right of the letters (wide screens): kept free, opposite the lights; the clock moved down beside Submit
+            (Damon, 2026-10-26: "the space where the timer was should be used to write something else") */}
+        {!isNarrow && <div />}
         </div>
         </div>
       )}
@@ -6166,7 +6151,8 @@ function Room() {
               <div style={{ flex: 1, minWidth: 0, background: C.bgPanel, border: `2px solid ${C.teal}`, borderRadius: 10, padding: "8px 14px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 19, overflowWrap: "anywhere" }}>
                 {submittedAcro}
               </div>
-              <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.teal, border: `1px solid ${C.teal}` }} onClick={() => {
+              {timerSlot}
+              <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.teal, border: `1px solid ${C.teal}`, borderRadius: 10, fontSize: 18, padding: isNarrow ? "0 12px" : "0 20px", minWidth: isNarrow ? 84 : 120, justifyContent: "center" }} onClick={() => {
                 setMyDraft(submittedAcro);
                 setIsEditing(true);
                 // Pause tune 2 and unmute tune 1 when editing
@@ -6193,7 +6179,8 @@ function Room() {
                 }}
                 onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
               />
-              <Btn onClick={handleSubmitAcro} style={{ borderRadius: 10, fontSize: 18, padding: "0 20px" }}>{isEditing ? "Update" : "Submit"}</Btn>
+              {timerSlot}
+              <Btn onClick={handleSubmitAcro} style={{ borderRadius: 10, fontSize: 18, padding: isNarrow ? "0 12px" : "0 20px", minWidth: isNarrow ? 84 : 120, justifyContent: "center" }}>{isEditing ? "Update" : "Submit"}</Btn>
               {isEditing && <BtnSecondary onClick={() => { setIsEditing(false); setAcroError(""); saveDraft("", true); }}>Cancel</BtnSecondary>}
             </div>
           )}
