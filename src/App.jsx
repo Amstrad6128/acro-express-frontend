@@ -1676,7 +1676,6 @@ function StationLog() {
               <h2 style={{ margin: 0, fontSize: 16, color: C.teal }}>New entry</h2>
               {/* Admin only: which palettes the players use (2026-10-18) */}
               <div style={{ display: "flex", gap: 8 }}>
-                <BtnSecondary onClick={() => navigate("/admin/passengers")}>Passengers</BtnSecondary>
                 <BtnSecondary onClick={() => navigate("/admin/numbers")}>Numbers</BtnSecondary>
                 <BtnSecondary onClick={() => navigate("/admin/palettes")}>Palette stats</BtnSecondary>
               </div>
@@ -1689,6 +1688,7 @@ function StationLog() {
             </div>
           </Panel>
         )}
+        {data?.isAdmin && <AdminPassengers />}
         {err && <p style={{ color: C.brand }}>{err}</p>}
         {!data && !err && <p style={{ color: C.textMuted }}>Loading…</p>}
         {data?.entries?.map(e => <LogEntryCard key={e.id} e={e} isAdmin={data.isAdmin} loggedIn={loggedIn} onRemoved={load} />)}
@@ -1784,61 +1784,40 @@ function PaletteStats() {
 // Numbers (admin only, Damon 2026-10-21: "measure before building more"): per week, new passengers and how many
 // of them played, came back within 7 days and finished 2+ games; players and games per week; the busiest hours and
 // weekdays. All in Limassol time. Damon himself is left out of the player numbers. (api/admin/numbers)
-// Admin only: everyone who registered, newest first, whether they play or not (Damon, 2026-10-26; an email
-// arrives for each new one too, see SignupNotifier). Times in the viewer's own time. (api/admin/passengers)
-function PassengersPage() {
-  const navigate = useNavigate();
+// Admin only, in the Station Log under "New entry": everyone who registered, newest first, whether they play or
+// not (Damon, 2026-10-26). Names of passengers who never played are dimmed; hover = signed up / stations / last
+// played, in the viewer's own time. The newest 40, then "Show all". (api/admin/passengers)
+function AdminPassengers() {
   const [rows, setRows] = useState(null);        // the server's answer
   const [err, setErr] = useState("");            // error text, if any
+  const [all, setAll] = useState(false);         // showing everyone
   useEffect(() => {
     fetch(`${API_URL}/api/admin/passengers`, { headers: authHeaders() })
-      .then(async r => {
-        if (r.status === 403) throw new Error("This page is for the admin only.");
-        if (!r.ok) throw new Error("Couldn't load the passengers. Try again in a moment.");
-        setRows(await r.json());
-      })
+      .then(async r => { if (!r.ok) throw new Error("Couldn't load the passengers."); setRows(await r.json()); })
       .catch(e => setErr(e.message));
   }, []);
-  const when = utc => utc ? new Date(utc).toLocaleString([], { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "";
-  const cell = { padding: "7px 8px", whiteSpace: "nowrap" };
-  const played = rows ? rows.filter(r => r.stations > 0).length : 0;
+  const when = utc => new Date(utc).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const shown = rows ? (all ? rows : rows.slice(0, 40)) : [];
   return (
-    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "24px 16px 48px", boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{ margin: 0, fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand }}>Passengers</h1>
-            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>
-              {rows ? `${rows.length} with a Sky Passport, ${played} of them played. Newest first. Only you see this page.` : "Everyone with a Sky Passport, newest first. Only you see this page."}
-            </p>
-          </div>
-          <BtnSecondary onClick={() => navigate("/log")}>← Station Log</BtnSecondary>
-        </div>
-        {err && <Panel style={{ padding: 16, color: C.brand }}>{err}</Panel>}
-        {!rows && !err && <Panel style={{ padding: 16, color: C.textMuted }}>Loading…</Panel>}
-        {rows && (
-          <Panel style={{ padding: 8, overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, fontVariantNumeric: "tabular-nums" }}>
-              <thead>
-                <tr style={{ color: C.teal, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.06em", textAlign: "left" }}>
-                  <th style={cell}>Nickname</th><th style={cell}>Signed up</th><th style={{ ...cell, textAlign: "right" }}>Stations</th><th style={cell}>Last played</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(r => (
-                  <tr key={r.name} style={{ borderTop: `1px solid ${C.border}` }}>
-                    <td style={cell}><NameLink profile name={r.name} style={{ color: C.textPrimary, fontWeight: 700 }} /></td>
-                    <td style={{ ...cell, color: C.textSecond }}>{when(r.signedUpUtc)}</td>
-                    <td style={{ ...cell, textAlign: "right", color: r.stations ? C.textPrimary : C.textMuted }}>{r.stations || "–"}</td>
-                    <td style={{ ...cell, color: C.textSecond }}>{r.lastPlayedUtc ? when(r.lastPlayedUtc) : <span style={{ color: C.textMuted }}>never</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Panel>
-        )}
+    <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10, borderColor: C.teal }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+        <h2 style={{ margin: 0, fontSize: 16, color: C.teal }}>Passengers</h2>
+        {rows && <span style={{ fontSize: 14, color: C.textMuted }}>{rows.length} registered · {rows.filter(r => r.stations > 0).length} played · newest first</span>}
       </div>
-    </div>
+      {err && <span style={{ color: C.brand, fontSize: 14 }}>{err}</span>}
+      {!rows && !err && <span style={{ color: C.textMuted, fontSize: 14 }}>Loading…</span>}
+      {rows && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", fontSize: 14 }}>
+          {shown.map(r => (
+            <span key={r.name} title={`Signed up ${when(r.signedUpUtc)} · ${r.stations ? `${r.stations} stations, last ${when(r.lastPlayedUtc)}` : "never played"}`}
+              style={{ whiteSpace: "nowrap", color: r.stations ? C.textPrimary : C.textMuted }}>
+              {r.name} <span style={{ fontSize: 12, color: C.textMuted }}>{new Date(r.signedUpUtc).toLocaleDateString([], { day: "numeric", month: "short" })}</span>
+            </span>
+          ))}
+          {rows.length > 40 && <button onClick={() => setAll(v => !v)} style={{ background: "none", border: "none", padding: 0, color: C.teal, cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 600 }}>{all ? "Show fewer" : `Show all ${rows.length}`}</button>}
+        </div>
+      )}
+    </Panel>
   );
 }
 
@@ -6422,7 +6401,6 @@ export default function App() {
       <Route path="/log" element={<StationLog />} />
       <Route path="/admin/palettes" element={<PaletteStats />} />
       <Route path="/admin/numbers" element={<NumbersPage />} />
-      <Route path="/admin/passengers" element={<PassengersPage />} />
       <Route path="/leaderboard" element={<SkyLeaderboard />} />
       <Route path="/hall" element={<HallOfExpressions />} />
       <Route path="/practice" element={<PracticeTrain />} />
