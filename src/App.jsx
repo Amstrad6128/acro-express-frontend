@@ -3708,7 +3708,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
             <Panel style={{ padding: 14, display: "flex", flexDirection: "column", minHeight: 0, order: phone ? 2 : 0 }}>
               {/* Phones: tap the title to fold the list away */}
               <h2 onClick={phone ? () => setListOpen(o => !o) : undefined} style={{ ...boxTitle, marginBottom: phone && !listOpen ? 0 : 8, cursor: phone ? "pointer" : "default" }}>
-                <Icon name="users" size={24} color={C.teal} /> On the platform ({online.length})
+                <Icon name="users" size={24} color={C.teal} /> Arrivals ({online.length})   {/* was "On the platform"; Arrivals, next to Departures (Damon, 2026-10-26: "plays nicely to A Rival") */}
                 {phone && <span style={{ marginLeft: "auto", fontFamily: "'Nunito', sans-serif", fontSize: 18, color: C.textMuted }}>{listOpen ? "▴" : "▾"}</span>}
               </h2>
               {phone && !listOpen ? null : (
