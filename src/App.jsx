@@ -3251,15 +3251,19 @@ function Lobby() {
   const [schedForm, setSchedForm] = useState(null);
   const [schedErr, setSchedErr] = useState("");
   async function submitSched() {
-    const { name, day, time } = schedForm;
+    const { id, day, time } = schedForm;   // id: changing the time of that game
     const [hh, mm] = (time || "").split(":").map(Number);
-    if (!name.trim()) { setSchedErr("Give your game a name."); return; }
-    if (Number.isNaN(hh)) { setSchedErr("Pick a time."); return; }
+    if (!time || Number.isNaN(hh)) { setSchedErr("Pick a time."); return; }
     const d = new Date(); d.setDate(d.getDate() + Number(day)); d.setHours(hh, mm || 0, 0, 0);   // in the player's own time
-    const r = await fetch(`${API_URL}/api/schedule`, { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), startsAtUtc: d.toISOString() }) }).catch(() => null);
+    const r = await fetch(`${API_URL}/api/schedule${id ? `/${id}` : ""}`, { method: id ? "PUT" : "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ startsAtUtc: d.toISOString() }) }).catch(() => null);
     if (!r) { setSchedErr("Couldn't reach the station. Try again."); return; }
     if (!r.ok) { setSchedErr((await r.text()) || "Couldn't schedule it."); return; }
     setSchedForm(null); setSchedErr(""); loadSched();
+  }
+  function editSched(g) {
+    const d = new Date(g.departs), today = new Date(); today.setHours(0, 0, 0, 0);
+    const day = Math.max(0, Math.min(6, Math.round((new Date(d).setHours(0, 0, 0, 0) - today) / 86400000)));
+    setSchedForm({ id: g.id, day, time: d.toTimeString().slice(0, 5) }); setSchedErr("");
   }
   async function cancelSched(id) {
     await fetch(`${API_URL}/api/schedule/${id}`, { method: "DELETE", headers: authHeaders() }).catch(() => { });
@@ -3475,7 +3479,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
     const room = roomList.find(r => sameTrain(r.name, g.name)) || null;
     const status = room ? (room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand })
       : mins < -30 ? { text: "Scheduled", color: C.teal } : mins < 0 ? { text: "Boarding soon", color: C.brand } : { text: "Departing now", color: C.brand };
-    const label = String(g.host || "?").replace(/[^A-Za-z0-9]/g, "").slice(0, 2).toUpperCase() || "??";   // the host's initials as the platform
+    const label = String(g.name || "").replace(/^the\s+/i, "").replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase() || "SG";   // "The Zephyr" → ZE, like TC and DX
     return { key: g.id, id: g.id, kind: "player", name: g.name, label, departs, local: when(departs), status, room, canStart: !room && mins > -30, host: g.host, canCancel: g.canCancel };
   });
   const departures = [...scheduled.map(t => ({ ...t, kind: "daily" })), ...playerGames].sort((a, b) => (a.departs ?? Infinity) - (b.departs ?? Infinity));
@@ -3725,23 +3729,22 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
             {/* Schedule a game (Regulars and up, one at a time, up to 7 days ahead; in your own time) */}
             {auth && sched.canSchedule && !sched.hasOne && !schedForm && (
               <div style={{ marginTop: -4, marginBottom: 8 }}>
-                <button onClick={() => { setSchedForm({ name: "", day: 0, time: "" }); setSchedErr(""); }} data-hint="Schedule a game for later: it shows here for everyone, in their own time"
+                <button onClick={() => { setSchedForm({ id: null, day: 0, time: "" }); setSchedErr(""); }} data-hint="Schedule a game for later: it shows here for everyone, in their own time"
                   style={{ background: "none", border: "none", padding: 0, color: C.teal, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>📅 Schedule a game</button>
               </div>
             )}
-            {schedForm && (
+            {schedForm && auth && (
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10, padding: "10px 12px", border: `1px solid ${C.border}`, borderRadius: 10, background: C.bgPanel2 }}>
-                <input value={schedForm.name} maxLength={40} placeholder="Name your game" onChange={e => setSchedForm(f => ({ ...f, name: e.target.value }))}
-                  style={{ flex: "1 1 180px", minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
+                <span style={{ fontWeight: 700, fontSize: 15 }}>{schedForm.id ? "New time:" : "Schedule a game for"}</span>
                 <select value={schedForm.day} onChange={e => setSchedForm(f => ({ ...f, day: e.target.value }))}
                   style={{ background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 8px", color: C.textPrimary, fontSize: 15, fontFamily: "inherit" }}>
                   {Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i); return <option key={i} value={i}>{i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString([], { weekday: "long", day: "numeric", month: "short" })}</option>; })}
                 </select>
                 <input type="time" step={900} value={schedForm.time} onChange={e => setSchedForm(f => ({ ...f, time: e.target.value }))}
                   style={{ background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 8px", color: C.textPrimary, fontSize: 15, fontFamily: "inherit", colorScheme: "dark" }} />
-                <Btn onClick={submitSched} style={smallBtn}>Schedule</Btn>
+                <Btn onClick={submitSched} style={smallBtn}>{schedForm.id ? "Save" : "Schedule"}</Btn>
                 <BtnSecondary onClick={() => { setSchedForm(null); setSchedErr(""); }} style={smallBtn}>Cancel</BtnSecondary>
-                <div style={{ flexBasis: "100%", fontSize: 13, color: schedErr ? C.brand : C.textMuted }}>{schedErr || "Your own time. Everyone sees it in theirs."}</div>
+                <div style={{ flexBasis: "100%", fontSize: 13, color: schedErr ? C.brand : C.textMuted }}>{schedErr || (schedForm.id ? "Your own time. Everyone sees it in theirs." : "Your own time. Everyone sees it in theirs; the train gets one of our names.")}</div>
               </div>
             )}
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
@@ -3837,24 +3840,30 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                 {departures.slice(0, depSlots).map(night => {
                 const aboard = night.room && (night.kind === "player" || isScheduledName(night.room.name)) ? (night.room.playingNames || []) : [];
                 return (
-                <div key={night.key} data-hint={night.kind === "player" ? `${night.host}'s game, in your own time` : "One of our daily games: every day at the same time, shown here in your own time"}
+                <div key={night.key} data-hint={night.kind === "player" ? `Scheduled by ${night.host}, shown in your own time` : "One of our daily games: every day at the same time, shown here in your own time"}
                   style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`, ...(aboard.length ? aliveRow : {}),
                     gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
-                  <PlatformBox n={night.label} />
+                  <PlatformBox n={night.label} tint={night.kind === "player" ? C.lavender : undefined} />
                   <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                    {!phone && <Icon name="train" size={22} color={C.teal} />}
+                    {!phone && <Icon name="train" size={22} color={night.kind === "player" ? C.lavender : C.teal} />}
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{aboard.length > 0 && liveDot}{night.name}</div>
                       <div style={{ fontSize: 13, color: aboard.length ? C.textSecond : C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {aboard.length ? <>{night.room.gameOn && night.room.station > 0 ? `Station ${night.room.station} · ` : ""}<span style={{ color: C.textPrimary }}>{whoAboard(aboard)}</span></> : night.kind === "player" ? <>{night.host}'s game · {night.local} your time</> : <>Every day · departs {night.local} your time</>}
+                        {aboard.length ? <>{night.room.gameOn && night.room.station > 0 ? `Station ${night.room.station} · ` : ""}<span style={{ color: C.textPrimary }}>{whoAboard(aboard)}</span></> : night.kind === "player" ? <>Scheduled by <span style={{ color: C.lavender }}>{night.host}</span> · {night.local} your time</> : <>Every day · departs {night.local} your time</>}
                       </div>
                       {phone && <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}><StatusPill {...night.status} />{night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={smallBtn}>Board →</Btn> : night.canStart && <Btn onClick={() => startScheduled(night.name)} style={smallBtn}>Start it →</Btn>}</div>}
                     </div>
                   </div>
-                  {!phone && (night.kind === "player" && night.canCancel && !night.room ? <span><button onClick={() => cancelSched(night.id)} style={{ background: "none", border: "none", padding: 0, color: C.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Cancel</button></span> : <span />)}
+                  {!phone && <span />}
                   {!phone && <span><StatusPill {...night.status} /></span>}
                   {!phone && (night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>Board now →</Btn>
-                    : night.canStart ? <span data-hint={`Start ${night.name}: everyone boards it from this row`} style={{ display: "contents" }}><Btn onClick={() => startScheduled(night.name)} style={{ ...smallBtn, justifyContent: "center" }}>Start it →</Btn></span> : <span />)}
+                    : night.canStart ? <span data-hint={`Start ${night.name}: everyone boards it from this row`} style={{ display: "contents" }}><Btn onClick={() => startScheduled(night.name)} style={{ ...smallBtn, justifyContent: "center" }}>Start it →</Btn></span>
+                    : night.kind === "player" && night.canCancel ? (
+                      // the host (or the admin): change the time or delete it, where the button will be
+                      <span style={{ display: "flex", gap: 12, justifyContent: "center", whiteSpace: "nowrap" }}>
+                        <button onClick={() => editSched(night)} style={{ background: "none", border: "none", padding: 0, color: C.textSecond, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Change time</button>
+                        <button onClick={() => cancelSched(night.id)} style={{ background: "none", border: "none", padding: 0, color: C.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Delete</button>
+                      </span>) : <span />)}
                 </div>
                 );
                 })}
@@ -3868,16 +3877,21 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                       <button onClick={() => setLaterOpen(o => !o)} aria-expanded={laterOpen} data-hint="More departures later: click to see them all"
                         style={{ display: "grid", gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : "76px minmax(0, 1fr) auto", alignItems: "center", gap: 12, width: "100%", height: phone ? undefined : 44, padding: phone ? "8px 12px" : "0 14px", boxSizing: "border-box", background: "none", border: "none", borderBottom: `1px solid ${C.border}`, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
                         <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.12em", color: C.teal, textAlign: "center" }}>LATER</span>
-                        <span style={{ minWidth: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
-                          <span key={g.key + i} className="acro-flip"><b>{g.name}</b> <span style={{ color: C.textMuted }}>· {g.kind === "player" ? `${g.host}'s game · ` : ""}{g.local} your time</span></span>
+                        <span style={{ minWidth: 0 }}>
+                          <SplitFlap flipKey={g.key} bg={C.bgPanel}>
+                            <b style={{ color: g.kind === "player" ? C.lavender : C.textPrimary }}>{g.name}</b>&nbsp;<span style={{ color: C.textMuted }}>· {g.kind === "player" ? `Scheduled by ${g.host} · ` : "Every day · "}{g.local} your time</span>
+                          </SplitFlap>
                         </span>
                         <span style={{ fontSize: 13, color: C.textMuted, whiteSpace: "nowrap" }}>{rest.length > 1 ? `${i + 1} of ${rest.length} · ` : ""}{laterOpen ? "close ▲" : "see all ▼"}</span>
                       </button>
                       {laterOpen && rest.map(x => (
                         <div key={x.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 14px 7px 102px", borderBottom: `1px solid ${C.border}`, fontSize: 14 }}>
-                          <b style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.name}</b>
-                          <span style={{ color: C.textMuted, whiteSpace: "nowrap" }}>{x.kind === "player" ? `${x.host}'s game · ` : "Every day · "}{x.local} your time</span>
-                          {x.kind === "player" && x.canCancel && <button onClick={() => cancelSched(x.id)} style={{ marginLeft: "auto", background: "none", border: "none", padding: 0, color: C.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Cancel</button>}
+                          <b style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: x.kind === "player" ? C.lavender : undefined }}>{x.name}</b>
+                          <span style={{ color: C.textMuted, whiteSpace: "nowrap" }}>{x.kind === "player" ? <>Scheduled by <span style={{ color: C.lavender }}>{x.host}</span> · </> : "Every day · "}{x.local} your time</span>
+                          {x.kind === "player" && x.canCancel && <span style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+                            <button onClick={() => editSched(x)} style={{ background: "none", border: "none", padding: 0, color: C.textSecond, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Change time</button>
+                            <button onClick={() => cancelSched(x.id)} style={{ background: "none", border: "none", padding: 0, color: C.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Delete</button>
+                          </span>}
                         </div>
                       ))}
                     </div>
@@ -4213,9 +4227,39 @@ function HoverBar() {
   );
 }
 
-function PlatformBox({ n, free }) {
+// A line of text that changes like a split-flap departure board (2026-10-26, Damon: "a cool train station animation, at
+// least flip around the center of the line"): split at its middle, the old line's top half drops down, then the new
+// line's bottom half falls into place. bg: the colour behind it (the flaps hide what's under them).
+function SplitFlap({ children, flipKey, bg, height = 26 }) {
+  const [shown, setShown] = useState({ key: flipKey, node: children });
+  const [prev, setPrev] = useState(null);
+  useEffect(() => {
+    if (flipKey === shown.key) { setShown(x => ({ ...x, node: children })); return; }
+    setPrev(shown.node);
+    setShown({ key: flipKey, node: children });
+    const t = setTimeout(() => setPrev(null), 520);
+    return () => clearTimeout(t);
+  }, [flipKey, children]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const layer = { position: "absolute", inset: 0, display: "flex", alignItems: "center", background: bg, whiteSpace: "nowrap", overflow: "hidden" };
+  const top = { clipPath: "inset(0 0 50% 0)" }, bottom = { clipPath: "inset(50% 0 0 0)" };
   return (
-    <div style={{ width: 56, height: 44, borderRadius: 9, border: `1.5px ${free ? "dashed" : "solid"} ${free ? C.border : C.teal}`, background: C.bgApp, display: "flex", alignItems: "center", justifyContent: "center", ...smallTitle, fontSize: 24, color: free ? C.textMuted : C.teal }}>
+    <span style={{ position: "relative", display: "block", height, perspective: 500, overflow: "hidden" }}>
+      {/* the new line (its top half shows while the old top flaps away) */}
+      <span style={{ ...layer, ...top }}>{shown.node}</span>
+      {/* the old line's bottom half stays until the new bottom covers it */}
+      <span style={{ ...layer, ...bottom }}>{prev ?? shown.node}</span>
+      {prev != null && <span key={"t" + shown.key} className="flap-top" style={{ ...layer, ...top }}>{prev}</span>}
+      {prev != null && <span key={"b" + shown.key} className="flap-bottom" style={{ ...layer, ...bottom }}>{shown.node}</span>}
+      {/* the split, a hairline across the middle */}
+      <span aria-hidden style={{ position: "absolute", left: 0, right: 0, top: "50%", height: 1, background: "rgba(0,0,0,0.35)" }} />
+    </span>
+  );
+}
+
+// tint: another colour for the box (players' scheduled games, 2026-10-26)
+function PlatformBox({ n, free, tint }) {
+  return (
+    <div style={{ width: 56, height: 44, borderRadius: 9, border: `1.5px ${free ? "dashed" : "solid"} ${free ? C.border : tint || C.teal}`, background: tint ? `color-mix(in srgb, ${tint} 18%, ${C.bgApp})` : C.bgApp, display: "flex", alignItems: "center", justifyContent: "center", ...smallTitle, fontSize: 24, color: free ? C.textMuted : C.teal }}>
       {typeof n === "string" ? n : n > 0 ? String(n).padStart(2, "0") : "–"}
     </div>
   );

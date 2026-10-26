@@ -173,10 +173,14 @@ body {
 /* The Sky Leaderboard's column titles are its buttons (2026-10-26): soft pills, a little brighter on hover */
 .lb-head[aria-pressed="false"]:hover { background: color-mix(in srgb, var(--c-teal) 30%, transparent) !important; }
 
-/* The Departures board's "Later" row flips to the next game like an airport split-flap sign (2026-10-26) */
-@keyframes acroFlip { 0% { transform: perspective(400px) rotateX(-90deg); opacity: 0; } 60% { transform: perspective(400px) rotateX(12deg); opacity: 1; } 100% { transform: perspective(400px) rotateX(0); opacity: 1; } }
-.acro-flip { display: inline-block; animation: acroFlip 0.5s ease-out; transform-origin: 50% 0; }
-@media (prefers-reduced-motion: reduce) { .acro-flip { animation: none; } }
+/* The Departures board's "Later" row: a split-flap, like a station's departure board (2026-10-26). The line is split
+   at its middle: the old line's top half drops down around the middle, then the new line's bottom half falls into
+   place (SplitFlap in App.jsx) */
+@keyframes flapTop { from { transform: rotateX(0deg); } to { transform: rotateX(-90deg); } }
+@keyframes flapBottom { from { transform: rotateX(90deg); } to { transform: rotateX(0deg); } }
+.flap-top { animation: flapTop 0.22s ease-in forwards; transform-origin: 50% 50%; backface-visibility: hidden; }
+.flap-bottom { animation: flapBottom 0.24s ease-out 0.22s both; transform-origin: 50% 50%; backface-visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .flap-top, .flap-bottom { animation: none; } .flap-top { display: none; } }
 
 /* A train with passengers at the station: its dot pulses gently (2026-10-25) */
 @keyframes acroLive { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
