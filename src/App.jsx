@@ -1401,7 +1401,8 @@ function RulesSection({ icon, title, children }) {
 const ex = { color: C.teal, fontStyle: "italic" };      // examples
 const rulesList = { margin: "4px 0 0", paddingLeft: 20, listStyle: "disc" };   // bullets (the page resets lists)
 
-function HowToPlay({ winScore = 30 }) {
+// stations > 0: a journey of that many stations, the highest score wins; 0: the first to winScore (GameFormat on the server)
+function HowToPlay({ winScore = 30, stations = 0 }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!open) return;
@@ -1430,7 +1431,9 @@ function HowToPlay({ winScore = 30 }) {
                   the old "A valid acro is entered for you" sounded as if the game wrote one for you) */}
               <RulesSection icon="🚉" title="All aboard!">
                 Each station gives you a few letters and a direction. Turn the letters into a funny phrase, then everyone votes.
-                The first to <b style={{ color: C.textPrimary }}>{winScore} points</b> wins the journey.
+                {stations > 0
+                  ? <>After <b style={{ color: C.textPrimary }}>{stations} stations</b>, the most points wins the journey.</>
+                  : <>The first to <b style={{ color: C.textPrimary }}>{winScore} points</b> wins the journey.</>}
               </RulesSection>
               <RulesSection icon="✍️" title="Write">
                 <ul style={rulesList}>
@@ -1486,7 +1489,7 @@ function HowToPlay({ winScore = 30 }) {
                 <div style={{ marginTop: 6 }}>Tip: put spaces around &gt; + and = so they don't stick to a word ("Fire&gt;Truck" counts as one word).</div>
               </RulesSection>
               <RulesSection icon="🏁" title="Final Stop">
-                When someone reaches {winScore}, the highest score wins the journey. After a 30-second break the next journey starts by itself.
+                {stations > 0 ? `After station ${stations}, the highest score wins the journey; a tie at the top is a shared win.` : `When someone reaches ${winScore}, the highest score wins the journey.`} After a 30-second break the next journey starts by itself.
               </RulesSection>
               <RulesSection icon="🚂" title="When we play">
                 Every day the regulars ride <b style={{ color: C.textPrimary }}>The Continental</b> at <b style={{ color: C.textPrimary }}>{scheduledTrain("continental", Date.now(), []).local}</b> and the <b style={{ color: C.textPrimary }}>Daily Express</b> at <b style={{ color: C.textPrimary }}>{nightExpress(Date.now(), []).local}</b>, your time: that's when the trains are fullest. You can start or join a train any other time too.
@@ -3647,7 +3650,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
             <button onClick={() => navigate("/leaderboard")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏆 Sky Leaderboard</button></span>}
           {auth && <span data-hint="Hall of Expressions: the best lines written on the Sky Trains" style={{ display: "contents" }}>
             <button onClick={() => navigate("/hall")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏛 Hall of Expressions</button></span>}
-          <span data-hint="How to play: the rules, the points and the special directions" style={{ display: "contents" }}><HowToPlay winScore={roomList[0]?.winScore || 30} /></span>
+          <span data-hint="How to play: the rules, the points and the special directions" style={{ display: "contents" }}><HowToPlay winScore={roomList[0]?.winScore || 30} stations={roomList[0]?.stations || 0} /></span>
           {auth && <span data-hint="Colors: the look of the station and the trains. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>}
           {/* ("All lines running" moved to the Station Board's right end, 2026-10-22: loose text broke the row of buttons) */}
         </div>
@@ -6012,6 +6015,8 @@ function Room() {
           <div style={{ margin: "4px 0 0", fontSize: isShort ? 22 : 25, fontFamily: "'Nunito', sans-serif", fontWeight: 800, color: C.teal, lineHeight: 1.2, whiteSpace: "nowrap" }}>   {/* one line, never "Write your / acro" */}
             {/* Rounds are stations: a game travels Station 0 → 1 → 2 … → Final Stop (round N = Station N) */}
             Station {headerStation}
+            {/* "Station 7 of 10" in a journey of 10 stations (Zyngacita's format, 2026-10-27) */}
+            {data?.stations > 0 && headerStation > 0 && ` of ${data.stations}`}
             {/* What's happening now, in words (first step towards the "Departure Board" announcer) */}
             {": "}{phaseTitle}   {/* "Station 3: Accepting Expressions" (Damon, 2026-10-25) */}
             {/* The timer moved to the centre, above the letters */}
@@ -6023,7 +6028,7 @@ function Room() {
             <CustomizeHint />
             {/* "Colors" and "Music" menus — change them any time, even mid-game */}
             <span data-hint="Online: who is at the station and on the trains right now" style={{ display: "contents" }}><OnlineButton /></span>
-            <span data-hint="How to play: the rules, the points and the special directions" style={{ display: "contents" }}><HowToPlay winScore={data.winScore || 30} /></span>
+            <span data-hint="How to play: the rules, the points and the special directions" style={{ display: "contents" }}><HowToPlay winScore={data.winScore || 30} stations={data.stations || 0} /></span>
             <span data-hint="Colors: the look of the train. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>
             <span data-hint="Letters: the font of the Express Server letters and the timer (or click the letters)" style={{ display: "contents" }}><LetterFontPicker /></span>
             <span data-hint="Song: your music while you write (it switches at once)" style={{ display: "contents" }}><SongPicker /></span>
