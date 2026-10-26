@@ -3495,6 +3495,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   // platform (plain letters, no box) · the train (icon, name, a short note) · the departure time in its own box ·
   // aboard · status · the button. A row: { key, code, name, note, time, aboard, status, action, lit, hint }
   const rowGrid = { display: "grid", gridTemplateColumns: phone ? "40px minmax(0, 1fr) auto" : boardCols, gap: 12, alignItems: "center", height: phone ? undefined : 46, minHeight: phone ? 46 : undefined, boxSizing: "border-box", padding: phone ? "6px 12px" : "0 14px", borderBottom: `1px solid ${C.border}` };
+  const nextRow = { background: "color-mix(in srgb, var(--c-gold) 9%, transparent)", boxShadow: "inset 3px 0 0 var(--c-gold)" };
   const codeStyle = free => ({ ...smallTitle, fontSize: 20, lineHeight: 1, color: free ? C.textMuted : C.teal });
   // the time: its own box with only the time in it, digits that don't jump; the day just before the box, outside it,
   // when it isn't today (Damon: "Day shouldn't be inside the clock"); "NOW" for a train running
@@ -3517,12 +3518,13 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
     <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, whiteSpace: "nowrap" }}>
       <Icon name="train" size={20} color={C.textSecond} />
       {r.lit && liveDot}
+      {r.next && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.12em", color: "#1B1A17", background: "var(--c-gold)", borderRadius: 4, padding: "2px 5px", flexShrink: 0 }}>NEXT</span>}
       <b style={{ fontWeight: 600, fontSize: 15, flexShrink: 0, maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</b>
       {r.note && <span style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis" }}>· {r.note}</span>}
     </span>
   );
   const boardRow = r => (
-    <div key={r.key} data-hint={r.hint} style={{ ...rowGrid, ...(r.lit ? aliveRow : {}) }}>
+    <div key={r.key} data-hint={r.hint} style={{ ...rowGrid, ...(r.lit ? aliveRow : r.next ? nextRow : {}) }}>
       <span style={codeStyle(false)}>{r.code}</span>
       <span style={{ minWidth: 0 }}>{trainCell(r)}</span>
       {phone ? <span style={{ display: "flex", gap: 8, alignItems: "center" }}>{r.time}{r.action}</span> : <>
@@ -3546,13 +3548,19 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
       hint: room.gameOn ? "A game is on: board now and join in from the next station" : "Waiting for passengers: board and the game starts with the first direction",
     };
   });
+  // the next train to leave: the first departure that hasn't started (Damon, 2026-10-26: "something that clearly shows
+  // that this sky train is the one that arrives next"): a gold NEXT tag, a gold edge and a countdown
+  const nextKey = departures.find(t => !t.room && t.departs != null && Date.now() - t.departs < 30 * 60000)?.key ?? null;
   // a departure: our daily trains and players' scheduled games, the same row
   const departureRow = t => {
     const aboard = t.room ? (t.room.playingNames || []) : [];
+    const next = t.key === nextKey;
+    const mins = t.departs != null ? (Date.now() - t.departs) / 60000 : null;
     return {
-      key: t.key, code: t.label, name: t.name, lit: aboard.length > 0,
+      key: t.key, code: t.label, name: t.name, lit: aboard.length > 0, next,
       note: aboard.length ? `${t.room.gameOn && t.room.station > 0 ? `Station ${t.room.station} · ` : ""}${whoAboard(aboard)}` : t.kind === "player" ? `by ${t.host}` : "every day",
-      time: timeBox(t.departs), aboard: t.room ? aboard.length : null, status: t.status,
+      time: timeBox(t.departs), aboard: t.room ? aboard.length : null,
+      status: next && mins < 0 ? { text: `Next · ${untilText(mins)}`, color: "var(--c-gold)" } : t.status,
       action: t.room ? <Btn onClick={() => navigate(`/room/${t.room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>Board now →</Btn>
         : t.canStart ? <span data-hint={`Start ${t.name}: everyone boards it from this row`} style={{ display: "contents" }}><Btn onClick={() => startScheduled(t.name)} style={{ ...smallBtn, justifyContent: "center" }}>Start it →</Btn></span>
         : t.kind === "player" && t.canCancel ? <>{linkBtn("Change time", () => editSched(t))}{linkBtn("Delete", () => cancelSched(t.id), C.textMuted)}</> : null,
