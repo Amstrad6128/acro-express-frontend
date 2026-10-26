@@ -3485,12 +3485,77 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   const departures = [...scheduled.map(t => ({ ...t, kind: "daily" })), ...playerGames].sort((a, b) => (a.departs ?? Infinity) - (b.departs ?? Infinity));
   // how many departures get a fixed row: on a one-screen page the board keeps its 3 rows (the free platform, the trains
   // running, then departures; the chat above needs the height), elsewhere up to 4; the rest go in the "Later" row
-  const runningRows = roomList.filter(room => !scheduled.some(t => t.room?.id === room.id && isScheduledName(room.name)) && !playerGames.some(g => g.room?.id === room.id)).length;
-  const depSlots = fits ? Math.max(1, 3 - freeRows - runningRows) : Math.max(2, 4 - runningRows);
+  const runningCount = roomList.filter(room => !scheduled.some(t => t.room?.id === room.id && isScheduledName(room.name)) && !playerGames.some(g => g.room?.id === room.id)).length;
+  const depSlots = fits ? Math.max(1, 3 - freeRows - runningCount) : Math.max(2, 4 - runningCount);
   // the busiest train with passengers, for the line under Departures
   const liveTrain = [...roomList].filter(r => (r.playingNames || []).length > 0).sort((a, b) => b.playingNames.length - a.playingNames.length)[0] || null;   // The Continental and the Daily Express (re-worked out on every refresh)
   const freeNumbers = []; for (let n = 1; freeNumbers.length < freeRows; n++) if (!used.has(n)) freeNumbers.push(n);
-  const boardCols = "76px minmax(0, 2.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) 132px";   // platform · train · aboard · status · button
+  const boardCols = "72px minmax(0, 2.6fr) 116px 64px minmax(0, 1fr) 170px";   // platform · train · departs · aboard · status · button
+  // ── The Departures board's rows (Damon, 2026-10-26): one line each, the same columns for every train ─────────
+  // platform (plain letters, no box) · the train (icon, name, a short note) · the departure time in its own box ·
+  // aboard · status · the button. A row: { key, code, name, note, time, aboard, status, action, lit, hint }
+  const rowGrid = { display: "grid", gridTemplateColumns: phone ? "40px minmax(0, 1fr) auto" : boardCols, gap: 12, alignItems: "center", height: phone ? undefined : 46, minHeight: phone ? 46 : undefined, boxSizing: "border-box", padding: phone ? "6px 12px" : "0 14px", borderBottom: `1px solid ${C.border}` };
+  const codeStyle = free => ({ ...smallTitle, fontSize: 20, lineHeight: 1, color: free ? C.textMuted : C.teal });
+  // the time: its own box, digits that don't jump; the day in front when it isn't today ("NOW" for a train running)
+  const timeBox = ms => {
+    if (ms == null) return null;
+    const d = new Date(ms), today = new Date().toDateString();
+    const day = d.toDateString() === today ? "" : d.toLocaleDateString([], { weekday: "short" });
+    return (
+      <span style={{ display: "inline-flex", alignItems: "baseline", justifyContent: "flex-end", gap: 6, minWidth: 104, boxSizing: "border-box", padding: "3px 9px", borderRadius: 6, background: C.bgApp, border: `1px solid ${C.border}`, fontFamily: "'Goldman', sans-serif", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+        {day && <span style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>{day}</span>}
+        <span style={{ fontSize: 16, color: "var(--c-gold)" }}>{d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+      </span>
+    );
+  };
+  const nowBox = <span style={{ display: "inline-flex", justifyContent: "center", minWidth: 104, boxSizing: "border-box", padding: "3px 9px", borderRadius: 6, background: C.bgApp, border: `1px solid ${C.success}`, fontFamily: "'Goldman', sans-serif", fontSize: 15, color: C.success, letterSpacing: "0.1em" }}>NOW</span>;
+  const linkBtn = (label, onClick, color = C.textSecond) => <button onClick={onClick} style={{ background: "none", border: "none", padding: 0, color, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>{label}</button>;
+  const trainCell = r => (
+    <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, whiteSpace: "nowrap" }}>
+      <Icon name="train" size={20} color={C.textSecond} />
+      {r.lit && liveDot}
+      <b style={{ fontWeight: 600, fontSize: 15, flexShrink: 0, maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</b>
+      {r.note && <span style={{ fontSize: 13, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis" }}>· {r.note}</span>}
+    </span>
+  );
+  const boardRow = r => (
+    <div key={r.key} data-hint={r.hint} style={{ ...rowGrid, ...(r.lit ? aliveRow : {}) }}>
+      <span style={codeStyle(false)}>{r.code}</span>
+      <span style={{ minWidth: 0 }}>{trainCell(r)}</span>
+      {phone ? <span style={{ display: "flex", gap: 8, alignItems: "center" }}>{r.time}{r.action}</span> : <>
+        <span>{r.time}</span>
+        <span style={{ fontSize: 14, color: C.textSecond, display: "inline-flex", alignItems: "center", gap: 5 }}>{r.aboard != null && <><Icon name="users" size={15} /> {r.aboard}</>}</span>
+        <span>{r.status && <StatusPill {...r.status} />}</span>
+        <span style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12, whiteSpace: "nowrap" }}>{r.action}</span>
+      </>}
+    </div>
+  );
+  // a train running now (one a player started)
+  const runningRows = roomList.filter(room => !scheduled.some(t => t.room?.id === room.id && isScheduledName(room.name)) && !playerGames.some(g => g.room?.id === room.id)).map(room => {
+    const names = room.playingNames || [], away = room.awayNames || [];
+    const isFull = names.length + away.length >= 16;   // 16 passengers at most, away ones included, as the server counts
+    return {
+      key: room.id, code: String(room.platform || 0).padStart(2, "0"), name: room.name, lit: names.length > 0,
+      note: names.length === 0 ? "no one aboard yet" : `${room.gameOn && room.station > 0 ? `Station ${room.station} · ` : ""}${whoAboard(names)}${room.gameOn ? "" : " · waiting to start"}`,
+      time: nowBox, aboard: names.length + (away.length ? ` +${away.length}` : ""),
+      status: isFull ? { text: "Full", color: C.textMuted } : room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand },
+      action: isFull ? null : <Btn onClick={() => navigate(`/room/${room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>{room.gameOn ? "Board now →" : "Board →"}</Btn>,
+      hint: room.gameOn ? "A game is on: board now and join in from the next station" : "Waiting for passengers: board and the game starts with the first direction",
+    };
+  });
+  // a departure: our daily trains and players' scheduled games, the same row
+  const departureRow = t => {
+    const aboard = t.room ? (t.room.playingNames || []) : [];
+    return {
+      key: t.key, code: t.label, name: t.name, lit: aboard.length > 0,
+      note: aboard.length ? `${t.room.gameOn && t.room.station > 0 ? `Station ${t.room.station} · ` : ""}${whoAboard(aboard)}` : t.kind === "player" ? `by ${t.host}` : "every day",
+      time: timeBox(t.departs), aboard: t.room ? aboard.length : null, status: t.status,
+      action: t.room ? <Btn onClick={() => navigate(`/room/${t.room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>Board now →</Btn>
+        : t.canStart ? <span data-hint={`Start ${t.name}: everyone boards it from this row`} style={{ display: "contents" }}><Btn onClick={() => startScheduled(t.name)} style={{ ...smallBtn, justifyContent: "center" }}>Start it →</Btn></span>
+        : t.kind === "player" && t.canCancel ? <>{linkBtn("Change time", () => editSched(t))}{linkBtn("Delete", () => cancelSched(t.id), C.textMuted)}</> : null,
+      hint: t.kind === "player" ? `Scheduled by ${t.host}, shown in your own time` : "One of our daily games: every day at the same time, shown here in your own time",
+    };
+  };
 
   return (
     // Signed in on a big window: exactly one screen. Before signing in (the welcome screen) the page scrolls: on phones
@@ -3748,156 +3813,62 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
               </div>
             )}
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
-              {/* Column titles (not on phones: rows stack there) */}
+              {/* Column titles (not on phones) */}
               {!phone && (
-                <div style={{ display: "grid", gridTemplateColumns: boardCols, gap: 12, padding: "6px 14px", fontSize: 11, color: C.teal, letterSpacing: "0.1em", textTransform: "uppercase", borderBottom: `1px solid ${C.border}` }}>
-                  <span>Platform</span><span>Sky Train</span><span>Aboard</span><span>Status</span><span />
+                <div style={{ display: "grid", gridTemplateColumns: boardCols, gap: 12, alignItems: "center", padding: "6px 14px", fontSize: 11, color: C.teal, letterSpacing: "0.1em", textTransform: "uppercase", borderBottom: `1px solid ${C.border}` }}>
+                  <span>Platform</span><span>Sky Train</span><span>Departs</span><span>Aboard</span><span>Status</span><span />
                 </div>
               )}
-              {/* no scrolling inside the board (2026-10-26): the free platform, the trains with passengers, the next
-                  departures, then one "Later" row for the rest */}
-              <div>
-                {/* Start your own: the first row (Damon, 2026-10-24: "Start your own should be on top"), then the scheduled
-                    trains, then the others */}
-                {/* Free platforms. The first one is where you start a new Sky Train: its button opens the name
-                    box right in the row. The others are quiet placeholders, so the board always has 3 rows */}
-                {freeNumbers.map((n, i) => {
-                  const rowStyle = { display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`,
-                    gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols };
-                  if (i > 0) return (
-                    <div key={`free-${n}`} style={{ ...rowStyle, opacity: 0.5 }}>
-                      <PlatformBox n={n} free />
-                      <div style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform</div>
+              {/* One line per train, the same for all of them (Damon, 2026-10-26: "the format should stay the same … all of the
+                  departures should take up just one line … time is important for departures"): the free platform, the trains
+                  running, the next departures (our daily trains and players' scheduled games alike), then the LATER row */}
+              {freeNumbers.map((n, i) => (
+                <div key={`free-${n}`} style={{ ...rowGrid, opacity: i > 0 ? 0.5 : 1 }}>
+                  <span style={codeStyle(true)}>{String(n).padStart(2, "0")}</span>
+                  {i > 0 ? <span style={{ gridColumn: "2 / -1", fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform</span>
+                  : creating ? (
+                    // Naming the new train, right here on its platform
+                    <div style={{ gridColumn: "2 / -1", minWidth: 0, display: "flex", gap: 8, alignItems: "center" }}>
+                      <input autoFocus maxLength={80} placeholder="Name your Sky Train, or just press Enter" value={newRoomName}
+                        onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
+                        onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
+                        style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "6px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
+                      <Btn onClick={handleCreate} style={smallBtn}>Create</Btn>
+                      <BtnSecondary onClick={cancelCreate} style={smallBtn}>Cancel</BtnSecondary>
+                      {createError && <span style={{ fontSize: 13, color: C.brand }}>{createError}</span>}
                     </div>
-                  );
-                  return (
-                    <div key={`free-${n}`} style={{ ...rowStyle, gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : "76px minmax(0, 1fr) auto" }}>
-                      <PlatformBox n={n} free />
-                      {creating ? (
-                        // Naming the new train, right here on its platform
-                        <div style={{ gridColumn: phone ? "2" : "2 / 4", minWidth: 0 }}>
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <input autoFocus maxLength={80} placeholder="Name your Sky Train, or just press Enter" value={newRoomName}
-                              onChange={e => { setNewRoomName(e.target.value); setCreateError(""); }}
-                              onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") cancelCreate(); }}
-                              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
-                            <Btn onClick={handleCreate} style={smallBtn}>Create</Btn>
-                            <BtnSecondary onClick={cancelCreate} style={smallBtn}>Cancel</BtnSecondary>
-                          </div>
-                          {createError && <div style={{ marginTop: 4, fontSize: 13, color: C.brand }}>{createError}</div>}
-                        </div>
-                      ) : (
-                        <>
-                          <div style={{ fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform · start your own Sky Train here</div>
-                          <span data-hint="Start your own Sky Train on this platform and name it" style={{ display: "contents" }}><Btn onClick={() => setCreating(true)} style={{ ...smallBtn, justifyContent: "center", gridColumn: phone ? "2" : undefined, justifySelf: phone ? "start" : undefined }}>
-                            <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> New Sky Train
-                          </Btn></span>
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-                {/* the scheduled trains have their own rows below */}
-                {roomList.filter(room => !scheduled.some(t => t.room?.id === room.id && isScheduledName(room.name)) && !playerGames.some(g => g.room?.id === room.id)).map(room => {
-                  const names = room.playingNames || [];
-                  const away = room.awayNames || [];
-                  const isFull = names.length + away.length >= 16;   // 16 passengers at most, away ones included, as the server counts (2026-10-23)
-                  const pill = isFull ? { text: "Full", color: C.textMuted } : room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand };
-                  const board = () => navigate(`/room/${room.id}`);
-                  return (
-                    <div key={room.id} data-hint={room.gameOn ? "A game is on: board now and join in from the next station" : "Waiting for passengers: board and the game starts with the first direction"} style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`, ...(names.length ? aliveRow : {}),
-                      gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
-                      <PlatformBox n={room.platform} />
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                        {!phone && <Icon name="train" size={22} color={C.textSecond} />}
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{names.length > 0 && liveDot}{room.name}</div>
-                          <div style={{ fontSize: 13, color: names.length ? C.textSecond : C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {/* who is aboard (2026-10-25: before, a running game only showed its station and leader) */}
-                            {names.length === 0 ? "No one aboard yet"
-                              : <>{room.gameOn && room.station > 0 ? `Station ${room.station} · ` : ""}<span style={{ color: C.textPrimary }}>{whoAboard(names)}</span>{!room.gameOn && " · waiting to start"}</>}
-                          </div>
-                          {phone && (
-                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
-                              <span style={{ fontSize: 14, color: C.textSecond, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="users" size={15} /> {names.length}</span>
-                              <StatusPill {...pill} />
-                              {!isFull && <Btn onClick={board} style={smallBtn}>Board →</Btn>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {!phone && <span style={{ fontSize: 14, color: C.textSecond, display: "inline-flex", alignItems: "center", gap: 6 }} title={[...names, ...away.map(a => `${a} (away)`)].join(", ")}>
-                        <Icon name="users" size={16} /> {names.length}{away.length > 0 && <span style={{ color: C.textMuted }}>+{away.length}</span>}</span>}
-                      {!phone && <span><StatusPill {...pill} /></span>}
-                      {!phone && (isFull ? <span /> : <Btn onClick={board} style={{ ...smallBtn, justifyContent: "center" }}>{room.gameOn ? "Board now →" : "Board →"}</Btn>)}
-                    </div>
-                  );
-                })}
-                {/* The scheduled trains, The Continental and the Daily Express (the next to leave first), on platforms TC
-                    and DX: below the players' own trains, which have passengers on them (2026-10-24: "nobody could find
-                    the new game, because it was hidden in the scroll") */}
-                {/* the next departures, in fixed rows: fewer when trains with passengers take room */}
-                {departures.slice(0, depSlots).map(night => {
-                const aboard = night.room && (night.kind === "player" || isScheduledName(night.room.name)) ? (night.room.playingNames || []) : [];
-                return (
-                <div key={night.key} data-hint={night.kind === "player" ? `Scheduled by ${night.host}, shown in your own time` : "One of our daily games: every day at the same time, shown here in your own time"}
-                  style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`, ...(aboard.length ? aliveRow : {}),
-                    gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
-                  <PlatformBox n={night.label} tint={night.kind === "player" ? C.lavender : undefined} />
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                    {!phone && <Icon name="train" size={22} color={night.kind === "player" ? C.lavender : C.teal} />}
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{aboard.length > 0 && liveDot}{night.name}</div>
-                      <div style={{ fontSize: 13, color: aboard.length ? C.textSecond : C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {aboard.length ? <>{night.room.gameOn && night.room.station > 0 ? `Station ${night.room.station} · ` : ""}<span style={{ color: C.textPrimary }}>{whoAboard(aboard)}</span></> : night.kind === "player" ? <>Scheduled by <span style={{ color: C.lavender }}>{night.host}</span> · {night.local} your time</> : <>Every day · departs {night.local} your time</>}
-                      </div>
-                      {phone && <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}><StatusPill {...night.status} />{night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={smallBtn}>Board →</Btn> : night.canStart && <Btn onClick={() => startScheduled(night.name)} style={smallBtn}>Start it →</Btn>}</div>}
-                    </div>
-                  </div>
-                  {!phone && <span />}
-                  {!phone && <span><StatusPill {...night.status} /></span>}
-                  {!phone && (night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>Board now →</Btn>
-                    : night.canStart ? <span data-hint={`Start ${night.name}: everyone boards it from this row`} style={{ display: "contents" }}><Btn onClick={() => startScheduled(night.name)} style={{ ...smallBtn, justifyContent: "center" }}>Start it →</Btn></span>
-                    : night.kind === "player" && night.canCancel ? (
-                      // the host (or the admin): change the time or delete it, where the button will be
-                      <span style={{ display: "flex", gap: 12, justifyContent: "center", whiteSpace: "nowrap" }}>
-                        <button onClick={() => editSched(night)} style={{ background: "none", border: "none", padding: 0, color: C.textSecond, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Change time</button>
-                        <button onClick={() => cancelSched(night.id)} style={{ background: "none", border: "none", padding: 0, color: C.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Delete</button>
-                      </span>) : <span />)}
+                  ) : (
+                    <>
+                      <span style={{ gridColumn: phone ? "2" : "2 / -2", fontSize: 14, color: C.textMuted, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Free platform · start your own Sky Train here</span>
+                      <span data-hint="Start your own Sky Train on this platform and name it" style={{ display: "flex", justifyContent: "flex-end" }}>
+                        <Btn onClick={() => setCreating(true)} style={{ ...smallBtn, justifyContent: "center" }}><span style={{ fontSize: 18, lineHeight: 1 }}>+</span> New Sky Train</Btn>
+                      </span>
+                    </>
+                  )}
                 </div>
-                );
-                })}
-                {/* the rest: one row that flips through them every 4 s, like an airport split-flap sign; a click opens them all */}
-                {(() => {
-                  const rest = departures.slice(depSlots);
-                  if (rest.length === 0) return null;
-                  const i = laterIdx % rest.length, g = rest[i];
-                  return (
-                    <div>
-                      <button onClick={() => setLaterOpen(o => !o)} aria-expanded={laterOpen} data-hint="More departures later: click to see them all"
-                        style={{ display: "grid", gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : "76px minmax(0, 1fr) auto", alignItems: "center", gap: 12, width: "100%", height: phone ? undefined : 44, padding: phone ? "8px 12px" : "0 14px", boxSizing: "border-box", background: "none", border: "none", borderBottom: `1px solid ${C.border}`, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
-                        <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.12em", color: C.teal, textAlign: "center" }}>LATER</span>
-                        <span style={{ minWidth: 0 }}>
-                          <SplitFlap flipKey={g.key} bg={C.bgPanel}>
-                            <b style={{ color: g.kind === "player" ? C.lavender : C.textPrimary }}>{g.name}</b>&nbsp;<span style={{ color: C.textMuted }}>· {g.kind === "player" ? `Scheduled by ${g.host} · ` : "Every day · "}{g.local} your time</span>
-                          </SplitFlap>
-                        </span>
-                        <span style={{ fontSize: 13, color: C.textMuted, whiteSpace: "nowrap" }}>{rest.length > 1 ? `${i + 1} of ${rest.length} · ` : ""}{laterOpen ? "close ▲" : "see all ▼"}</span>
-                      </button>
-                      {laterOpen && rest.map(x => (
-                        <div key={x.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 14px 7px 102px", borderBottom: `1px solid ${C.border}`, fontSize: 14 }}>
-                          <b style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: x.kind === "player" ? C.lavender : undefined }}>{x.name}</b>
-                          <span style={{ color: C.textMuted, whiteSpace: "nowrap" }}>{x.kind === "player" ? <>Scheduled by <span style={{ color: C.lavender }}>{x.host}</span> · </> : "Every day · "}{x.local} your time</span>
-                          {x.kind === "player" && x.canCancel && <span style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-                            <button onClick={() => editSched(x)} style={{ background: "none", border: "none", padding: 0, color: C.textSecond, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Change time</button>
-                            <button onClick={() => cancelSched(x.id)} style={{ background: "none", border: "none", padding: 0, color: C.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Delete</button>
-                          </span>}
-                        </div>
-                      ))}
+              ))}
+              {runningRows.map(boardRow)}
+              {departures.slice(0, depSlots).map(departureRow).map(boardRow)}
+              {/* the rest: one row that changes every 4 s like a split-flap departure board; a click opens them all */}
+              {(() => {
+                const rest = departures.slice(depSlots);
+                if (rest.length === 0) return null;
+                const i = laterIdx % rest.length, g = departureRow(rest[i]);
+                return (
+                  <>
+                    <div role="button" tabIndex={0} onClick={() => setLaterOpen(o => !o)} onKeyDown={e => { if (e.key === "Enter") setLaterOpen(o => !o); }} aria-expanded={laterOpen}
+                      data-hint="More departures later: click to see them all" style={{ ...rowGrid, cursor: "pointer" }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.12em", color: C.teal }}>LATER</span>
+                      <span style={{ minWidth: 0 }}><SplitFlap flipKey={g.key} bg={C.bgPanel}>{trainCell(g)}</SplitFlap></span>
+                      {!phone && <span><SplitFlap flipKey={g.key} bg={C.bgPanel} height={30}>{g.time}</SplitFlap></span>}
+                      {!phone && <span />}
+                      {!phone && <span style={{ fontSize: 13, color: C.textMuted }}>{rest.length > 1 ? `${i + 1} of ${rest.length}` : ""}</span>}
+                      <span style={{ fontSize: 13, color: C.textSecond, textAlign: "right", whiteSpace: "nowrap" }}>{laterOpen ? "close ▲" : "see all ▼"}</span>
                     </div>
-                  );
-                })()}
-              </div>
+                    {laterOpen && rest.map(departureRow).map(boardRow)}
+                  </>
+                );
+              })()}
             </div>
           </Panel>
         )}
