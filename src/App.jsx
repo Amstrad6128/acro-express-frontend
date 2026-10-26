@@ -3524,11 +3524,8 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   );
   const boardRow = r => (
     <div key={r.key} data-hint={r.hint} style={{ ...rowGrid, ...(r.lit ? aliveRow : r.next ? nextRow : {}) }}>
-      {/* the NEXT tag sits beside the platform code, so the names never move (Damon, 2026-10-26) */}
-      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={codeStyle(false)}>{r.code}</span>
-        {r.next && <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", color: "#1B1A17", background: "var(--c-gold)", borderRadius: 4, padding: "2px 4px" }}>NEXT</span>}
-      </span>
+      {/* the next train: its platform code in gold (with the gold edge and "Next · in …"); no tag (Damon, 2026-10-26) */}
+      <span style={{ ...codeStyle(false), ...(r.next ? { color: "var(--c-gold)", fontPalette: "var(--fp-gold)" } : {}) }}>{r.code}</span>
       <span style={{ minWidth: 0 }}>{trainCell(r)}</span>
       {phone ? <span style={{ display: "flex", gap: 8, alignItems: "center" }}>{r.time}{r.action}</span> : <>
         <span>{r.time}</span>
