@@ -3486,7 +3486,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   // how many departures get a fixed row: on a one-screen page the board keeps its 3 rows (the free platform, the trains
   // running, then departures; the chat above needs the height), elsewhere up to 4; the rest go in the "Later" row
   const runningCount = roomList.filter(room => !scheduled.some(t => t.room?.id === room.id && isScheduledName(room.name)) && !playerGames.some(g => g.room?.id === room.id)).length;
-  const depSlots = fits ? Math.max(1, 3 - freeRows - runningCount) : Math.max(2, 4 - runningCount);
+  const depSlots = fits ? Math.max(1, 2 - runningCount) : Math.max(2, 4 - runningCount);   // (the board: these, then LATER)
   // the busiest train with passengers, for the line under Departures
   const liveTrain = [...roomList].filter(r => (r.playingNames || []).length > 0).sort((a, b) => b.playingNames.length - a.playingNames.length)[0] || null;   // The Continental and the Daily Express (re-worked out on every refresh)
   const freeNumbers = []; for (let n = 1; freeNumbers.length < freeRows; n++) if (!used.has(n)) freeNumbers.push(n);
@@ -3494,9 +3494,9 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   // ── The Departures board's rows (Damon, 2026-10-26): one line each, the same columns for every train ─────────
   // platform (plain letters, no box) · the train (icon, name, a short note) · the departure time in its own box ·
   // aboard · status · the button. A row: { key, code, name, note, time, aboard, status, action, lit, hint }
-  const rowGrid = { display: "grid", gridTemplateColumns: phone ? "40px minmax(0, 1fr) auto" : boardCols, gap: 12, alignItems: "center", height: phone ? undefined : 46, minHeight: phone ? 46 : undefined, boxSizing: "border-box", padding: phone ? "6px 12px" : "0 14px", borderBottom: `1px solid ${C.border}` };
+  const rowGrid = { display: "grid", gridTemplateColumns: phone ? "40px minmax(0, 1fr) auto" : boardCols, gap: 12, alignItems: "center", height: phone ? undefined : 40, minHeight: phone ? 42 : undefined, boxSizing: "border-box", padding: phone ? "6px 12px" : "0 14px", borderBottom: `1px solid ${C.border}` };
   const nextRow = { background: "color-mix(in srgb, var(--c-gold) 9%, transparent)", boxShadow: "inset 3px 0 0 var(--c-gold)" };
-  const codeStyle = free => ({ ...smallTitle, fontSize: 20, lineHeight: 1, color: free ? C.textMuted : C.teal });
+  const codeStyle = free => ({ ...smallTitle, fontSize: 28, lineHeight: 1, color: free ? C.textMuted : C.teal });
   // the time: its own box with only the time in it, digits that don't jump; the day just before the box, outside it,
   // when it isn't today (Damon: "Day shouldn't be inside the clock"); "NOW" for a train running
   const timeBox = ms => {
@@ -3790,7 +3790,8 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                 "New Sky Train and Start one should be one thing") */}
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
               <Icon name="train" size={30} color={C.teal} />
-              <div>
+              {/* the line beside the title, not under it (Damon, 2026-10-26: "shouldn't take up two lines") */}
+              <div style={{ display: "flex", alignItems: "baseline", gap: "4px 14px", flexWrap: "wrap", minWidth: 0 }}>
                 <h2 style={boxTitle}>Departures</h2>
                 {liveTrain ? (
                   // who is playing where, with the way in (2026-10-25)
@@ -3801,14 +3802,17 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                   </div>
                 ) : <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}</div>}
               </div>
-            </div>
-            {/* Schedule a game (Regulars and up, one at a time, up to 7 days ahead; in your own time) */}
-            {auth && sched.canSchedule && !sched.hasOne && !schedForm && (
-              <div style={{ marginTop: -4, marginBottom: 8 }}>
-                <button onClick={() => { setSchedForm({ id: null, day: 0, time: "" }); setSchedErr(""); }} data-hint="Schedule a game for later: it shows here for everyone, in their own time"
-                  style={{ background: "none", border: "none", padding: 0, color: C.teal, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>📅 Schedule a game</button>
+              {/* on the right: schedule a game, and start one now (the "free platform" row is gone: vertical space, Damon 2026-10-26) */}
+              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+                {auth && sched.canSchedule && !sched.hasOne && !schedForm && (
+                  <button onClick={() => { setSchedForm({ id: null, day: 0, time: "" }); setSchedErr(""); }} data-hint="Schedule a game for later: it shows here for everyone, in their own time"
+                    style={{ background: "none", border: "none", padding: 0, color: C.teal, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>📅 Schedule a game</button>
+                )}
+                {!creating && <span data-hint="Start your own Sky Train now and name it" style={{ display: "contents" }}>
+                  <Btn onClick={() => setCreating(true)} style={{ ...smallBtn, justifyContent: "center" }}><span style={{ fontSize: 18, lineHeight: 1 }}>+</span> New Sky Train</Btn>
+                </span>}
               </div>
-            )}
+            </div>
             {schedForm && auth && (
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10, padding: "10px 12px", border: `1px solid ${C.border}`, borderRadius: 10, background: C.bgPanel2 }}>
                 <span style={{ fontWeight: 700, fontSize: 15 }}>{schedForm.id ? "New time:" : "Schedule a game for"}</span>
@@ -3827,13 +3831,17 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
               {/* Column titles (not on phones) */}
               {!phone && (
                 <div style={{ display: "grid", gridTemplateColumns: boardCols, gap: 12, alignItems: "center", padding: "6px 14px", fontSize: 11, color: C.teal, letterSpacing: "0.1em", textTransform: "uppercase", borderBottom: `1px solid ${C.border}` }}>
-                  <span>Platform</span><span>Sky Train</span><span>Departs</span><span>Aboard</span><span>Status</span><span />
+                  {/* each title over its content (Damon: "Departs, Aboard, Status don't align"): Departs centred over the clock
+                      box (after the day's slot), Status over the pill's text */}
+                  <span>Platform</span><span>Sky Train</span>
+                  <span style={{ paddingLeft: 39 }}><span style={{ display: "inline-block", width: 92, textAlign: "center" }}>Departs</span></span>
+                  <span>Aboard</span><span style={{ paddingLeft: 10 }}>Status</span><span />
                 </div>
               )}
               {/* One line per train, the same for all of them (Damon, 2026-10-26: "the format should stay the same … all of the
                   departures should take up just one line … time is important for departures"): the free platform, the trains
                   running, the next departures (our daily trains and players' scheduled games alike), then the LATER row */}
-              {freeNumbers.map((n, i) => (
+              {creating && freeNumbers.slice(0, 1).map((n, i) => (
                 <div key={`free-${n}`} style={{ ...rowGrid, opacity: i > 0 ? 0.5 : 1 }}>
                   <span style={codeStyle(true)}>{String(n).padStart(2, "0")}</span>
                   {i > 0 ? <span style={{ gridColumn: "2 / -1", fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>Free platform</span>
