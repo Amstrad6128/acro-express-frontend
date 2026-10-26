@@ -2357,6 +2357,10 @@ const LB_COLS = [
     value: p => p.stations, show: p => p.stations, ok: () => true },
   { id: "express", tab: "Express Flyers", icon: "⚡", head: "Speed bonuses", motto: "Fast hands, sharp minds.",
     value: p => p.speedBonuses, show: p => p.speedBonuses, ok: () => true },
+  // the rank (Damon, 2026-10-26: "Sky RANK is a new button/tab"): the rank's name, ordered by Sky Miles (all time,
+  // whatever the period); a tie is the same Sky Miles, not the same rank
+  { id: "rank", tab: "Sky Rank", icon: "🎖", head: "Sky Rank", motto: "The long climb to Legend of the Line.",
+    value: p => p.skyMiles || 0, show: p => p.level, tie: p => p.skyMiles || 0, ok: () => true },
 ];
 function SkyLeaderboard() {
   const navigate = useNavigate();
@@ -2402,12 +2406,13 @@ function SkyLeaderboard() {
   const ok = data ? players.filter(p => col.ok(p, data)).sort((a, b) => col.value(b) - col.value(a) || b.stations - a.stations) : [];
   const rest = data ? players.filter(p => !col.ok(p, data)).sort((a, b) => col.value(b) - col.value(a) || b.stations - a.stations) : [];
   const rows = [...ok, ...rest];
-  const ranks = []; ok.forEach((p, i) => ranks.push(i > 0 && String(col.show(p)) === String(col.show(ok[i - 1])) ? ranks[i - 1] : i + 1));
+  const ranks = []; const same = (a, b) => (col.tie ? col.tie(a) === col.tie(b) : String(col.show(a)) === String(col.show(b)));
+  ok.forEach((p, i) => ranks.push(i > 0 && same(p, ok[i - 1]) ? ranks[i - 1] : i + 1));
   const myIndex = rows.findIndex(p => p.name.toLowerCase() === me);
   const pages = Math.max(1, Math.ceil(rows.length / perPage));
   const shown = rows.slice(page * perPage, page * perPage + perPage);
   const gold = "var(--c-gold)";
-  const grid = "30px minmax(110px, 170px) repeat(5, 118px)";   // rank, name, the five numbers (each column wide enough for its button)
+  const grid = "30px minmax(130px, 180px) repeat(6, 108px)";   // rank, name, the five numbers (each column wide enough for its button)
   const nameBtn = name => (
     <button onClick={e => openProfile(name, e.currentTarget)} title={`Message ${name} or see their Sky Passport`}
       style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</button>
@@ -2419,7 +2424,7 @@ function SkyLeaderboard() {
 
   return (
     <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "18px 16px 0", boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 920, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 44, lineHeight: 1.05, ...honkTitle }}>Sky Leaderboard</h1>
@@ -2461,7 +2466,7 @@ function SkyLeaderboard() {
                         on the words above the top player … the two should merge"); no frames, the chosen one in gold */}
                     {LB_COLS.map(c => (
                       <button key={c.id} onClick={() => setSortId(c.id)} aria-pressed={c.id === sortId} title={`Order by ${c.head.toLowerCase()}: ${c.tab}`} className="lb-head"
-                        style={{ width: "100%", boxSizing: "border-box", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", border: "none", borderRadius: 999, padding: "5px 8px", font: "inherit", letterSpacing: "inherit", textTransform: "inherit", cursor: "pointer", whiteSpace: "nowrap",
+                        style={{ width: "100%", boxSizing: "border-box", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", border: "none", borderRadius: 999, padding: "5px 4px", font: "inherit", letterSpacing: "0.02em", textTransform: "inherit", cursor: "pointer", whiteSpace: "nowrap",
                           background: c.id === sortId ? gold : `color-mix(in srgb, ${C.teal} 16%, transparent)`, color: c.id === sortId ? "#1B1A17" : C.textPrimary, transition: "background 0.15s" }}>
                         {/* real buttons, soft pills (Damon: "make them look like buttons, just not ugly ones"); the chosen one gold.
                             Each exactly as wide as its column, so they never overlap (a ▼ made the chosen one wider, 2026-10-26) */}
@@ -2481,7 +2486,7 @@ function SkyLeaderboard() {
                           const has = c.ok(p, data), on = c.id === sortId;
                           // below the minimum: the number in grey (it doesn't count for a rank yet); nothing played for it: "–"
                           const none = c.id === "champions" ? !p.journeys : !p.stations;
-                          return <span key={c.id} title={!has && !none ? "Not enough played yet to count" : undefined} style={{ textAlign: "center", fontVariantNumeric: "tabular-nums", fontWeight: on && has ? 800 : 500, fontSize: on ? 16 : 14, color: !has ? C.textMuted : on ? (first ? gold : C.textPrimary) : C.textSecond, opacity: !has ? 0.7 : 1 }}>{none ? "–" : c.show(p)}</span>;
+                          return <span key={c.id} title={c.id === "rank" ? `${(p.skyMiles || 0).toLocaleString()} Sky Miles` : !has && !none ? "Not enough played yet to count" : undefined} style={{ textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums", fontWeight: on && has ? 800 : 500, fontSize: on ? 16 : 14, color: !has ? C.textMuted : on ? (first ? gold : C.textPrimary) : C.textSecond, opacity: !has ? 0.7 : 1 }}>{none ? "–" : c.show(p)}</span>;
                         })}
                       </div>
                     );
@@ -3059,13 +3064,18 @@ function PassengerPage() {
                 {/* The private chat panel lives at the Grand Sky Station (and on trains) */}
                 {!me && <Btn onClick={() => { openPm(p.name); navigate("/"); }}>✉ Message {p.name}</Btn>}
               </div>
-              {/* Level progress: every station played counts */}
+              {/* The rank and the way up: Sky Miles are the points of the games that count (2026-10-26; the ladder is
+                  in the server's Utils/Ranks) */}
               <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
+                  <span style={{ fontSize: 15 }}><b style={{ color: C.teal }}>{p.level}</b></span>
+                  <span style={{ fontSize: 14, color: C.textSecond, fontVariantNumeric: "tabular-nums" }}>{(p.skyMiles ?? 0).toLocaleString()} Sky Miles</span>
+                </div>
                 <div style={{ height: 8, borderRadius: 4, background: C.bgApp }}>
                   <div style={{ width: `${Math.round(p.levelProgress * 100)}%`, height: 8, borderRadius: 4, background: C.teal }} />
                 </div>
                 <div style={{ fontSize: 13, color: C.textMuted, marginTop: 4 }}>
-                  {p.nextLevel ? `${p.stationsToNext} station${p.stationsToNext === 1 ? "" : "s"} to ${p.nextLevel}` : "Top level reached"}
+                  {p.nextLevel ? `${(p.milesToNext ?? 0).toLocaleString()} Sky Miles to ${p.nextLevel}` : "The top of the ladder: a Legend of the Line"}
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(88px, 1fr))", gap: 8 }}>
@@ -3708,8 +3718,11 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
             <Panel style={{ padding: 14, display: "flex", flexDirection: "column", minHeight: 0, order: phone ? 2 : 0 }}>
               {/* Phones: tap the title to fold the list away */}
               <h2 onClick={phone ? () => setListOpen(o => !o) : undefined} style={{ ...boxTitle, marginBottom: phone && !listOpen ? 0 : 8, cursor: phone ? "pointer" : "default" }}>
-                <Icon name="users" size={24} color={C.teal} /> Arrivals ({online.length})   {/* was "On the platform"; Arrivals, next to Departures (Damon, 2026-10-26: "plays nicely to A Rival") */}
-                {phone && <span style={{ marginLeft: "auto", fontFamily: "'Nunito', sans-serif", fontSize: 18, color: C.textMuted }}>{listOpen ? "▴" : "▾"}</span>}
+                {/* was "On the platform"; Arrivals, next to Departures (Damon, 2026-10-26: "plays nicely to A Rival"); how
+                    many, at the right end of the title (not squeezed against the word) */}
+                <Icon name="users" size={24} color={C.teal} /> Arrivals
+                <span style={{ marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>{online.length}</span>
+                {phone && <span style={{ marginLeft: 8, fontFamily: "'Nunito', sans-serif", fontSize: 18, color: C.textMuted }}>{listOpen ? "▴" : "▾"}</span>}
               </h2>
               {phone && !listOpen ? null : (
                 <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", flex: 1, minHeight: 0, maxHeight: phone ? 260 : undefined }}>
