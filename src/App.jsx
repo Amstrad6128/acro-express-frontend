@@ -4511,6 +4511,8 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
               once they clicked Done Voting. The tick has its own slot, so names never move */}
           {passengers.length > 0 && (
             <div style={{ width: "100%", display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "4px 14px", fontSize: 14 }}>
+              {/* the label says what the tick means (Damon: otherwise it could read as "voted for this acro") */}
+              <span style={{ color: C.textMuted, fontSize: 13 }}>Done voting:</span>
               {passengers.map(p => (
                 <span key={p.id} title={p.done ? "Done voting" : "Still voting"} style={{ display: "inline-flex", alignItems: "center", color: p.done ? C.teal : C.textMuted, fontWeight: p.done ? 700 : 400, whiteSpace: "nowrap" }}>
                   <span style={{ width: 14, flexShrink: 0 }}>{p.done ? "✓" : ""}</span>{p.name}
