@@ -3235,10 +3235,40 @@ function Lobby() {
   const [liveNow, setLiveNow] = useState(null);
   useEffect(() => {
     // also signed in: the Daily Express row needs to know if tonight's game was played (lastStationUtc)
-    const load = () => fetch(`${API_URL}/api/status`).then(r => r.json()).then(d => { setSchedule(d); setLiveNow(d); }).catch(() => { });
+    const load = () => {
+      fetch(`${API_URL}/api/status`).then(r => r.json()).then(d => { setSchedule(d); setLiveNow(d); }).catch(() => { });
+      loadSched();
+    };
     load(); const iv = setInterval(load, 30000);
     return () => clearInterval(iv);
   }, [auth]);
+  // Games passengers scheduled (Regulars and up, 2026-10-26): { games, canSchedule, hasOne }
+  const [sched, setSched] = useState({ games: [], canSchedule: false, hasOne: false });
+  function loadSched() {
+    fetch(`${API_URL}/api/schedule`, { headers: authHeaders() }).then(r => (r.ok ? r.json() : null)).then(d => { if (d) setSched(d); }).catch(() => { });
+  }
+  // the schedule form: name, day (0 = today … 6), time (local "HH:MM")
+  const [schedForm, setSchedForm] = useState(null);
+  const [schedErr, setSchedErr] = useState("");
+  async function submitSched() {
+    const { name, day, time } = schedForm;
+    const [hh, mm] = (time || "").split(":").map(Number);
+    if (!name.trim()) { setSchedErr("Give your game a name."); return; }
+    if (Number.isNaN(hh)) { setSchedErr("Pick a time."); return; }
+    const d = new Date(); d.setDate(d.getDate() + Number(day)); d.setHours(hh, mm || 0, 0, 0);   // in the player's own time
+    const r = await fetch(`${API_URL}/api/schedule`, { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), startsAtUtc: d.toISOString() }) }).catch(() => null);
+    if (!r) { setSchedErr("Couldn't reach the station. Try again."); return; }
+    if (!r.ok) { setSchedErr((await r.text()) || "Couldn't schedule it."); return; }
+    setSchedForm(null); setSchedErr(""); loadSched();
+  }
+  async function cancelSched(id) {
+    await fetch(`${API_URL}/api/schedule/${id}`, { method: "DELETE", headers: authHeaders() }).catch(() => { });
+    loadSched();
+  }
+  // the "Later" row: which game it shows (it flips every 4 s), and whether the full list is open
+  const [laterIdx, setLaterIdx] = useState(0);
+  const [laterOpen, setLaterOpen] = useState(false);
+  useEffect(() => { const iv = setInterval(() => setLaterIdx(i => i + 1), 4000); return () => clearInterval(iv); }, []);
 
   function doLogout() {
     localStorage.removeItem("acro.auth");
@@ -3433,6 +3463,26 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   const aliveRow = { background: `color-mix(in srgb, ${C.teal} 10%, transparent)`, boxShadow: `inset 3px 0 0 ${C.success}` };
   const liveDot = <span className="acro-live" aria-hidden style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: C.success, marginRight: 7, verticalAlign: "middle", flexShrink: 0 }} />;
   const whoAboard = names => (names.length <= 3 ? names.join(", ") : `${names.slice(0, 3).join(", ")} +${names.length - 3}`);
+  // Players' scheduled games as board rows (the same shape as the daily trains), and all departures in time order
+  const when = ms => {
+    const d = new Date(ms), t = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const today = new Date(); const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1);
+    return d.toDateString() === today.toDateString() ? `today ${t}` : d.toDateString() === tomorrow.toDateString() ? `tomorrow ${t}` : `${d.toLocaleDateString([], { weekday: "short" })} ${t}`;
+  };
+  const sameTrain = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+  const playerGames = (sched.games || []).map(g => {
+    const departs = Date.parse(g.startsAtUtc), mins = (Date.now() - departs) / 60000;
+    const room = roomList.find(r => sameTrain(r.name, g.name)) || null;
+    const status = room ? (room.gameOn ? { text: "On the move", color: C.success } : { text: "Boarding now", color: C.brand })
+      : mins < -30 ? { text: "Scheduled", color: C.teal } : mins < 0 ? { text: "Boarding soon", color: C.brand } : { text: "Departing now", color: C.brand };
+    const label = String(g.host || "?").replace(/[^A-Za-z0-9]/g, "").slice(0, 2).toUpperCase() || "??";   // the host's initials as the platform
+    return { key: g.id, id: g.id, kind: "player", name: g.name, label, departs, local: when(departs), status, room, canStart: !room && mins > -30, host: g.host, canCancel: g.canCancel };
+  });
+  const departures = [...scheduled.map(t => ({ ...t, kind: "daily" })), ...playerGames].sort((a, b) => (a.departs ?? Infinity) - (b.departs ?? Infinity));
+  // how many departures get a fixed row: on a one-screen page the board keeps its 3 rows (the free platform, the trains
+  // running, then departures; the chat above needs the height), elsewhere up to 4; the rest go in the "Later" row
+  const runningRows = roomList.filter(room => !scheduled.some(t => t.room?.id === room.id && isScheduledName(room.name)) && !playerGames.some(g => g.room?.id === room.id)).length;
+  const depSlots = fits ? Math.max(1, 3 - freeRows - runningRows) : Math.max(2, 4 - runningRows);
   // the busiest train with passengers, for the line under Departures
   const liveTrain = [...roomList].filter(r => (r.playingNames || []).length > 0).sort((a, b) => b.playingNames.length - a.playingNames.length)[0] || null;   // The Continental and the Daily Express (re-worked out on every refresh)
   const freeNumbers = []; for (let n = 1; freeNumbers.length < freeRows; n++) if (!used.has(n)) freeNumbers.push(n);
@@ -3672,6 +3722,28 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                 ) : <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}</div>}
               </div>
             </div>
+            {/* Schedule a game (Regulars and up, one at a time, up to 7 days ahead; in your own time) */}
+            {auth && sched.canSchedule && !sched.hasOne && !schedForm && (
+              <div style={{ marginTop: -4, marginBottom: 8 }}>
+                <button onClick={() => { setSchedForm({ name: "", day: 0, time: "" }); setSchedErr(""); }} data-hint="Schedule a game for later: it shows here for everyone, in their own time"
+                  style={{ background: "none", border: "none", padding: 0, color: C.teal, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>📅 Schedule a game</button>
+              </div>
+            )}
+            {schedForm && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10, padding: "10px 12px", border: `1px solid ${C.border}`, borderRadius: 10, background: C.bgPanel2 }}>
+                <input value={schedForm.name} maxLength={40} placeholder="Name your game" onChange={e => setSchedForm(f => ({ ...f, name: e.target.value }))}
+                  style={{ flex: "1 1 180px", minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 8, padding: "7px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
+                <select value={schedForm.day} onChange={e => setSchedForm(f => ({ ...f, day: e.target.value }))}
+                  style={{ background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 8px", color: C.textPrimary, fontSize: 15, fontFamily: "inherit" }}>
+                  {Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i); return <option key={i} value={i}>{i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString([], { weekday: "long", day: "numeric", month: "short" })}</option>; })}
+                </select>
+                <input type="time" step={900} value={schedForm.time} onChange={e => setSchedForm(f => ({ ...f, time: e.target.value }))}
+                  style={{ background: C.bgApp, border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 8px", color: C.textPrimary, fontSize: 15, fontFamily: "inherit", colorScheme: "dark" }} />
+                <Btn onClick={submitSched} style={smallBtn}>Schedule</Btn>
+                <BtnSecondary onClick={() => { setSchedForm(null); setSchedErr(""); }} style={smallBtn}>Cancel</BtnSecondary>
+                <div style={{ flexBasis: "100%", fontSize: 13, color: schedErr ? C.brand : C.textMuted }}>{schedErr || "Your own time. Everyone sees it in theirs."}</div>
+              </div>
+            )}
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
               {/* Column titles (not on phones: rows stack there) */}
               {!phone && (
@@ -3679,8 +3751,9 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                   <span>Platform</span><span>Sky Train</span><span>Aboard</span><span>Status</span><span />
                 </div>
               )}
-              {/* Up to 3 rows show; more trains scroll inside the board */}
-              <div style={{ maxHeight: fits ? 3 * 62 : undefined, overflowY: fits ? "auto" : "visible" }}>
+              {/* no scrolling inside the board (2026-10-26): the free platform, the trains with passengers, the next
+                  departures, then one "Later" row for the rest */}
+              <div>
                 {/* Start your own: the first row (Damon, 2026-10-24: "Start your own should be on top"), then the scheduled
                     trains, then the others */}
                 {/* Free platforms. The first one is where you start a new Sky Train: its button opens the name
@@ -3722,7 +3795,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                   );
                 })}
                 {/* the scheduled trains have their own rows below */}
-                {roomList.filter(room => !scheduled.some(t => t.room?.id === room.id && isScheduledName(room.name))).map(room => {
+                {roomList.filter(room => !scheduled.some(t => t.room?.id === room.id && isScheduledName(room.name)) && !playerGames.some(g => g.room?.id === room.id)).map(room => {
                   const names = room.playingNames || [];
                   const away = room.awayNames || [];
                   const isFull = names.length + away.length >= 16;   // 16 passengers at most, away ones included, as the server counts (2026-10-23)
@@ -3760,10 +3833,11 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                 {/* The scheduled trains, The Continental and the Daily Express (the next to leave first), on platforms TC
                     and DX: below the players' own trains, which have passengers on them (2026-10-24: "nobody could find
                     the new game, because it was hidden in the scroll") */}
-                {scheduled.map(night => {
-                const aboard = night.room && isScheduledName(night.room.name) ? (night.room.playingNames || []) : [];
+                {/* the next departures, in fixed rows: fewer when trains with passengers take room */}
+                {departures.slice(0, depSlots).map(night => {
+                const aboard = night.room && (night.kind === "player" || isScheduledName(night.room.name)) ? (night.room.playingNames || []) : [];
                 return (
-                <div key={night.key} data-hint="One of our daily games: every day at the same time, shown here in your own time"
+                <div key={night.key} data-hint={night.kind === "player" ? `${night.host}'s game, in your own time` : "One of our daily games: every day at the same time, shown here in your own time"}
                   style={{ display: "grid", alignItems: "center", gap: 12, height: phone ? undefined : 62, boxSizing: "border-box", padding: phone ? "10px 12px" : "0 14px", borderBottom: `1px solid ${C.border}`, ...(aboard.length ? aliveRow : {}),
                     gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : boardCols }}>
                   <PlatformBox n={night.label} />
@@ -3772,18 +3846,43 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{aboard.length > 0 && liveDot}{night.name}</div>
                       <div style={{ fontSize: 13, color: aboard.length ? C.textSecond : C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {aboard.length ? <>{night.room.gameOn && night.room.station > 0 ? `Station ${night.room.station} · ` : ""}<span style={{ color: C.textPrimary }}>{whoAboard(aboard)}</span></> : <>Every day · departs {night.local} your time</>}
+                        {aboard.length ? <>{night.room.gameOn && night.room.station > 0 ? `Station ${night.room.station} · ` : ""}<span style={{ color: C.textPrimary }}>{whoAboard(aboard)}</span></> : night.kind === "player" ? <>{night.host}'s game · {night.local} your time</> : <>Every day · departs {night.local} your time</>}
                       </div>
                       {phone && <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}><StatusPill {...night.status} />{night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={smallBtn}>Board →</Btn> : night.canStart && <Btn onClick={() => startScheduled(night.name)} style={smallBtn}>Start it →</Btn>}</div>}
                     </div>
                   </div>
-                  {!phone && <span />}
+                  {!phone && (night.kind === "player" && night.canCancel && !night.room ? <span><button onClick={() => cancelSched(night.id)} style={{ background: "none", border: "none", padding: 0, color: C.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Cancel</button></span> : <span />)}
                   {!phone && <span><StatusPill {...night.status} /></span>}
                   {!phone && (night.room ? <Btn onClick={() => navigate(`/room/${night.room.id}`)} style={{ ...smallBtn, justifyContent: "center" }}>Board now →</Btn>
                     : night.canStart ? <span data-hint={`Start ${night.name}: everyone boards it from this row`} style={{ display: "contents" }}><Btn onClick={() => startScheduled(night.name)} style={{ ...smallBtn, justifyContent: "center" }}>Start it →</Btn></span> : <span />)}
                 </div>
                 );
                 })}
+                {/* the rest: one row that flips through them every 4 s, like an airport split-flap sign; a click opens them all */}
+                {(() => {
+                  const rest = departures.slice(depSlots);
+                  if (rest.length === 0) return null;
+                  const i = laterIdx % rest.length, g = rest[i];
+                  return (
+                    <div>
+                      <button onClick={() => setLaterOpen(o => !o)} aria-expanded={laterOpen} data-hint="More departures later: click to see them all"
+                        style={{ display: "grid", gridTemplateColumns: phone ? "60px minmax(0, 1fr)" : "76px minmax(0, 1fr) auto", alignItems: "center", gap: 12, width: "100%", height: phone ? undefined : 44, padding: phone ? "8px 12px" : "0 14px", boxSizing: "border-box", background: "none", border: "none", borderBottom: `1px solid ${C.border}`, color: C.textPrimary, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+                        <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.12em", color: C.teal, textAlign: "center" }}>LATER</span>
+                        <span style={{ minWidth: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+                          <span key={g.key + i} className="acro-flip"><b>{g.name}</b> <span style={{ color: C.textMuted }}>· {g.kind === "player" ? `${g.host}'s game · ` : ""}{g.local} your time</span></span>
+                        </span>
+                        <span style={{ fontSize: 13, color: C.textMuted, whiteSpace: "nowrap" }}>{rest.length > 1 ? `${i + 1} of ${rest.length} · ` : ""}{laterOpen ? "close ▲" : "see all ▼"}</span>
+                      </button>
+                      {laterOpen && rest.map(x => (
+                        <div key={x.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 14px 7px 102px", borderBottom: `1px solid ${C.border}`, fontSize: 14 }}>
+                          <b style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.name}</b>
+                          <span style={{ color: C.textMuted, whiteSpace: "nowrap" }}>{x.kind === "player" ? `${x.host}'s game · ` : "Every day · "}{x.local} your time</span>
+                          {x.kind === "player" && x.canCancel && <button onClick={() => cancelSched(x.id)} style={{ marginLeft: "auto", background: "none", border: "none", padding: 0, color: C.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Cancel</button>}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </Panel>

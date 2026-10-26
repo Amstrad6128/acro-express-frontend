@@ -173,6 +173,11 @@ body {
 /* The Sky Leaderboard's column titles are its buttons (2026-10-26): soft pills, a little brighter on hover */
 .lb-head[aria-pressed="false"]:hover { background: color-mix(in srgb, var(--c-teal) 30%, transparent) !important; }
 
+/* The Departures board's "Later" row flips to the next game like an airport split-flap sign (2026-10-26) */
+@keyframes acroFlip { 0% { transform: perspective(400px) rotateX(-90deg); opacity: 0; } 60% { transform: perspective(400px) rotateX(12deg); opacity: 1; } 100% { transform: perspective(400px) rotateX(0); opacity: 1; } }
+.acro-flip { display: inline-block; animation: acroFlip 0.5s ease-out; transform-origin: 50% 0; }
+@media (prefers-reduced-motion: reduce) { .acro-flip { animation: none; } }
+
 /* A train with passengers at the station: its dot pulses gently (2026-10-25) */
 @keyframes acroLive { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .acro-live { animation: acroLive 1.6s ease-in-out infinite; }
