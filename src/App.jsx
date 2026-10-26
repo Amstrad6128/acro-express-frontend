@@ -4377,7 +4377,7 @@ function sameId(a, b) {
   return a.toString().toLowerCase() === b.toString().toLowerCase();
 }
 
-function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer, maxTimer, topic }) {
+function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer, maxTimer, topic, passengers = [] }) {
   const [submitted, setSubmitted] = useState(false); // true after "I'm done voting" is clicked
   const [selected, setSelected] = useState(null);    // the currently selected entry id
   const [closed, setClosed] = useState(false);
@@ -4507,6 +4507,17 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
 
         {/* Footer */}
         <div style={{ padding: "12px 24px 20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "center", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {/* Who is done voting, by name (Zyngacita, 2026-10-26: "see exactly who voted and who didn't"): a ✓ and teal
+              once they clicked Done Voting. The tick has its own slot, so names never move */}
+          {passengers.length > 0 && (
+            <div style={{ width: "100%", display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "4px 14px", fontSize: 14 }}>
+              {passengers.map(p => (
+                <span key={p.id} title={p.done ? "Done voting" : "Still voting"} style={{ display: "inline-flex", alignItems: "center", color: p.done ? C.teal : C.textMuted, fontWeight: p.done ? 700 : 400, whiteSpace: "nowrap" }}>
+                  <span style={{ width: 14, flexShrink: 0 }}>{p.done ? "✓" : ""}</span>{p.name}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Done Voting with the voting clock inside its frame, on the right (Damon, 2026-10-24). The clock: number only,
               red in the last 10 seconds, in Honk, two digits, stays on 00 when the time is up */}
@@ -4555,15 +4566,15 @@ function TopicText({ children, size }) {
 // "Expressions accepted" left of the letters (after Acrophobia, 2026-10-24): a light per passenger, lit for each acro in
 // (Damon didn't like a ticket; no number, "the lights are enough"). It mirrors the DIRECTION on the other side of the
 // letters: the label just above, right-aligned towards the letters, the lights in the letters' band.
-function AnswersAccepted({ count, total, children, twoLines, what = "Expressions" }) {
+function AnswersAccepted({ count, total, children, twoLines }) {
   const lights = Math.min(16, Math.max(total, count));
   return (
-    <div style={{ position: "relative", maxWidth: 400 }} aria-label={`${count} of ${lights} ${what.toLowerCase()} accepted`} aria-live="polite">
+    <div style={{ position: "relative", maxWidth: 400 }} aria-label={`${count} of ${lights} expressions accepted`} aria-live="polite">
       {/* children: an invisible copy of the direction, so this box is exactly as wide as the direction box opposite */}
       <div aria-hidden style={{ height: 0, overflow: "hidden", visibility: "hidden" }}>{children}</div>
       <div style={{ position: "absolute", bottom: "100%", right: 0, marginBottom: 4, fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", whiteSpace: "nowrap", textAlign: "right", lineHeight: 1.3 }}>
         {/* two lines on smaller screens, where one long line ran off the left edge */}
-        {what}{twoLines ? <br /> : " "}accepted
+        Expressions{twoLines ? <br /> : " "}accepted
       </div>
       <div style={{ display: "flex", gap: 7, justifyContent: "flex-end", flexWrap: "wrap", maxWidth: 200, marginLeft: "auto" }} aria-hidden>
         {Array.from({ length: lights }, (_, i) => (
@@ -5974,7 +5985,8 @@ function Room() {
 
       {/* Voting overlay */}
       {phase === "Voting" && (
-        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { doneVotedRef.current = true; }} onVoteCast={setMyVote} timer={timer} maxTimer={maxTimer} topic={currentTopic} />)}
+        <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { doneVotedRef.current = true; }} onVoteCast={setMyVote} timer={timer} maxTimer={maxTimer} topic={currentTopic}
+          passengers={players.filter(p => p.isConnected !== false).map(p => ({ id: p.id, name: p.nickname, done: votedIds.includes(String(p.id).toLowerCase()) }))} />)}
 
       {/* Header */}
       {/* minHeight keeps room for the topic (top right), so the header is the same height with or without it.
@@ -6165,8 +6177,6 @@ function Room() {
         {/* left of the letters: how many acros are in (2026-10-24) */}
         {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>{phase === "Submitting" && (
           <AnswersAccepted count={submittedIds.length} total={players.filter(p => p.isConnected !== false).length} twoLines={view.w < 1250} />
-        )}{phase === "Voting" && (
-          <AnswersAccepted what="Votes" count={votedIds.length} total={players.filter(p => p.isConnected !== false).length} twoLines={view.w < 1250} />
         )}</div>}
         <div style={{ textAlign: "center" }}>
           <div ref={lettersRef} title="Click to change the letters' font"
