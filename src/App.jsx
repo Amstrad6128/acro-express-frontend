@@ -27,7 +27,7 @@ function rainPattern(opacity) {
 const THEMES = {
   midnight: {  // Midnight — the original night ride. 2026-10-16: stronger rain, brighter quiet text and
                // dark text on the coral buttons (white on coral was only 2.9:1) — Damon kept it as the default
-    name: "Midnight",
+    name: "Midnight", gold: "#F2D49B",   // its own gold (2026-10-27)
     bgApp: "#070b14", bgPanel: "#151D33", bgPanel2: "#1C2540", border: "#2F3D63",
     textPrimary: "#F5F6FA", textSecond: "#D3D9E8", textMuted: "#AEB8D2",
     brand: "#FF7A6B", brandHover: "#FF8E80", onBrand: "#1A0E0C",
@@ -46,7 +46,7 @@ const THEMES = {
            // (Habbo/Parego style): chocolate brown, warmer brown boxes with thin orange outlines, hot orange, cream
            // headings, tan labels, amber like the equaliser bars, and soft diagonal light beams behind everything. The brights
            // pushed up the same day (Damon: "undertoned compared to the Skyscraper theme")
-    name: "Last Light",
+    name: "Last Light", gold: "#FFD27A",   // its own gold (2026-10-27)
     bgApp: "#3A2517", bgPanel: "#5B3920", bgPanel2: "#66412A", border: "#E36A1E",
     textPrimary: "#FFF1D6", textSecond: "#F7C68A", textMuted: "#E0A866",
     brand: "#FF7300", brandHover: "#FF8C26", onBrand: "#2E1C10",
@@ -61,7 +61,7 @@ const THEMES = {
     letterShadow: "3px 3px 0px rgba(0,0,0,0.45)",
   },
   neon: {  // Neon — synthwave: hot pink letters, electric cyan, neon yellow, faint sparkles
-    name: "Neon",
+    name: "Neon", gold: "#FFE45E",   // its own gold (2026-10-27)
     bgApp: "#1A1028", bgPanel: "#261838", bgPanel2: "#2E1D44", border: "#4A2F66",
     textPrimary: "#F5EAFF", textSecond: "#DCCBF0", textMuted: "#B9A3D4",
     brand: "#FF4FA3", brandHover: "#FF6FB5", onBrand: "#1A1028",
@@ -73,7 +73,7 @@ const THEMES = {
     patternSize: "60px 60px",
   },
   phosphor: {  // Phosphor — an old green-screen terminal, with faint scanlines
-    name: "Phosphor",
+    name: "Phosphor", gold: "#E6FF9E",   // its own gold (2026-10-27)
     bgApp: "#050D07", bgPanel: "#0B1A0F", bgPanel2: "#102214", border: "#1F5C2C",
     textPrimary: "#9DFF9F", textSecond: "#86E68A", textMuted: "#5FCF6A",
     brand: "#B6FF6B", brandHover: "#CCFF94", onBrand: "#050D07",
@@ -86,6 +86,7 @@ const THEMES = {
   },
   sakura: {  // First Light (was Sakura) — the pale pink of dawn: deep rose letters, jade names, a few falling petals
     name: "First Light", gold: "#8C6400",   // gold: a darker gold for golden names on this light palette
+    goldMetal: "linear-gradient(180deg, #B8860B 0%, #8C6400 48%, #6B4A00 56%, #A87A10 100%)",
     bgApp: "#F8DFE6", bgPanel: "#FFF7F9", bgPanel2: "#FCEBF0", border: "#E9B6C6",
     textPrimary: "#3B1F2B", textSecond: "#52303F", textMuted: "#7A5566",
     brand: "#C2185B", brandHover: "#D32F6E", onBrand: "#FFFFFF",
@@ -98,7 +99,7 @@ const THEMES = {
   },
   nightfall: { // Nightfall — mossy olive greens with a lime glow, from Damon's "Mossy hollow" palette
                 // (#636B2F moss, #BAC095 sage, #D4DE95 lime, #3D4127 olive) plus a deeper olive background
-    name: "Nightfall",
+    name: "Nightfall", gold: "#E3C878",   // its own gold (2026-10-27)
     bgApp: "#23261A", bgPanel: "#3D4127", bgPanel2: "#474C2E", border: "#636B2F",
     textPrimary: "#F4F6E6", textSecond: "#E1E5C8", textMuted: "#BAC095",
     brand: "#D4DE95", brandHover: "#E0E9A6", onBrand: "#2A2E14",
@@ -109,7 +110,7 @@ const THEMES = {
   },
   daybreak: {  // Daybreak — from Damon's Midjourney picture: sky blue, cloud lavender,
                // salmon towers, teal domes, a pink horizon at dawn
-    name: "Daybreak",
+    name: "Daybreak", gold: "#FFD7A8",   // its own gold (2026-10-27)
     bgApp: "#4A78A3", bgPanel: "#2F4A75", bgPanel2: "#385786", border: "#7184B8",
     textPrimary: "#FFF6EC", textSecond: "#E6E8F6", textMuted: "#BCC3E2",
     brand: "#F2967C", brandHover: "#F8AA93", onBrand: "#22304F",
@@ -124,7 +125,7 @@ const THEMES = {
   // which is made for the dark boxes and would be hard to read on a mid-tone sky.
   // bgApp = the darker "inset" colour (text boxes, list rows); the page itself shows the sky in bgGradient.
   goldenhour: {  // Golden Hour — a warm apricot evening sky, plum boxes, gold letters
-    name: "Golden Hour",
+    name: "Golden Hour", gold: "#FFD99E",   // its own gold (2026-10-27)
     bgApp: "#8A5440", bgPanel: "#3B2433", bgPanel2: "#46293C", border: "#8A5A6E",
     textPrimary: "#FFF4E8", textSecond: "#F1DCCF", textMuted: "#D6B6A8", bgText: "#FFF4E8",
     brand: "#FFC46B", brandHover: "#FFD28C", onBrand: "#3B2433",
@@ -135,7 +136,7 @@ const THEMES = {
     fieldLine: "#8A5A6E", focusLine: "#FFC46B",
   },
   lagoon: {  // High Noon (was Lagoon) — clear teal midday water, deep teal boxes, coral letters, sunny yellow names
-    name: "High Noon",
+    name: "High Noon", gold: "#FFC170",   // its own gold (2026-10-27)
     bgApp: "#2A6B71", bgPanel: "#133A45", bgPanel2: "#184654", border: "#4F8E99",
     textPrimary: "#F2FBF9", textSecond: "#D6ECEA", textMuted: "#B2D6D3", bgText: "#F2FBF9",
     brand: "#FF9F7A", brandHover: "#FFB496", onBrand: "#133A45",
@@ -146,7 +147,7 @@ const THEMES = {
     fieldLine: "#4F8E99", focusLine: "#FFE08A",
   },
   dusk: {  // Dusk — a violet sky turning rose, aubergine boxes, orange letters
-    name: "Dusk",
+    name: "Dusk", gold: "#FFD59A",   // its own gold (2026-10-27)
     bgApp: "#6A5690", bgPanel: "#2A2140", bgPanel2: "#33284D", border: "#6E5C96",
     textPrimary: "#FBF5FF", textSecond: "#E6DDF2", textMuted: "#BFB2D6", bgText: "#FBF5FF",
     brand: "#FFB86B", brandHover: "#FFC98C", onBrand: "#2A2140",
@@ -157,7 +158,7 @@ const THEMES = {
     fieldLine: "#6E5C96", focusLine: "#8FE3D4",
   },
   overcast: {  // Grey Morning (was Overcast, renamed 2026-10-18) — a soft slate-grey morning, charcoal boxes, yellow letters (no gradient)
-    name: "Grey Morning",
+    name: "Grey Morning", gold: "#F2C94C",   // its own gold (2026-10-27)
     bgApp: "#56636F", bgPanel: "#263039", bgPanel2: "#2E3944", border: "#5A6A7A",
     textPrimary: "#F4F6F8", textSecond: "#DCE2E8", textMuted: "#B4BEC8", bgText: "#F4F6F8",
     brand: "#F2C94C", brandHover: "#F6D670", onBrand: "#263039",
@@ -173,7 +174,7 @@ const THEMES = {
              // indigo-violet boxes like the station's shadowed towers (darker than the sky, not navy-heavy), peach-orange
              // titles like the sunset, warm gold buttons like the loading bar, cream text like the logo. Then warmer (Damon: "too
              // cold"): more sunset than blue in the sky, warm plum boxes, dusty rose lines
-    name: "Afternoon",
+    name: "Afternoon", gold: "#FFD57E",   // its own gold (2026-10-27)
     bgApp: "#7E5A9A", bgPanel: "#4E3366", bgPanel2: "#5A3C72", border: "#C08AAE",
     textPrimary: "#FFF5DE", textSecond: "#F4DDE8", textMuted: "#E0BFD2", bgText: "#FFF5DE",
     brand: "#FFC85C", brandHover: "#FFD57E", onBrand: "#3A2450",
@@ -267,13 +268,15 @@ function applyTheme(key) {
   try { localStorage.setItem("acro.splash", JSON.stringify({ bgApp: t.bgApp, bgGradient: t.bgGradient, pattern: t.pattern || null, patternSize: t.patternSize || null, patternAttach: t.patternAttach || null })); } catch { /* private mode */ }
   // Quiet text on the page background (the tagline): the palette's own bgText, otherwise textMuted as before
   root.style.setProperty("--c-bgText", t.bgText || t.textMuted);
-  // Gold for golden names (afool): bright on the dark palettes, darker on the light one so it stays readable
+  // Gold (golden names, the next train, the crown, hints): each palette's own (2026-10-27, Damon: the one bright
+  // yellow didn't match most palettes); darker on the light one so it stays readable
   root.style.setProperty("--c-gold", t.gold || "#FFD24A");
   // Metallic gold for golden names (Damon, 2026-10-20, option B): light at the top, darker in the middle, like a
   // coin. The light palette (a "gold" of its own) gets a darker metal so the name stays readable.
-  root.style.setProperty("--c-goldMetal", t.gold
-    ? "linear-gradient(180deg, #B8860B 0%, #8C6400 48%, #6B4A00 56%, #A87A10 100%)"
-    : "linear-gradient(180deg, #FFF3B0 0%, #F5C542 45%, #C8961E 56%, #F7D774 100%)");
+  // Made from the palette's own gold: lighter at the top, a darker band, light again (the light palette has its own)
+  const g = t.gold || "#FFD24A";
+  root.style.setProperty("--c-goldMetal", t.goldMetal ||
+    `linear-gradient(180deg, color-mix(in srgb, ${g} 45%, white) 0%, ${g} 45%, color-mix(in srgb, ${g} 72%, black) 56%, color-mix(in srgb, ${g} 80%, white) 100%)`);
   // Honk's colours. Honk is a colour font with 8 colours of its own: 0 = drop shadow, 1 = outline and inner lines,
   // 2–7 = the fill from top to bottom. We repaint them in the palette's colours. Each Express Colors palette has
   // its OWN Honk palettes (named "--acro-logo-<key>" …), chosen through CSS variables (--fp-logo …): switching
