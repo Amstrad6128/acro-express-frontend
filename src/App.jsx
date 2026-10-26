@@ -1230,7 +1230,7 @@ function useRestartWindow() {
   useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 60e3); return () => clearInterval(iv); }, []);
   if (!win) return null;
   const soon = now >= win.from.getTime() - 15 * 60e3 && now <= win.to.getTime();
-  const fmt = d => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const fmt = d => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   return { ...win, soon, text: `Daily server restart expected between ${fmt(win.from)} and ${fmt(win.to)}. Your game will continue.` };
 }
 
@@ -1757,7 +1757,7 @@ function PaletteStats() {
                   {t.names.length > 0 && (
                     <div style={{ color: C.textMuted, fontSize: 13 }}>
                       {t.names.map(n => `${n.name} (${n.stations})`).join(", ")}
-                      {t.lastUsedUtc && ` · last used ${new Date(t.lastUsedUtc).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`}
+                      {t.lastUsedUtc && ` · last used ${new Date(t.lastUsedUtc).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}`}
                     </div>
                   )}
                 </div>
@@ -3469,7 +3469,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   const whoAboard = names => (names.length <= 3 ? names.join(", ") : `${names.slice(0, 3).join(", ")} +${names.length - 3}`);
   // Players' scheduled games as board rows (the same shape as the daily trains), and all departures in time order
   const when = ms => {
-    const d = new Date(ms), t = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const d = new Date(ms), t = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
     const today = new Date(); const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1);
     return d.toDateString() === today.toDateString() ? `today ${t}` : d.toDateString() === tomorrow.toDateString() ? `tomorrow ${t}` : `${d.toLocaleDateString([], { weekday: "short" })} ${t}`;
   };
@@ -3507,7 +3507,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
       <span style={{ display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
         <span style={{ width: 32, textAlign: "right", fontSize: 13, color: C.textMuted }}>{day}</span>
         <span style={{ display: "inline-flex", justifyContent: "center", minWidth: 92, boxSizing: "border-box", padding: "3px 9px", borderRadius: 6, background: C.bgApp, border: `1px solid ${C.border}`, fontFamily: "'Goldman', sans-serif", fontVariantNumeric: "tabular-nums", fontSize: 16, color: "var(--c-gold)" }}>
-          {d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+          {d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}
         </span>
       </span>
     );
@@ -4066,7 +4066,7 @@ function scheduledTrain(key, now, rooms, lastStationUtc = null) {
   // later, not 24
   while (now - departs > 90 * 60000) { const next = departs + 86400000; departs = next + (homeOffset(departs) - homeOffset(next)) * 60000; }
   const mins = (now - departs) / 60000;                                     // minutes since it left (negative = before)
-  const local = new Date(departs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const local = new Date(departs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   // 2026-10-23: the train itself is a Sky Train named "Daily Express", started from this row from 30 minutes before
   // (open: until the row moves on to the next night at 00:30 Limassol time)
   const open = mins > -30;
@@ -4294,10 +4294,11 @@ function measureRoomView() {
   return { scale: 1, scroll: true, w, h };                        // too small: normal size, page scrolls
 }
 
+// All clocks are 24-hour (Damon, 2026-10-26: "05:00 is 5 AM and 17:00 is 5 PM"): hourCycle h23 everywhere
 // Time shown before a lobby message: "21:14" today, "Yesterday 21:14", or "11 Oct 21:14"
 function lobbyTime(date) {
   if (!(date instanceof Date) || isNaN(date)) return "";
-  const hm = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const hm = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const day = new Date(date); day.setHours(0, 0, 0, 0);
   const daysAgo = Math.round((today - day) / 86400000);
