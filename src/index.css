@@ -207,3 +207,6 @@ body {
   .acro-highball, .acro-fade-in { animation: none; }
   .acro-depart { animation: acroDepartFade 5s ease-in forwards; }   /* no movement, only the fade */
 }
+
+/* the acro box: the hint sits on the right, next to the clock (Damon, 2026-10-26); typing stays centred */
+.acro-box::placeholder { text-align: right; }

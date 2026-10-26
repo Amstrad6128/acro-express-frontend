@@ -2158,7 +2158,7 @@ function PracticeTrain({ onClose = null, boarding = null }) {
       {phase === "write" ? (
         <form onSubmit={e => { e.preventDefault(); finish(false); }} style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "stretch", maxWidth: 640, width: "100%", margin: "0 auto" }}>
           <div style={{ display: "flex", gap: 8 }}>
-            <input ref={inputRef} value={text} onChange={e => { setText(e.target.value); textRef.current = e.target.value; setProblem(""); }} maxLength={300} placeholder="Type your acro and press Enter"
+            <input ref={inputRef} value={text} onChange={e => { setText(e.target.value); textRef.current = e.target.value; setProblem(""); }} maxLength={300} className="acro-box" placeholder="Please write your expression and press Enter"
               style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "12px 14px", color: C.textPrimary, fontSize: 18, outline: "none", fontFamily: "inherit", textAlign: "center" }} />
             {/* the clock between the box and Submit, as on the train (Damon, 2026-10-26); with Honk, the palette's colours */}
             <div style={{ flex: "0 0 clamp(46px, 12vw, 64px)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "calc(32px * var(--tf-scale, 1))", fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, lineHeight: "var(--tf-lh, 1)", color: left <= 10 ? C.brand : C.teal, fontPalette: left <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", fontVariantNumeric: "tabular-nums" }}>{two(left)}</div>
@@ -6169,7 +6169,7 @@ function Room() {
                 onFocus={e => { if (view.scroll) e.target.scrollIntoView({ block: "center", behavior: "smooth" }); }}
                 // On the page itself now (no panel), so it takes the panel colour to read as a field
                 style={{ flex: 1, minWidth: 0 /* may get narrower than its default, so Submit fits on phones */, background: C.bgPanel, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "8px 14px", color: C.textPrimary, fontSize: 19, outline: "none", fontFamily: "inherit", textAlign: "center" }}
-                placeholder="Type your acro and press Enter"
+                className="acro-box" placeholder="Please write your expression and press Enter"
                 value={myDraft}
                 onChange={e => {
                   setMyDraft(e.target.value);
