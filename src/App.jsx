@@ -4555,15 +4555,15 @@ function TopicText({ children, size }) {
 // "Expressions accepted" left of the letters (after Acrophobia, 2026-10-24): a light per passenger, lit for each acro in
 // (Damon didn't like a ticket; no number, "the lights are enough"). It mirrors the DIRECTION on the other side of the
 // letters: the label just above, right-aligned towards the letters, the lights in the letters' band.
-function AnswersAccepted({ count, total, children, twoLines }) {
+function AnswersAccepted({ count, total, children, twoLines, what = "Expressions" }) {
   const lights = Math.min(16, Math.max(total, count));
   return (
-    <div style={{ position: "relative", maxWidth: 400 }} aria-label={`${count} of ${lights} expressions accepted`} aria-live="polite">
+    <div style={{ position: "relative", maxWidth: 400 }} aria-label={`${count} of ${lights} ${what.toLowerCase()} accepted`} aria-live="polite">
       {/* children: an invisible copy of the direction, so this box is exactly as wide as the direction box opposite */}
       <div aria-hidden style={{ height: 0, overflow: "hidden", visibility: "hidden" }}>{children}</div>
       <div style={{ position: "absolute", bottom: "100%", right: 0, marginBottom: 4, fontSize: 13, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.12em", whiteSpace: "nowrap", textAlign: "right", lineHeight: 1.3 }}>
         {/* two lines on smaller screens, where one long line ran off the left edge */}
-        Expressions{twoLines ? <br /> : " "}accepted
+        {what}{twoLines ? <br /> : " "}accepted
       </div>
       <div style={{ display: "flex", gap: 7, justifyContent: "flex-end", flexWrap: "wrap", maxWidth: 200, marginLeft: "auto" }} aria-hidden>
         {Array.from({ length: lights }, (_, i) => (
@@ -5058,6 +5058,7 @@ function Room() {
   const [notice, setNotice] = useState(null);
   // Players who have submitted this round (lower-case ids) — names turn teal in Passengers
   const [submittedIds, setSubmittedIds] = useState([]);
+  const [votedIds, setVotedIds] = useState([]);   // clicked "Done Voting" at this station (Zyngacita, 2026-10-26)
   const noticeTimerRef = useRef(null);
   // The 3-second room check can't reach the server (also shows the banner)
   const [pollFailing, setPollFailing] = useState(false);
@@ -5183,6 +5184,10 @@ function Room() {
     onSubmittedPlayers: useCallback((ids) => {
       setSubmittedIds((ids || []).map(x => String(x).toLowerCase()));
     }, []),
+    // Someone clicked "Done Voting": the server sends everyone who is done so far
+    onVotedPlayers: useCallback((ids) => {
+      setVotedIds((ids || []).map(x => String(x).toLowerCase()));
+    }, []),
     // From the server, to this player only: the unsent acro couldn't be entered at time-up.
     // Shown as a banner for 10 seconds, and as a line in my own chat.
     onAcroNotEntered: useCallback((message) => {
@@ -5215,6 +5220,7 @@ function Room() {
       setWatchChooser(null);
       setNextGameIn(null); // a round has started — no game-over countdown any more
       setSubmittedIds([]); // nobody has submitted yet in the new round
+      setVotedIds([]);
       // Show this round's topic next to the acro input.
       // Before, this line cleared the topic — but TopicSet arrives just BEFORE
       // RoundStarted, so the topic was wiped the moment the round began.
@@ -5262,6 +5268,7 @@ function Room() {
       // Entry objects: { id, sentence, playerId }
       setEntries(acroEntries || []);
       setPhase("Voting");
+      setVotedIds([]);   // nobody is done voting yet
       // Freeze the Passengers scores until the results are revealed
       setFrozenScores(Object.fromEntries(playersRef.current.map(p => [p.id, p.score])));
       // Voting countdown for the progress bar
@@ -5616,6 +5623,9 @@ function Room() {
       // Who has submitted (also after a page reload, or if an update was missed)
       if (data?.phase === "Submitting" && Array.isArray(data?.submittedPlayerIds))
         setSubmittedIds(data.submittedPlayerIds.map(x => String(x).toLowerCase()));
+      // ...and while voting, who is done voting
+      if (data?.phase === "Voting" && Array.isArray(data?.votedPlayerIds))
+        setVotedIds(data.votedPlayerIds.map(x => String(x).toLowerCase()));
 
       setPhase(prev => {
         // "GameOver" is kept too — otherwise the poll replaced it within 3s and the winner panel vanished
@@ -5894,6 +5904,8 @@ function Room() {
     : "Waiting to start";
   // Topic is shown while players are writing their acros
   const showTopic = !!currentTopic && phase === "Submitting" && !topicRequested;
+  // the ✓ in Passengers: who submitted (writing) or who is done voting (voting); none in other phases
+  const tickIds = phase === "Submitting" ? submittedIds : phase === "Voting" ? votedIds : null;
   // Stage sizes — compact versions on short windows. Used both by the elements and by the
   // stage height formula below, so the formula always matches what is drawn.
   // Compact (Sandy, 2026-10-15: use the space above the letters and in the acro box for more chat lines).
@@ -6153,6 +6165,8 @@ function Room() {
         {/* left of the letters: how many acros are in (2026-10-24) */}
         {!isNarrow && <div style={{ justifySelf: "center", alignSelf: "end", height: `calc(${letterSize} * var(--lf-scale, 1) * var(--lf-lh, 1))`, display: "flex", alignItems: "center", minWidth: 0 }}>{phase === "Submitting" && (
           <AnswersAccepted count={submittedIds.length} total={players.filter(p => p.isConnected !== false).length} twoLines={view.w < 1250} />
+        )}{phase === "Voting" && (
+          <AnswersAccepted what="Votes" count={votedIds.length} total={players.filter(p => p.isConnected !== false).length} twoLines={view.w < 1250} />
         )}</div>}
         <div style={{ textAlign: "center" }}>
           <div ref={lettersRef} title="Click to change the letters' font"
@@ -6270,9 +6284,10 @@ function Room() {
           <h2 style={{ margin: "0 0 10px", fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>
             List of Passengers   {/* was "Passengers" (Damon, 2026-10-18) */}
             {/* While writing: how many of the connected players have submitted (like Acrophobia) */}
-            {phase === "Submitting" && (
+            {/* ...and while voting, how many are done voting (Zyngacita, 2026-10-26) */}
+            {tickIds && (
               <span style={{ marginLeft: 8, color: C.teal, textTransform: "none", letterSpacing: 0, fontWeight: 600 }}>
-                · {players.filter(p => p.isConnected !== false && submittedIds.includes(String(p.id).toLowerCase())).length} of {players.filter(p => p.isConnected !== false).length} submitted
+                · {players.filter(p => p.isConnected !== false && tickIds.includes(String(p.id).toLowerCase())).length} of {players.filter(p => p.isConnected !== false).length} {phase === "Voting" ? "done voting" : "submitted"}
               </span>
             )}
           </h2>
@@ -6290,12 +6305,12 @@ function Room() {
                   {/* Left side: a fixed tick column, then the name — the ✓ sits outside the name in its own
                       16px column, so names never move when someone submits (Damon's request) */}
                   <span style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
-                  <span title={phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? "Submitted" : undefined}
+                  <span title={tickIds?.includes(String(p.id).toLowerCase()) ? (phase === "Voting" ? "Done voting" : "Submitted") : undefined}
                     style={{ width: 16, flexShrink: 0, color: C.teal, fontWeight: 700 }}>
-                    {phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? "✓" : ""}
+                    {tickIds?.includes(String(p.id).toLowerCase()) ? "✓" : ""}
                   </span>
-                  {/* Submitted this round (while writing): name in teal */}
-                  <span style={{ color: p.isConnected === false ? C.textMuted : (phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? C.teal : C.textSecond), fontWeight: phase === "Submitting" && submittedIds.includes(String(p.id).toLowerCase()) ? 700 : 400, opacity: p.isConnected === false ? 0.6 : 1 }}>
+                  {/* Submitted this round (while writing) / done voting (while voting): name in teal */}
+                  <span style={{ color: p.isConnected === false ? C.textMuted : (tickIds?.includes(String(p.id).toLowerCase()) ? C.teal : C.textSecond), fontWeight: tickIds?.includes(String(p.id).toLowerCase()) ? 700 : 400, opacity: p.isConnected === false ? 0.6 : 1 }}>
                     <span>{p.nickname}</span>
                     {/* Window closed / connection lost — removed after about 10 seconds */}
                     {p.isConnected === false && <span style={{ marginLeft: 4, fontStyle: "italic" }}>(away)</span>}

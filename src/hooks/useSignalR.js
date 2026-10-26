@@ -47,6 +47,7 @@ export function useSignalR(roomId, handlers = {}) {
     connection.on("AcroNotEntered", (...args) => handlersRef.current.onAcroNotEntered?.(...args));
     // Who has submitted an acro this round (player ids only, never the acros)
     connection.on("SubmittedPlayers", (...args) => handlersRef.current.onSubmittedPlayers?.(...args));
+    connection.on("VotedPlayers", (...args) => handlersRef.current.onVotedPlayers?.(...args));
     // Vote to kick: each vote (everyone sees it), and the passenger who was voted off
     connection.on("KickVote", (...args) => handlersRef.current.onKickVote?.(...args));
     connection.on("PlayerKicked", (...args) => handlersRef.current.onPlayerKicked?.(...args));
