@@ -4558,16 +4558,19 @@ const STATION_CHEERS = ["wins", "applauds", "cheers for", "tips its hat to", "bo
 // Left of the results, centred on them: "Station 1 applauds" and the winner's name in Honk. One line at random per
 // station (the train page gives it a new key each station, so it picks again). streak: stations in a row this winner
 // has won; from 2 on it is always "wins the station again!", from 3 "… again and again!"
-function StationCheer({ round, names, streak = 1 }) {
+// wow: the winner used the Word of the Week, "Sandy WoWs the station!" (Damon, 2026-10-26); it comes before the others
+function StationCheer({ round, names, streak = 1, wow = false }) {
   const [picked] = useState(() => STATION_CHEERS[Math.floor(Math.random() * STATION_CHEERS.length)]);
-  const cheer = streak >= 2 ? "wins" : picked;
+  const cheer = wow || streak >= 2 ? "wins" : picked;
   const again = streak >= 3 ? " again and again" : streak === 2 ? " again" : "";
   if (!names.length) return null;
   const nameStyle = { ...smallTitle, fontSize: 34, lineHeight: 1.15, color: C.brand, overflowWrap: "anywhere" };
   if (cheer === "wins") return (
     <div style={{ textAlign: "center", padding: "8px 4px" }}>
       <div style={nameStyle}>{names.join(" & ")}</div>
-      <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.teal, textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 4 }}>{names.length > 1 ? "win" : "wins"} the station{again}!</div>
+      {wow
+        ? <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 20, color: C.teal, marginTop: 4 }}>📖 {names.length > 1 ? "WoW" : "WoWs"} the station{again}!</div>
+        : <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.teal, textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 4 }}>{names.length > 1 ? "win" : "wins"} the station{again}!</div>}
     </div>
   );
   return (
@@ -5833,7 +5836,12 @@ function Room() {
             <div style={{ display: "grid", gap: 16, gridTemplateColumns: isNarrow ? "1fr" : (pm.active ? "minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.4fr)" : "1fr 3fr") }}>
             {/* the station winner, left of the results and centred on them (Damon, 2026-10-24) */}
             <div style={{ gridColumn: "1", alignSelf: "center", minWidth: 0 }}>
-              <StationCheer key={currentRound} round={currentRound} streak={winStreak} names={stationResults(scores, winningAcro, entries, players).winners.map(w => w.name)} />
+              {(() => {
+                const names = stationResults(scores, winningAcro, entries, players).winners.map(w => w.name);
+                // a winner who used the Word of the Week: "WoWs the station!"
+                const wow = names.some(n => (resultDetails?.wordBonus || []).some(b => String(b).toLowerCase() === n.toLowerCase()));
+                return <StationCheer key={currentRound} round={currentRound} streak={winStreak} names={names} wow={wow} />;
+              })()}
               {/* who chooses the next direction, with the clock; the results stay up meanwhile (Fran, 2026-10-24: "the
                   vote result screen disappears too fast") */}
               {watchChooser && !watchChooser.first && (
