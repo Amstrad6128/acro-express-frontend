@@ -946,6 +946,13 @@ const Btn = ({ children, onClick, color = C.brand, hoverColor = C.brandHover, st
 // Countdowns always show two digits: 35 … 09 … 00 (Damon, 2026-10-24: "the 00 format. Everywhere like that")
 const two = n => String(Math.max(0, Math.floor(Number(n) || 0))).padStart(2, "0");
 
+// The acro bar (Damon, 2026-10-26): the box, the clock and Submit as one bar, segments in one frame like the
+// leaderboard's This week / This month / All time; the frame takes the line colour (teal once the acro is in)
+const acroBar = line => ({ display: "flex", alignItems: "stretch", border: `2px solid ${line}`, borderRadius: 10, overflow: "hidden", background: C.bgPanel });
+const acroField = { flex: 1, minWidth: 0, background: "transparent", border: "none", borderRadius: 0, outline: "none", color: C.textPrimary, fontFamily: "inherit", textAlign: "center" };
+const acroClock = { display: "flex", alignItems: "center", justifyContent: "center", borderLeft: `1px solid ${C.border}`, fontWeight: "var(--tf-weight, 700)", lineHeight: "var(--tf-lh, 1)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", fontVariantNumeric: "tabular-nums" };
+const acroButton = { borderRadius: 0, fontSize: 18, justifyContent: "center", border: "none" };
+
 const BtnSecondary = ({ children, onClick, style = {} }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -2157,12 +2164,12 @@ function PracticeTrain({ onClose = null, boarding = null }) {
       </div>
       {phase === "write" ? (
         <form onSubmit={e => { e.preventDefault(); finish(false); }} style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "stretch", maxWidth: 640, width: "100%", margin: "0 auto" }}>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={acroBar(C.focusLine)}>
             <input ref={inputRef} value={text} onChange={e => { setText(e.target.value); textRef.current = e.target.value; setProblem(""); }} maxLength={300} className="acro-box" placeholder="Please write your expression and press Enter"
-              style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "12px 14px", color: C.textPrimary, fontSize: 18, outline: "none", fontFamily: "inherit", textAlign: "center" }} />
+              style={{ ...acroField, padding: "12px 14px", fontSize: 18 }} />
             {/* the clock between the box and Submit, as on the train (Damon, 2026-10-26); with Honk, the palette's colours */}
-            <div style={{ flex: "0 0 clamp(46px, 12vw, 64px)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "calc(32px * var(--tf-scale, 1))", fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, lineHeight: "var(--tf-lh, 1)", color: left <= 10 ? C.brand : C.teal, fontPalette: left <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", fontVariantNumeric: "tabular-nums" }}>{two(left)}</div>
-            <Btn style={{ minWidth: "clamp(84px, 22vw, 110px)", padding: "0 12px", justifyContent: "center" }}>Submit</Btn>   {/* submits the form (an onClick too would run it twice) */}
+            <div style={{ ...acroClock, flex: "0 0 clamp(52px, 13vw, 72px)", fontSize: "calc(30px * var(--tf-scale, 1))", fontFamily: `var(--tf-family, ${NUM_FONT})`, color: left <= 10 ? C.brand : C.teal, fontPalette: left <= 10 ? "var(--fp-letters)" : "var(--fp-logo)" }}>{two(left)}</div>
+            <Btn style={{ ...acroButton, minWidth: "clamp(84px, 22vw, 110px)", padding: "0 12px" }}>Submit</Btn>   {/* submits the form (an onClick too would run it twice) */}
           </div>
           <div style={{ minHeight: 20, textAlign: "center", fontSize: 14, color: problem ? C.brand : C.textMuted }}>{problem || "One word for each letter, in order. Have fun with the direction!"}</div>
         </form>
@@ -3779,11 +3786,12 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                 ))}
                 <div ref={lobbyBottomRef} />
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
+              {/* one bar, like the acro bar (Damon, 2026-10-26) */}
+              <div style={{ ...acroBar(C.fieldLine), borderWidth: 1, background: C.bgApp }}>
                 <input id="lobbyChatInput" name="lobbyChatInput" value={chatInput} placeholder="Say hello on the platform..."
                   onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendLobby(); }}
-                  style={{ flex: 1, minWidth: 0, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 10, padding: "9px 14px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }} />
-                <Btn onClick={sendLobby} style={{ ...smallBtn, borderRadius: 10 }}><Icon name="send" size={17} /> Send</Btn>
+                  style={{ ...acroField, textAlign: "left", padding: "9px 14px", fontSize: 15 }} />
+                <Btn onClick={sendLobby} style={{ ...smallBtn, borderRadius: 0 }}><Icon name="send" size={17} /> Send</Btn>
               </div>
             </Panel>
 
@@ -5859,8 +5867,8 @@ function Room() {
   // the countdown, between the acro box and Submit (Damon, 2026-10-26): its own fixed slot, so neither the box nor
   // the button moves as the numbers change; hidden (not removed) when the time is up
   const timerSlot = (
-    <div aria-label="Time left" style={{ flex: isNarrow ? "0 0 46px" : "0 0 64px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "calc(32px * var(--tf-scale, 1))", fontWeight: "var(--tf-weight, 700)", fontFamily: `var(--tf-family, ${NUM_FONT})`, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", lineHeight: "var(--tf-lh, 1)", visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>
-      {two(timer)}
+    <div aria-label="Time left" style={{ ...acroClock, flex: isNarrow ? "0 0 52px" : "0 0 72px", fontSize: "calc(30px * var(--tf-scale, 1))", fontFamily: `var(--tf-family, ${NUM_FONT})`, color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)" }}>
+      <span style={{ visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>{two(timer)}</span>
     </div>
   );
   const letterSize = isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters
@@ -6147,12 +6155,12 @@ function Room() {
         // or "on its way" — so nothing moves.
         <div style={{ marginBottom: 6 }}>
           {submittedAcro && !isEditing ? (
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <div style={{ flex: 1, minWidth: 0, background: C.bgPanel, border: `2px solid ${C.teal}`, borderRadius: 10, padding: "8px 14px", color: C.teal, fontWeight: 600, textAlign: "center", fontSize: 19, overflowWrap: "anywhere" }}>
+            <div style={acroBar(C.teal)}>
+              <div style={{ ...acroField, padding: "8px 14px", color: C.teal, fontWeight: 600, fontSize: 19, overflowWrap: "anywhere", alignSelf: "center" }}>
                 {submittedAcro}
               </div>
               {timerSlot}
-              <Btn color={C.navy2} hoverColor={C.navy3} style={{ color: C.teal, border: `1px solid ${C.teal}`, borderRadius: 10, fontSize: 18, padding: isNarrow ? "0 12px" : "0 20px", minWidth: isNarrow ? 84 : 120, justifyContent: "center" }} onClick={() => {
+              <Btn color={C.navy2} hoverColor={C.navy3} style={{ ...acroButton, color: C.teal, borderLeft: `1px solid ${C.border}`, padding: isNarrow ? "0 12px" : "0 20px", minWidth: isNarrow ? 84 : 120 }} onClick={() => {
                 setMyDraft(submittedAcro);
                 setIsEditing(true);
                 // Pause tune 2 and unmute tune 1 when editing
@@ -6163,12 +6171,13 @@ function Room() {
           ) : (
             // alignItems "stretch": Submit (and Cancel) as tall as the acro box (Damon, 2026-10-18)
             <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+              <div style={{ ...acroBar(C.focusLine), flex: 1, minWidth: 0 }}>
               <input
                 id="acroInput"
                 // Scroll mode: bring the acro box into the middle of the screen when it is clicked
                 onFocus={e => { if (view.scroll) e.target.scrollIntoView({ block: "center", behavior: "smooth" }); }}
                 // On the page itself now (no panel), so it takes the panel colour to read as a field
-                style={{ flex: 1, minWidth: 0 /* may get narrower than its default, so Submit fits on phones */, background: C.bgPanel, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "8px 14px", color: C.textPrimary, fontSize: 19, outline: "none", fontFamily: "inherit", textAlign: "center" }}
+                style={{ ...acroField, padding: "8px 14px", fontSize: 19 }}
                 className="acro-box" placeholder="Please write your expression and press Enter"
                 value={myDraft}
                 onChange={e => {
@@ -6180,7 +6189,8 @@ function Room() {
                 onKeyDown={e => { if (e.key === "Enter") handleSubmitAcro(); }}
               />
               {timerSlot}
-              <Btn onClick={handleSubmitAcro} style={{ borderRadius: 10, fontSize: 18, padding: isNarrow ? "0 12px" : "0 20px", minWidth: isNarrow ? 84 : 120, justifyContent: "center" }}>{isEditing ? "Update" : "Submit"}</Btn>
+              <Btn onClick={handleSubmitAcro} style={{ ...acroButton, padding: isNarrow ? "0 12px" : "0 20px", minWidth: isNarrow ? 84 : 120 }}>{isEditing ? "Update" : "Submit"}</Btn>
+              </div>
               {isEditing && <BtnSecondary onClick={() => { setIsEditing(false); setAcroError(""); saveDraft("", true); }}>Cancel</BtnSecondary>}
             </div>
           )}
@@ -6303,16 +6313,19 @@ function Room() {
             )}
             <div ref={chatBottomRef} />
           </div>
-          <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
+          <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.border}` }}>
+          {/* one bar, like the acro bar (Damon, 2026-10-26) */}
+          <div style={{ ...acroBar(C.fieldLine), borderWidth: 1, background: C.bgApp }}>
             <input
               id="chatInput"
-              style={{ flex: 1, background: C.bgApp, border: `1px solid ${C.fieldLine}`, borderRadius: 8, padding: "8px 12px", color: C.textPrimary, fontSize: 15, outline: "none", fontFamily: "inherit" }}
+              style={{ ...acroField, textAlign: "left", padding: "8px 12px", fontSize: 15 }}
               placeholder="Say something..."
               value={roomChatInput}
               onChange={e => setRoomChatInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") sendRoomMessage(); }}
             />
-            <Btn onClick={sendRoomMessage}>Send</Btn>
+            <Btn onClick={sendRoomMessage} style={{ borderRadius: 0 }}>Send</Btn>
+          </div>
           </div>
         </Panel>
 
