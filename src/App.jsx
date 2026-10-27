@@ -2436,6 +2436,9 @@ const LB_COLS = [
     value: p => pct(p.journeysWon, p.journeys), show: p => pctText(pct(p.journeysWon, p.journeys)), ok: (p, d) => p.journeys >= d.minJourneys },
   { id: "winners", tab: "Station Winners", icon: "🎯", head: "Station win %", motto: "First at every platform.",
     value: p => pct(p.stationsWon, p.stations), show: p => pctText(pct(p.stationsWon, p.stations)), ok: (p, d) => p.stations >= d.minStations },
+  // how many journeys (Damon, 2026-10-27), counted like the journey win %: 3+ passengers, 3+ stations played
+  { id: "journeys", tab: "Long Haulers", icon: "🧳", head: "Journeys", motto: "Every journey, start to finish.",
+    value: p => p.journeys, show: p => p.journeys, ok: () => true },
   { id: "riders", tab: "Frequent Flyers", icon: "🚉", head: "Stations", motto: "Always on board.",
     value: p => p.stations, show: p => p.stations, ok: () => true },
   { id: "express", tab: "Express Flyers", icon: "⚡", head: "Speed bonuses", motto: "Fast hands, sharp minds.",
@@ -2495,7 +2498,7 @@ function SkyLeaderboard() {
   const pages = Math.max(1, Math.ceil(rows.length / perPage));
   const shown = rows.slice(page * perPage, page * perPage + perPage);
   const gold = "var(--c-gold)";
-  const grid = "30px minmax(130px, 180px) repeat(6, 108px)";   // rank, name, the five numbers (each column wide enough for its button)
+  const grid = "30px minmax(130px, 180px) repeat(7, 108px)";   // rank, name, the seven columns (each wide enough for its button)
   const nameBtn = name => (
     <button onClick={e => openProfile(name, e.currentTarget)} title={`Message ${name} or see their Sky Passport`}
       style={{ background: "none", border: "none", padding: 0, color: "inherit", font: "inherit", cursor: "pointer", textAlign: "left", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</button>
@@ -2507,7 +2510,7 @@ function SkyLeaderboard() {
 
   return (
     <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "18px 16px 0", boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 44, lineHeight: 1.05, ...honkTitle }}>Sky Leaderboard</h1>
