@@ -4730,7 +4730,9 @@ function AnswersAccepted({ count, total, children, twoLines }) {
 // a station shelter with a lamp and the "0 STATION" sign. It spans the panel's full width, bottom-aligned (2026-10-24, Damon:
 // "you didn't place it well" — the first try fitted it to the height and faded the clouds); the panel is tall enough for
 // the shelter's roof and sign (the picture is 3:1, shown whole), the content left of the shelter.
-function TopicDesk({ left, center, right, narrow, station, departing }) {
+// height (the chat layout, VOTE_IN_CHAT): the stage's fixed height, so the panels' top edge never moves (Damon,
+// 2026-10-27); the picture is cropped to it and everything inside is a little tighter
+function TopicDesk({ left, center, right, narrow, station, departing, height }) {
   // no lines between the parts any more (Damon, 2026-10-24: "We don't need these"); the empty 1px columns stay so the
   // layout doesn't move
   const divider = <div aria-hidden />;
@@ -4742,9 +4744,9 @@ function TopicDesk({ left, center, right, narrow, station, departing }) {
       // shorter than the whole 3:1 picture (Damon: "takes too much vertical space"): its bottom part, the top of the roof
       // cropped (the stage is the window less about 80 px of margins). 2026-10-24: a little more cropped (0.24 → 0.21),
       // the height goes to the chat panel below (Damon)
-      minHeight: narrow ? undefined : "calc((100vw - 80px) * 0.21)",
+      minHeight: narrow || height ? undefined : "calc((100vw - 80px) * 0.21)", height: narrow ? undefined : height,
       // clear of the shelter's posts (its roof only overhangs at the top) and above the platform
-      padding: narrow ? "18px 16px" : "22px 21% 5% 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
+      padding: narrow ? "18px 16px" : height ? "10px 21% 10px 36px" : "22px 21% 5% 36px", display: narrow ? "flex" : "grid", flexDirection: "column", gap: narrow ? 18 : 0,
       gridTemplateColumns: "minmax(0, 1.2fr) 1px minmax(0, 1.4fr) 1px minmax(0, 0.9fr)", columnGap: 28, alignItems: "center",
     }}>
       {/* the picture, its number and its tint in one group: it fades in when the desk appears, and slips away and fades
@@ -4785,8 +4787,8 @@ const deskEyebrow = { fontSize: 15, color: C.textMuted, textTransform: "uppercas
 function QuickTopics({ ideas, selected, onPick }) {
   if (!ideas.length) return null;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start", maxWidth: 320, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 2 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: VOTE_IN_CHAT ? 6 : 10, alignItems: "flex-start", maxWidth: 320, margin: "0 auto" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: VOTE_IN_CHAT ? 0 : 2 }}>
         <svg aria-hidden width="30" height="30" viewBox="0 0 30 30" fill="none" stroke={C.brand} strokeWidth="1.6">
           <circle cx="15" cy="15" r="12" /><path d="M15 3v3M15 24v3M3 15h3M24 15h3" strokeLinecap="round" />
           <path d="M19 11l-2.6 5.4L11 19l2.6-5.4z" fill={C.brand} stroke="none" />
@@ -4796,13 +4798,14 @@ function QuickTopics({ ideas, selected, onPick }) {
           <div style={{ fontSize: 13, fontWeight: 800, color: C.textPrimary, textTransform: "uppercase", letterSpacing: "0.06em" }}>Quick directions</div>
         </div>
       </div>
-      {ideas.map(t => {
+      {/* the chat layout's lower desk: three, so they fit under their heading */}
+      {(VOTE_IN_CHAT ? ideas.slice(0, 3) : ideas).map(t => {
         const on = selected === t;
         return (
           <button key={t} onClick={() => onPick(t)} aria-pressed={on}
             // the panel colour behind each pill, so they read clearly over the clouds of the picture
             style={{ background: on ? `color-mix(in srgb, ${C.brand} 22%, ${C.bgPanel})` : `color-mix(in srgb, ${C.bgPanel} 88%, transparent)`, border: `${on ? 2 : 1}px solid ${on ? C.brand : C.border}`, borderRadius: 999,
-              padding: on ? "4px 15px" : "5px 16px", color: C.textPrimary, fontFamily: "inherit", fontSize: 15, fontWeight: 600, lineHeight: 1.3, cursor: "pointer", textAlign: "left", maxWidth: "100%", overflowWrap: "anywhere" }}>
+              padding: VOTE_IN_CHAT ? (on ? "2px 13px" : "3px 14px") : (on ? "4px 15px" : "5px 16px"), color: C.textPrimary, fontFamily: "inherit", fontSize: VOTE_IN_CHAT ? 14 : 15, fontWeight: 600, lineHeight: 1.3, cursor: "pointer", textAlign: "left", maxWidth: "100%", overflowWrap: "anywhere" }}>
             {t}
           </button>
         );
@@ -4821,16 +4824,16 @@ function TopicPreview({ topic, size, empty = "Yours shows here" }) {
 }
 // The desk the other passengers see while someone chooses (2026-10-24): the same picture, who is choosing, the clock
 // (none before the first station: the creator presses START), and the direction's place on the right
-function WatchDesk({ name, eyebrow, timer, first, narrow, short, station }) {
+function WatchDesk({ name, eyebrow, timer, first, narrow, short, station, height }) {
   return (
-    <TopicDesk narrow={narrow} station={station}
+    <TopicDesk narrow={narrow} station={station} height={height}
       left={null}
-      center={<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+      center={<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: height ? 6 : 12 }}>
         <div style={deskEyebrow}>{eyebrow}</div>
-        <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 24, color: C.textPrimary }}>
+        <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: height ? 20 : 24, color: C.textPrimary }}>
           <span style={{ color: C.brand }}>{name || "Someone"}</span> is choosing the {first ? "first " : ""}direction…
         </div>
-        {timer != null && <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 56, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: timer <= 5 ? C.brand : C.teal, visibility: timer > 0 ? "visible" : "hidden" }}>{two(timer)}</div>}
+        {timer != null && <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: height ? 36 : 56, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: timer <= 5 ? C.brand : C.teal, visibility: timer > 0 ? "visible" : "hidden" }}>{two(timer)}</div>}
         <div style={{ fontSize: 13, color: C.textMuted }}>Get ready to write!</div>
       </div>}
       right={<TopicPreview topic="" size={short ? 28 : 32} empty="Coming up…" />} />
@@ -4842,7 +4845,7 @@ function DeskInput({ id, value, onChange, onEnter, placeholder, pulse }) {
     <div style={{ position: "relative", width: "100%" }}>
       <input id={id} className={pulse ? "acro-pulse" : undefined} maxLength={80} value={value} placeholder={placeholder}
         onChange={e => onChange(e.target.value)} onKeyDown={e => { if (e.key === "Enter") onEnter(); }}
-        style={{ width: "100%", boxSizing: "border-box", background: `color-mix(in srgb, ${C.bgApp} 55%, ${C.bgPanel})`, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: "12px 46px", color: C.textPrimary, fontSize: 19, outline: "none", fontFamily: "inherit", textAlign: "center" }} />
+        style={{ width: "100%", boxSizing: "border-box", background: `color-mix(in srgb, ${C.bgApp} 55%, ${C.bgPanel})`, border: `2px solid ${C.focusLine}`, borderRadius: 10, padding: VOTE_IN_CHAT ? "7px 46px" : "12px 46px", color: C.textPrimary, fontSize: VOTE_IN_CHAT ? 17 : 19, outline: "none", fontFamily: "inherit", textAlign: "center" }} />
       <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill={C.textPrimary} style={{ position: "absolute", right: 16, top: "50%", marginTop: -9, opacity: 0.85 }}>
         <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm17.7-10.2a1 1 0 0 0 0-1.42l-2.33-2.33a1 1 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
       </svg>
@@ -4860,7 +4863,7 @@ function DeskButton({ children, onClick, disabled, ready = true, flash, hint }) 
     <span data-hint={hint} style={{ display: "inline-flex", cursor: off ? (disabled ? "wait" : "not-allowed") : undefined }}>
     <button onClick={onClick} disabled={off} className={flash ? "acro-highball" : undefined}
       style={{ pointerEvents: off ? "none" : "auto", ...smallTitle, color: C.onBrand, fontPalette: "var(--fp-dark)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", background: C.brand, border: "none", borderRadius: 14,
-        padding: "10px 40px", fontSize: 34, lineHeight: 1.1, cursor: disabled ? "wait" : ready ? "pointer" : "not-allowed", display: "inline-flex", alignItems: "center", gap: 14,
+        padding: VOTE_IN_CHAT ? "6px 28px" : "10px 40px", fontSize: VOTE_IN_CHAT ? 24 : 34, lineHeight: 1.1, cursor: disabled ? "wait" : ready ? "pointer" : "not-allowed", display: "inline-flex", alignItems: "center", gap: 14,
         opacity: ready ? 1 : 0.4, filter: ready ? "none" : "saturate(0.4)", transition: "opacity 0.35s, filter 0.35s, box-shadow 0.35s",
         boxShadow: ready ? `0 6px 18px rgba(0,0,0,0.3), 0 0 22px color-mix(in srgb, ${C.brand} 55%, transparent)` : "none" }}>
       {children}
@@ -6096,7 +6099,10 @@ function Room() {
   // ...and the results there too (Damon, 2026-10-27), while the stage shows the cheer and who chooses the next direction.
   // The stage is smaller meanwhile, so 16 passengers fit even on Fran's screen and a phone
   const resultsInChat = VOTE_IN_CHAT && phase === "Results" && !resultsClosed;
-  const compactStage = votingInChat || (resultsInChat && !topicRequested && !watchChooser?.first);
+  // The stage keeps ONE height in every phase in this layout (Damon, 2026-10-27: "the top edge of the MAIN panel goes up
+  // and down … that edge should stay still", the space above is for graphics/train/animations). So no smaller stage
+  // while voting, and it never grows: what doesn't fit scrolls inside it
+  const compactStage = false;
   // Stage sizes — compact versions on short windows. Used both by the elements and by the
   // stage height formula below, so the formula always matches what is drawn.
   // Compact (Sandy, 2026-10-15: use the space above the letters and in the acro box for more chat lines).
@@ -6112,7 +6118,7 @@ function Room() {
       <span style={{ visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>{two(timer)}</span>
     </div>
   );
-  const letterSize = votingInChat ? "clamp(2.2rem, 7vh, 3.6rem)" : isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters (smaller while voting in the chat)
+  const letterSize = isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters (smaller while voting in the chat)
   // the direction above the letters (wide screens): its line, plus a line for a special direction's note
   const topicSize = isShort ? 34 : 44;
   const topicRow = `${Math.round(topicSize * 1.15) + 24}px`;
@@ -6120,6 +6126,8 @@ function Room() {
   const stageHeight = !compactStage ? `calc(${stagePad} + ${letterGap} + ${aboveLetters} + ${letterSize} + ${ACRO_BOX}px)`
     : votingInChat ? `calc(${stagePad} + ${letterGap} + ${letterSize})`   // just the letters
     : "clamp(80px, 11vh, 120px)";                                          // the cheer and who chooses next
+  // the desks' height in the chat layout: exactly the stage's (wide screens; phones scroll the page anyway)
+  const deskH = VOTE_IN_CHAT && !isNarrow ? stageHeight : undefined;
   // Results showing: the stage may grow to fit all passengers (option C, Damon 2026-10-16)
   // The stage grows for the results, and for the Final Stop celebration (the winner panel is taller than the letters)
   // Topic: label and topic on one line (compact header)
@@ -6141,7 +6149,7 @@ function Room() {
   const showFirstTopic = !topicRequested && ((phase === "Waiting" && !(data.currentRoundNumber > 0)) || phase === "Paused"
     || (phase === "GameOver" && nextGameIn !== null && nextGameIn <= -10));
   // The stage grows for the results, the Final Stop and both topic desks (2026-10-24: they were cut off)
-  const resultsGrow = (phase === "Results" && !resultsClosed && !topicRequested && !VOTE_IN_CHAT) || (phase === "GameOver" && !!gameWinner) || topicRequested || !!watchChooser?.first || (showFirstTopic && !!conductor);
+  const resultsGrow = !VOTE_IN_CHAT && ((phase === "Results" && !resultsClosed && !topicRequested) || (phase === "GameOver" && !!gameWinner) || topicRequested || !!watchChooser?.first || (showFirstTopic && !!conductor));
 
   return (
     // Wide side margins on desktop (like AcroChallenge), tighter on phones
@@ -6231,7 +6239,7 @@ function Room() {
           (like Acrophobia). Before, they floated over the page and covered "Round N" in the header.
           Never both at once: results first; for the round winner the topic prompt replaces them. */}
       {((phase === "Results" && !resultsClosed) || topicRequested || watchChooser?.first) && (
-        <div style={{ marginBottom: compactStage ? 0 : 4 }}>
+        <div style={{ marginBottom: VOTE_IN_CHAT ? 0 : 4 }}>
           {phase === "Results" && !resultsClosed && !topicRequested && !watchChooser?.first && VOTE_IN_CHAT && (
             // the results are in the chat window: here only the cheer and who chooses the next direction, side by side
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px 48px", flexWrap: "wrap" }}>
@@ -6277,7 +6285,7 @@ function Room() {
             </div>
           )}
           {watchChooser?.first && !topicRequested && (
-            <WatchDesk narrow={isNarrow} name={nameOf(watchChooser.id)} station={watchChooser.first ? 1 : currentRound + 1}
+            <WatchDesk narrow={isNarrow} height={deskH} name={nameOf(watchChooser.id)} station={watchChooser.first ? 1 : currentRound + 1}
               eyebrow={`Next up · Station ${watchChooser.first ? 1 : currentRound + 1} · ${watchChooser.first ? 3 : 3 + (currentRound % 5)} letters`}
               timer={topicTimer} short={isShort} />
           )}
@@ -6286,19 +6294,19 @@ function Room() {
         {/* The station winner chooses the next topic, on the topic desk (GPT's structure, Damon 2026-10-24): quick topics
             on the left (a click fills the box), the clock, the box and Highball! in the middle, the topic as it will look on the
             right */}
-        <TopicDesk narrow={isNarrow} station={nextStation}
+        <TopicDesk narrow={isNarrow} height={deskH} station={nextStation}
           left={!topicGoing && <QuickTopics ideas={topicIdeas} selected={topicDraft} onPick={t => { setTopicDraft(t); setTopicError(""); }} />}
-          center={<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+          center={<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: deskH ? 6 : 12 }}>
             {/* The topic is chosen BEFORE the station it belongs to — the station starts with the countdown */}
             <div style={deskEyebrow}>Next up · Station {nextStation} · {topicForFirstRound ? 3 : 3 + (currentRound % 5)} letters</div>
-            <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 56, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: topicTimer !== null && topicTimer <= 5 ? C.brand : C.teal, visibility: topicTimer > 0 ? "visible" : "hidden" }}>{two(topicTimer)}</div>
+            <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: deskH ? 34 : 56, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: topicTimer !== null && topicTimer <= 5 ? C.brand : C.teal, visibility: topicTimer > 0 ? "visible" : "hidden" }}>{two(topicTimer)}</div>
             {/* the box (a quick direction fills it) and Highball!, dark until there is a direction (as on the creator's desk).
                 No autoFocus: the cursor stays where it is (Sandy typed "ty" in chat, Enter set it as the topic) */}
             <DeskInput id="topicInput" pulse value={topicDraft} placeholder="Write a direction, or pick one"
               onChange={v => { setTopicDraft(v); setTopicError(""); }} onEnter={highballTopic} />
             <DeskButton onClick={highballTopic} disabled={topicGoing && !highballFlash} flash={highballFlash}
               ready={(topicDraft.match(/[\p{L}\p{N}]/gu) || []).length >= 2}>Highball!</DeskButton>
-            <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Give the signal to depart. No direction in time? The Express Server picks one.</div>
+            {!deskH && <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Give the signal to depart. No direction in time? The Express Server picks one.</div>}
             {topicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{topicError}</p>}
           </div>}
           right={<TopicPreview topic={topicDraft.trim() || topicSetValue} size={isShort ? 28 : 32} />} />
@@ -6321,8 +6329,8 @@ function Room() {
 
       {/* The first topic starts the journey — no Start button (Damon, 2026-10-16) */}
       {showFirstTopic && (!iAmConductor ? (conductor ? (
-        <div style={{ marginBottom: 8 }}>
-          <WatchDesk narrow={isNarrow} name={conductor.nickname} short={isShort} first station={phase === "Paused" ? currentRound + 1 : 1}
+        <div style={{ marginBottom: deskH ? 0 : 8 }}>
+          <WatchDesk narrow={isNarrow} height={deskH} name={conductor.nickname} short={isShort} first station={phase === "Paused" ? currentRound + 1 : 1}
             eyebrow={phase === "Paused" ? "Ready to continue?" : "Everyone on board?"} />
         </div>
       ) : (
@@ -6332,26 +6340,26 @@ function Room() {
       )) : (
         // the topic desk (GPT's structure, Damon 2026-10-24): a quick topic or your own, then START: a countdown from
         // 5, the horn, the first station. Choosing a topic doesn't start anything by itself.
-        <div style={{ marginBottom: 8 }}>
-        <TopicDesk narrow={isNarrow} station={phase === "Paused" ? currentRound + 1 : 1} departing={departIn !== null}
+        <div style={{ marginBottom: deskH ? 0 : 8 }}>
+        <TopicDesk narrow={isNarrow} height={deskH} station={phase === "Paused" ? currentRound + 1 : 1} departing={departIn !== null}
           left={departIn === null && <QuickTopics ideas={firstIdeas} selected={firstTopicDraft} onPick={t => { setFirstTopicDraft(t); setFirstTopicError(""); }} />}
           center={departIn !== null ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
               <div style={deskEyebrow}>The journey begins in</div>
-              <div key={departIn} className="acro-stretch" style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 64, lineHeight: 1, color: C.brand, fontVariantNumeric: "tabular-nums" }}>{two(departIn)}</div>
+              <div key={departIn} className="acro-stretch" style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: deskH ? 46 : 64, lineHeight: 1, color: C.brand, fontVariantNumeric: "tabular-nums" }}>{two(departIn)}</div>
               <BtnSecondary onClick={() => { setDepartIn(null); setFirstTopicDraft(departTopic); }}>Change the direction</BtnSecondary>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: deskH ? 8 : 14 }}>
               <div>
                 <div style={deskEyebrow}>{phase === "Paused" ? "Ready to continue?" : "Everyone on board?"}</div>
-                <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 26, color: C.textPrimary, marginTop: 2 }}>{phase === "Paused" ? "Choose a direction" : "Choose the first direction"}</div>
+                <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: deskH ? 20 : 26, color: C.textPrimary, marginTop: 2 }}>{phase === "Paused" ? "Choose a direction" : "Choose the first direction"}</div>
               </div>
               <DeskInput id="firstTopicInput" value={firstTopicDraft} placeholder="Write a direction, or pick one"
                 onChange={v => { setFirstTopicDraft(v); setFirstTopicError(""); }} onEnter={startDeparture} />
               {/* "Highball!": the railway signal to go (Damon, 2026-10-24: "It doesn't say start, it says Highball!") */}
               <DeskButton onClick={startDeparture} ready={(firstTopicDraft.match(/[\p{L}\p{N}]/gu) || []).length >= 2} flash={highballFlash}>Highball!</DeskButton>
-              <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Give the signal to depart.</div>
+              {!deskH && <div style={{ fontSize: 13, color: C.textMuted, marginTop: -4 }}>Give the signal to depart.</div>}
               {firstTopicError && <p style={{ margin: 0, color: C.brand, fontSize: 14, fontWeight: 600 }}>{firstTopicError}</p>}
             </div>
           )}
@@ -6364,7 +6372,7 @@ function Room() {
         <div style={{ padding: `${stagePad} 0 ${letterGap}` }}>
         {/* above the letters (wide screens): the direction, across the stage; its font switches with a click. The row
             keeps its height when there is no direction (voting), so the letters never move */}
-        {!isNarrow && !votingInChat && (
+        {!isNarrow && (
           <div style={{ minHeight: topicRow, textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", paddingBottom: 6, boxSizing: "border-box" }}>
             {showTopic && <>
               <TopicText size={currentTopic.length > 44 ? Math.round(topicSize * 0.8) : currentTopic.length > 32 ? Math.round(topicSize * 0.9) : topicSize}>{currentTopic}</TopicText>
