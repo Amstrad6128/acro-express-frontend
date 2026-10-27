@@ -4433,9 +4433,23 @@ function sameId(a, b) {
 
 // The voting in the Sky Train Chat (Damon, 2026-10-27: "the voting … should take up the space of chat, temporarily"):
 // true = at the top of the chat window, only as tall as it needs, the chat under it faded until you're done voting
-// (option 3); false = the old window over the page. For now only on the local dev copy (import.meta.env.DEV), so a
-// deploy keeps the old window until Damon has seen it and says so; then this becomes true.
-const VOTE_IN_CHAT = import.meta.env.DEV;
+// (option 3); false = the old window over the page. Not for everyone yet: on the local dev copy, and for players who
+// opened the test link www.acro.express/?layout=chat (Damon, 2026-10-27: "a different link … to play/test it with real
+// players"); it's remembered in that browser until ?layout=classic or the "classic layout" link in the chat.
+// Only this player's screen changes, so testers and everyone else can share a train.
+const VOTE_IN_CHAT = (() => {
+  try {
+    const want = new URLSearchParams(window.location.search).get("layout");
+    if (want === "chat") localStorage.setItem("acro.layout", "chat");
+    if (want === "classic") localStorage.removeItem("acro.layout");
+    return import.meta.env.DEV || localStorage.getItem("acro.layout") === "chat";
+  } catch { return import.meta.env.DEV; }
+})();
+// back to the classic layout (the test link's way out): forget the choice and reload this page without it
+function leaveChatLayout() {
+  try { localStorage.removeItem("acro.layout"); } catch { /* private mode */ }
+  window.location.href = window.location.pathname;
+}
 
 // An acro with each word's first letter picked out, so it's easy to see how the letters were used
 function AcroInitials({ text }) {
@@ -6536,7 +6550,16 @@ function Room() {
         {/* Stacked (narrow): a fixed 360px so the messages and the input are always visible */}
         <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: isNarrow ? 360 : 0, height: isNarrow && !votingInChat && !resultsInChat ? 360 : undefined }}>
           <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}` }}>
-            <h2 style={{ margin: 0, fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Sky Train Chat</h2>   {/* was "Train Chat" (Damon, 2026-10-18) */}
+            <h2 style={{ margin: 0, fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", display: "flex", alignItems: "baseline", gap: 10 }}>
+              Sky Train Chat   {/* was "Train Chat" (Damon, 2026-10-18) */}
+              {/* testers of the new layout: the way back (not on the local dev copy, where it's always on) */}
+              {VOTE_IN_CHAT && !import.meta.env.DEV && (
+                <button onClick={leaveChatLayout} title="You're trying the new layout: voting and results in the chat window"
+                  style={{ marginLeft: "auto", background: "none", border: "none", padding: 0, color: C.textMuted, fontSize: 12, textTransform: "none", letterSpacing: 0, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>
+                  Back to the classic layout
+                </button>
+              )}
+            </h2>
           </div>
           {votingInChat && (
             <VotingScreen inline names={isNarrow} roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId}
