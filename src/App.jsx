@@ -4444,7 +4444,7 @@ function AcroInitials({ text }) {
     : <span key={i}>{w}</span>);
 }
 
-function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer, maxTimer, topic, passengers = [], inline = false }) {
+function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer, maxTimer, topic, passengers = [], inline = false, names = true }) {
   const [submitted, setSubmitted] = useState(false); // true after "I'm done voting" is clicked
   const [selected, setSelected] = useState(null);    // the currently selected entry id
   const [closed, setClosed] = useState(false);
@@ -4508,8 +4508,11 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
   );
 
   if (inline) {
+    // boxes (3 a row) when every expression is short; one per line when any is long. Decided by the longest one at
+    // this station, once, so nothing changes while voting
+    const long = visibleEntries.some(e => (e.sentence || "").length > 32);
     const card = (on, extra = {}) => ({
-      width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: 10, fontFamily: "inherit", fontSize: 16, lineHeight: 1.3,
+      width: "100%", textAlign: "left", padding: long ? "4px 12px" : "9px 12px", borderRadius: 10, fontFamily: "inherit", fontSize: long ? 15 : 16, lineHeight: 1.3,
       background: on ? `color-mix(in srgb, ${C.brand} 13%, transparent)` : C.bgPanel2,
       border: `1px solid ${on ? C.brand : C.border}`, color: on ? C.ivory : C.textSecond,
       cursor: submitted ? "default" : "pointer", opacity: submitted && !on ? 0.55 : 1, transition: "all 0.15s", ...extra,
@@ -4522,7 +4525,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
           {topic && <span style={{ ...smallTitle, fontSize: 20, overflowWrap: "anywhere" }}>{topic}</span>}
         </div>
         {/* the expressions: as many rows as they need, scrolling inside only when there are very many */}
-        <div style={{ minHeight: 0, overflowY: "auto", padding: "2px 16px 8px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 8 }}>
+        <div style={{ minHeight: 0, overflowY: "auto", padding: "2px 16px 8px", display: "grid", gridTemplateColumns: long ? "repeat(auto-fill, minmax(min(420px, 100%), 1fr))" : "repeat(auto-fill, minmax(230px, 1fr))", gap: long ? "4px 8px" : 8 }}>
           {visibleEntries.length === 0
             ? <p style={{ gridColumn: "1 / -1", margin: 0, color: C.textMuted, fontSize: 15 }}>No expressions to vote on at this station...</p>
             : visibleEntries.map(entry => (
@@ -4538,10 +4541,13 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
           )}
         </div>
         {/* who is done, and Done Voting with its clock; the button keeps its size when it turns into "Voted" */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 16px 10px" }}>
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexWrap: "wrap", gap: "2px 12px", fontSize: 14 }}>
-            {passengers.length > 0 && <span style={{ color: C.textMuted, fontSize: 13 }}>Done voting:</span>}
-            {passengers.map(p => (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", flexWrap: "wrap", gap: 10, padding: "6px 16px 10px" }}>
+          {/* the names take the row; on a phone the button drops to the next line instead of squeezing them */}
+          <div style={{ flex: "1 1 260px", minWidth: 0, display: "flex", flexWrap: "wrap", gap: "2px 12px", fontSize: 14 }}>
+            {/* wide screens: just how many (the names and ticks are in the passenger list beside the chat); phones: the names */}
+            {!names && passengers.length > 0 && <span style={{ color: C.textMuted, fontSize: 14 }}><b style={{ color: C.teal }}>{passengers.filter(p => p.done).length}</b> of {passengers.length} done voting</span>}
+            {names && passengers.length > 0 && <span style={{ color: C.textMuted, fontSize: 13 }}>Done voting:</span>}
+            {names && passengers.map(p => (
               <span key={p.id} title={p.done ? "Done voting" : "Still voting"} style={{ display: "inline-flex", alignItems: "center", color: p.done ? C.teal : C.textMuted, fontWeight: p.done ? 700 : 400, whiteSpace: "nowrap" }}>
                 <span style={{ width: 14, flexShrink: 0 }}>{p.done ? "✓" : ""}</span>{p.name}
               </span>
@@ -4899,7 +4905,7 @@ function StationCheer({ round, names, streak = 1, wow = false }) {
   );
 }
 
-function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote, votes, myName, details, letters }) {
+function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote, votes, myName, details, letters, inline = false, narrow = false }) {
   const { sorted, entryByNickname, winners } = stationResults(scores, winningAcro, entries, players);
   const anyPoints = sorted.some(([, s]) => s > 0);
   const votedWinner = new Set(details?.votedWinner || []);
@@ -4923,24 +4929,53 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
   }
 
   const cell = { padding: "3px 10px", lineHeight: 1.25, borderBottom: `1px solid ${C.border}`, textAlign: "left" };   // compact rows (AcroChallenge): 14 fit
+  const Wrap = inline ? "div" : Panel;
+  if (inline) cell.padding = "2px 10px";   // in the chat window: 16 rows fit on Fran's screen
   const youVotedLine = `2px solid ${C.teal}`;
   return (
-    // Its width comes from the train page: lined up with the panels below (Damon, 2026-10-24; before: at most 860 px, centred)
-    <Panel style={{ padding: "10px 14px", boxSizing: "border-box" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 4 }}>
-        <h2 style={{ margin: 0, fontSize: 28, ...smallTitle }}>   {/* Honk (Damon, 2026-10-18) */}
+    // Its width comes from the train page: lined up with the panels below (Damon, 2026-10-24; before: at most 860 px, centred).
+    // inline: at the top of the Sky Train Chat (VOTE_IN_CHAT), as tall as it needs, scrolling inside only if it must
+    <Wrap style={inline ? { flex: "0 1 auto", minHeight: 0, overflowY: "auto", padding: "8px 16px", borderBottom: `1px solid ${C.border}` } : { padding: "10px 14px", boxSizing: "border-box" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: inline ? 0 : 4 }}>
+        <h2 style={{ margin: 0, fontSize: inline ? 18 : 28, ...smallTitle }}>   {/* Honk (Damon, 2026-10-18) */}
           Station {round}{topic ? ` – ${topic}` : ""}
         </h2>
         <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {/* The symbols, in words (AcroChallenge's legend) — next to the title to save a line */}
-          {anyPoints && (
+          {anyPoints && !narrow && (
             <span style={{ color: C.textMuted, fontSize: 12, textAlign: "right" }}>
               🏆 station winner · <span style={{ color: C.success, fontWeight: 800 }}>✓</span> voted for the winner (+1){iVoted && <> · <span style={{ border: youVotedLine, borderRadius: 4, padding: "0 4px" }}>outlined</span> = your vote</>}
             </span>
           )}
-          <button onClick={onClose} title="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>×</button>
+          {!inline && <button onClick={onClose} title="Close" style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>×</button>}
         </span>
       </div>
+      {narrow ? (
+        // Phones (2026-10-27): the name with the votes and points on one line, the expression full width under it
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {sorted.map(([name, score]) => {
+            const isWinner = winners.some(w => w.name === name);
+            const isMyVote = iVoted && entryByNickname[name] === myVote;
+            return (
+              <div key={name} style={{ padding: "4px 8px", borderBottom: `1px solid ${C.border}`, background: isWinner ? `color-mix(in srgb, ${C.brand} 22%, transparent)` : "transparent", boxShadow: isWinner ? `inset 4px 0 0 ${C.brand}` : "none", outline: isMyVote ? `2px solid ${C.teal}` : "none", outlineOffset: -2 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 14 }}>
+                  <span style={{ width: 18, flexShrink: 0, textAlign: "center", fontSize: 13 }} title={isWinner ? "Station winner" : votedWinner.has(name) ? "Voted for the winner (+1)" : undefined}>
+                    {isWinner ? "🏆" : votedWinner.has(name) ? <span style={{ color: C.success, fontWeight: 800 }}>✓</span> : ""}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isWinner ? C.textPrimary : C.textSecond, fontWeight: isWinner ? 700 : 400 }}>{name}</span>
+                  {votes && <span style={{ fontSize: 12, color: C.textMuted, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{votes[name] ?? 0} vote{(votes[name] ?? 0) === 1 ? "" : "s"}</span>}
+                  <span style={{ minWidth: 52, textAlign: "right", fontWeight: 800, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", color: isWinner ? C.brand : C.teal, whiteSpace: "nowrap" }}>{score} pts</span>
+                </div>
+                <div style={{ paddingLeft: 24, fontSize: 14, lineHeight: 1.3, fontStyle: "italic", color: isWinner ? C.ivory : C.textSecond, fontWeight: isWinner ? 700 : 400 }}>
+                  {entryByNickname[name] || "—"}
+                  {isMyVote && <span style={{ marginLeft: 8, fontStyle: "normal", fontWeight: 700, fontSize: 11, color: C.teal, border: `1px solid ${C.teal}`, borderRadius: 999, padding: "0 6px", whiteSpace: "nowrap" }}>your vote</span>}
+                  {isWinner && myName && String(name).toLowerCase() === String(myName).toLowerCase() && <span style={{ marginLeft: 8 }}><ShareAcroButton a={{ letters: (letters || []).join(""), topic, acro: entryByNickname[name], points: score, won: true, by: name }} /></span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
@@ -4991,6 +5026,7 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
           </tbody>
         </table>
       </div>
+      )}
       {!anyPoints ? (
         <p style={{ margin: "8px 0 0", color: C.textMuted, fontSize: 14 }}>No points were awarded at this station.</p>
       ) : (
@@ -4998,7 +5034,7 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
           {summary && <p style={{ margin: "4px 0 0", color: C.textSecond, fontSize: 14 }}>{summary}</p>}
         </>
       )}
-    </Panel>
+    </Wrap>
   );
 }
 
@@ -6043,6 +6079,10 @@ function Room() {
   const votingInChat = VOTE_IN_CHAT && phase === "Voting";
   const chatFaded = votingInChat && !iVoted && !votedIds.includes(String(auth?.userId || "").toLowerCase());
   const fade = m => ({ opacity: chatFaded && m.nickname !== auth?.username ? 0.4 : 1, transition: "opacity 0.4s" });
+  // ...and the results there too (Damon, 2026-10-27), while the stage shows the cheer and who chooses the next direction.
+  // The stage is smaller meanwhile, so 16 passengers fit even on Fran's screen and a phone
+  const resultsInChat = VOTE_IN_CHAT && phase === "Results" && !resultsClosed;
+  const compactStage = votingInChat || (resultsInChat && !topicRequested && !watchChooser?.first);
   // Stage sizes — compact versions on short windows. Used both by the elements and by the
   // stage height formula below, so the formula always matches what is drawn.
   // Compact (Sandy, 2026-10-15: use the space above the letters and in the acro box for more chat lines).
@@ -6058,12 +6098,14 @@ function Room() {
       <span style={{ visibility: timer !== null && timer > 0 ? "visible" : "hidden" }}>{two(timer)}</span>
     </div>
   );
-  const letterSize = isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters
+  const letterSize = votingInChat ? "clamp(2.2rem, 7vh, 3.6rem)" : isShort ? "clamp(2.5rem, 9vh, 6rem)" : "clamp(3rem, 11vh, 6rem)"; // the big letters (smaller while voting in the chat)
   // the direction above the letters (wide screens): its line, plus a line for a special direction's note
   const topicSize = isShort ? 34 : 44;
   const topicRow = `${Math.round(topicSize * 1.15) + 24}px`;
   const aboveLetters = isNarrow ? "0px" : topicRow;
-  const stageHeight = `calc(${stagePad} + ${letterGap} + ${aboveLetters} + ${letterSize} + ${ACRO_BOX}px)`;
+  const stageHeight = !compactStage ? `calc(${stagePad} + ${letterGap} + ${aboveLetters} + ${letterSize} + ${ACRO_BOX}px)`
+    : votingInChat ? `calc(${stagePad} + ${letterGap} + ${letterSize})`   // just the letters
+    : "clamp(80px, 11vh, 120px)";                                          // the cheer and who chooses next
   // Results showing: the stage may grow to fit all passengers (option C, Damon 2026-10-16)
   // The stage grows for the results, and for the Final Stop celebration (the winner panel is taller than the letters)
   // Topic: label and topic on one line (compact header)
@@ -6085,7 +6127,7 @@ function Room() {
   const showFirstTopic = !topicRequested && ((phase === "Waiting" && !(data.currentRoundNumber > 0)) || phase === "Paused"
     || (phase === "GameOver" && nextGameIn !== null && nextGameIn <= -10));
   // The stage grows for the results, the Final Stop and both topic desks (2026-10-24: they were cut off)
-  const resultsGrow = (phase === "Results" && !resultsClosed && !topicRequested) || (phase === "GameOver" && !!gameWinner) || topicRequested || !!watchChooser?.first || (showFirstTopic && !!conductor);
+  const resultsGrow = (phase === "Results" && !resultsClosed && !topicRequested && !VOTE_IN_CHAT) || (phase === "GameOver" && !!gameWinner) || topicRequested || !!watchChooser?.first || (showFirstTopic && !!conductor);
 
   return (
     // Wide side margins on desktop (like AcroChallenge), tighter on phones
@@ -6168,15 +6210,31 @@ function Room() {
           flex "0 0": the stage never shrinks, so the acro box is never pushed out of sight (Deb lost it). */}
       {/* Scroll mode: the stage is as tall as its contents (the topic under the letters included),
           because the page scrolls anyway — nothing inside it can be cut off or covered. */}
-      <div style={{ flex: view.scroll ? "0 0 auto" : (resultsGrow ? "0 1 auto" : `0 0 ${stageHeight}`), minHeight: resultsGrow && !view.scroll ? stageHeight : 0, overflowY: view.scroll ? "visible" : "auto", scrollbarWidth: (phase === "Results" && !resultsClosed) || topicRequested ? "thin" : "none", display: "flow-root" }}>
+      <div style={{ flex: view.scroll ? "0 0 auto" : (resultsGrow ? "0 1 auto" : `0 0 ${stageHeight}`), minHeight: resultsGrow && !view.scroll ? stageHeight : 0, overflowY: view.scroll ? "visible" : "auto", scrollbarWidth: ((phase === "Results" && !resultsClosed) || topicRequested) && !compactStage ? "thin" : "none", display: "flow-root" }}>
       {/* (scrollbar: hidden normally, slim while results are shown, in case a long list doesn't fit) */}
 
       {/* Round results and the winner's topic prompt — inside the stage, where the letters are
           (like Acrophobia). Before, they floated over the page and covered "Round N" in the header.
           Never both at once: results first; for the round winner the topic prompt replaces them. */}
       {((phase === "Results" && !resultsClosed) || topicRequested || watchChooser?.first) && (
-        <div style={{ marginBottom: 4 }}>
-          {phase === "Results" && !resultsClosed && !topicRequested && !watchChooser?.first && (
+        <div style={{ marginBottom: compactStage ? 0 : 4 }}>
+          {phase === "Results" && !resultsClosed && !topicRequested && !watchChooser?.first && VOTE_IN_CHAT && (
+            // the results are in the chat window: here only the cheer and who chooses the next direction, side by side
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px 48px", flexWrap: "wrap" }}>
+              {(() => {
+                const names = stationResults(scores, winningAcro, entries, players).winners.map(w => w.name);
+                const wow = names.some(n => (resultDetails?.wordBonus || []).some(b => String(b).toLowerCase() === n.toLowerCase()));
+                return <StationCheer key={currentRound} round={currentRound} streak={winStreak} names={names} wow={wow} />;
+              })()}
+              {watchChooser && !watchChooser.first && (
+                <div style={{ textAlign: "center", fontSize: 15, color: C.textMuted }}>
+                  <b style={{ color: C.textPrimary }}>{nameOf(watchChooser.id) || "The winner"}</b> is choosing the next direction
+                  <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 30, lineHeight: 1.1, color: topicTimer <= 5 ? C.brand : C.teal, fontVariantNumeric: "tabular-nums", visibility: topicTimer > 0 ? "visible" : "hidden" }}>{two(topicTimer)}</div>
+                </div>
+              )}
+            </div>
+          )}
+          {phase === "Results" && !resultsClosed && !topicRequested && !watchChooser?.first && !VOTE_IN_CHAT && (
             // lined up with the panels below: from the Sky Train Chat's left edge to the right edge (Damon's markup, 2026-10-24),
             // using the same columns as those panels
             <div style={{ display: "grid", gap: 16, gridTemplateColumns: isNarrow ? "1fr" : (pm.active ? "minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.4fr)" : "1fr 3fr") }}>
@@ -6292,7 +6350,7 @@ function Room() {
         <div style={{ padding: `${stagePad} 0 ${letterGap}` }}>
         {/* above the letters (wide screens): the direction, across the stage; its font switches with a click. The row
             keeps its height when there is no direction (voting), so the letters never move */}
-        {!isNarrow && (
+        {!isNarrow && !votingInChat && (
           <div style={{ minHeight: topicRow, textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", paddingBottom: 6, boxSizing: "border-box" }}>
             {showTopic && <>
               <TopicText size={currentTopic.length > 44 ? Math.round(topicSize * 0.8) : currentTopic.length > 32 ? Math.round(topicSize * 0.9) : topicSize}>{currentTopic}</TopicText>
@@ -6476,16 +6534,21 @@ function Room() {
 
         {/* Room chat */}
         {/* Stacked (narrow): a fixed 360px so the messages and the input are always visible */}
-        <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: isNarrow ? 360 : 0, height: isNarrow && !votingInChat ? 360 : undefined }}>
+        <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: isNarrow ? 360 : 0, height: isNarrow && !votingInChat && !resultsInChat ? 360 : undefined }}>
           <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}` }}>
             <h2 style={{ margin: 0, fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Sky Train Chat</h2>   {/* was "Train Chat" (Damon, 2026-10-18) */}
           </div>
           {votingInChat && (
-            <VotingScreen inline roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId}
+            <VotingScreen inline names={isNarrow} roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId}
               onVoted={() => { doneVotedRef.current = true; setIVoted(true); }} onVoteCast={setMyVote} timer={timer} maxTimer={maxTimer} topic={currentTopic}
               passengers={players.filter(p => p.isConnected !== false).map(p => ({ id: p.id, name: p.nickname, done: votedIds.includes(String(p.id).toLowerCase()) }))} />
           )}
-          <div ref={chatListRef} style={{ flex: 1, minHeight: votingInChat ? 72 : 0, overflowY: "auto", padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+          {resultsInChat && (
+            <ResultsScreen inline narrow={isNarrow} scores={scores} winningAcro={winningAcro} entries={entries} players={players}
+              round={currentRound} topic={currentTopic} onClose={() => setResultsClosed(true)} myVote={myVote}
+              votes={roundVotes} myName={auth?.username} details={resultDetails} letters={letters} />
+          )}
+          <div ref={chatListRef} style={{ flex: 1, minHeight: votingInChat || resultsInChat ? 40 : 0, overflowY: "auto", padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
             {roomMessages.length === 0 ? (
               <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No messages yet...</p>
             ) : (
