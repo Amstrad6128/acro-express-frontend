@@ -1153,7 +1153,9 @@ function PrivateChatPanel({ style = {}, listMaxHeight }) {
           );
         })}
       </div>
-      <div ref={listRef} style={{ flex: 1, minHeight: 0, maxHeight: listMaxHeight, overflowY: "auto", padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+      {/* without a limit (station, wide screens) the list fills the panel: it was stopped at 300 px, so a tall panel had an
+          empty gap under the box (Damon, 2026-10-27). height 0 + flex 1: it grows into the space without making the row taller */}
+      <div ref={listRef} style={{ flex: 1, minHeight: 0, maxHeight: listMaxHeight, height: listMaxHeight ? undefined : 0, overflowY: "auto", padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
         {messages.length === 0 ? (
           <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>Start a private conversation with {active}...</p>
         ) : messages.map(m => (
@@ -3909,7 +3911,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
             </Panel>
 
             {/* Private messages — one tab per person (shown when a conversation is open) */}
-            {!phone ? <PrivateChatPanel listMaxHeight={300} /> : <div style={{ order: 3 }}><PrivateChatPanel listMaxHeight={240} /></div>}
+            {!phone ? <PrivateChatPanel /> : <div style={{ order: 3 }}><PrivateChatPanel listMaxHeight={240} /></div>}
           </div>
         )}
 
