@@ -6147,6 +6147,15 @@ function Room() {
   const stageHeight = !compactStage ? `calc(${stagePad} + ${letterGap} + ${aboveLetters} + ${letterSize} + ${ACRO_BOX}px)`
     : votingInChat ? `calc(${stagePad} + ${letterGap} + ${letterSize})`   // just the letters
     : "clamp(80px, 11vh, 120px)";                                          // the cheer and who chooses next
+  // The Overlap UI's stage scene (Damon, 2026-10-27: "steal that part from the concept image, put the train there … only
+  // for the testing link and Overlap UI"): the station-and-train strip of his concept picture (public/art/concept-station.webp,
+  // 1672 x 941; the strip is y 84-312) behind the stage, scaled to the stage's height and centred, under a veil of the
+  // page colour so the letters stay readable. Wide screens only
+  const stageScene = VOTE_IN_CHAT && !isNarrow ? {
+    backgroundImage: `linear-gradient(color-mix(in srgb, ${C.bgApp} 55%, transparent), color-mix(in srgb, ${C.bgApp} 55%, transparent)), url(/art/concept-station.webp)`,
+    backgroundRepeat: "no-repeat", backgroundSize: `auto, auto calc((${stageHeight}) * ${(941 / 228).toFixed(4)})`,
+    backgroundPosition: `center, center calc((${stageHeight}) * ${(-84 / 228).toFixed(4)})`, borderRadius: 12,
+  } : {};
   // the desks' height in the chat layout: exactly the stage's (wide screens; phones scroll the page anyway)
   const deskH = VOTE_IN_CHAT && !isNarrow ? stageHeight : undefined;
   // Results showing: the stage may grow to fit all passengers (option C, Damon 2026-10-16)
@@ -6253,7 +6262,7 @@ function Room() {
           flex "0 0": the stage never shrinks, so the acro box is never pushed out of sight (Deb lost it). */}
       {/* Scroll mode: the stage is as tall as its contents (the topic under the letters included),
           because the page scrolls anyway — nothing inside it can be cut off or covered. */}
-      <div style={{ flex: view.scroll ? "0 0 auto" : (resultsGrow ? "0 1 auto" : `0 0 ${stageHeight}`), minHeight: resultsGrow && !view.scroll ? stageHeight : 0, overflowY: view.scroll ? "visible" : "auto", scrollbarWidth: ((phase === "Results" && !resultsClosed) || topicRequested) && !compactStage ? "thin" : "none", display: "flow-root" }}>
+      <div style={{ flex: view.scroll ? "0 0 auto" : (resultsGrow ? "0 1 auto" : `0 0 ${stageHeight}`), minHeight: resultsGrow && !view.scroll ? stageHeight : 0, overflowY: view.scroll ? "visible" : "auto", scrollbarWidth: ((phase === "Results" && !resultsClosed) || topicRequested) && !compactStage ? "thin" : "none", display: "flow-root", ...stageScene }}>
       {/* (scrollbar: hidden normally, slim while results are shown, in case a long list doesn't fit) */}
 
       {/* Round results and the winner's topic prompt — inside the stage, where the letters are
