@@ -2406,6 +2406,22 @@ function Privacy() {
 // (a fresh start each week/month), podiums for the top three, and minimums before percentages count (Board Game
 // Arena). Six boards, each ranking one kind of passenger. Numbers from GET api/leaderboard (LeaderboardController).
 // Every name opens the Sky Passport card, like everywhere else.
+// The Sky Leaderboard and the Hall open instantly (Damon, 2026-10-27: "a significant delay until results show"): the
+// server answers in milliseconds, the wait is the trip to it (about half a second from Europe). So what a page loaded
+// is kept for this visit and shown at once next time, while a fresh copy is fetched behind it; and the station fetches
+// both pages ahead (when it opens, and when the mouse goes over their buttons).
+const pageCache = new Map();   // api path → its last answer
+async function getPage(path) {
+  const r = await fetch(`${API_URL}${path}`, { headers: authHeaders() });
+  if (r.status === 401) { const e = new Error("login"); e.status = 401; throw e; }
+  if (!r.ok) throw new Error();
+  const d = await r.json();
+  pageCache.set(path, d);
+  return d;
+}
+const prefetchPage = path => { if (getAuth()?.token) getPage(path).catch(() => { }); };
+const prefetchBoards = () => { prefetchPage("/api/leaderboard?period=month"); prefetchPage("/api/hall"); };
+
 const LB_PERIODS = [["week", "This week"], ["month", "This month"], ["all", "All time"]];
 const pct = (a, b) => (b > 0 ? a / b : 0);                       // a share, 0 when there's nothing to share
 const pctText = v => `${Math.round(v * 100)}%`;
@@ -2477,10 +2493,11 @@ function SkyLeaderboard() {
     if (over > 0 && perPage > 6) setPerPage(n => Math.max(6, n - Math.ceil(over / 34)));
   }, [perPage, data, sortId]);
   useEffect(() => {
-    setData(null); setErr("");
-    fetch(`${API_URL}/api/leaderboard?period=${period}`, { headers: authHeaders() })
-      .then(async r => { if (r.status === 401) throw new Error("Log in to see the Sky Leaderboard."); if (!r.ok) throw new Error(); setData(await r.json()); })
-      .catch(e => setErr(e.message || "Couldn't load the Sky Leaderboard. Try again in a moment."));
+    const path = `/api/leaderboard?period=${period}`;
+    setData(pageCache.get(path) || null); setErr("");
+    getPage(path)
+      .then(d => { setData(d); LB_PERIODS.forEach(([k]) => { if (k !== period && !pageCache.has(`/api/leaderboard?period=${k}`)) prefetchPage(`/api/leaderboard?period=${k}`); }); })
+      .catch(e => { if (!pageCache.has(path)) setErr(e.status === 401 ? "Log in to see the Sky Leaderboard." : "Couldn't load the Sky Leaderboard. Try again in a moment."); });
   }, [period]);
   useEffect(() => { setPage(0); }, [period, sortId, perPage]);
   const col = LB_COLS.find(c => c.id === sortId);
@@ -2622,12 +2639,14 @@ function HallOfExpressions() {
         .catch(e => setErr(e.message || "Couldn't open the archive. Try again in a moment."));
       return;
     }
-    const q = view.tab === "all" ? "?period=all" : view.monthKey ? `?month=${view.monthKey}` : "";
-    fetch(`${API_URL}/api/hall${q}`, { headers: authHeaders() })
-      .then(async r => { if (r.status === 401) throw new Error("Log in to visit the Hall of Expressions."); if (!r.ok) throw new Error(); setData(await r.json()); })
-      .catch(e => setErr(e.message || "Couldn't open the Hall. Try again in a moment."));
+    const path = `/api/hall${view.tab === "all" ? "?period=all" : view.monthKey ? `?month=${view.monthKey}` : ""}`;
+    getPage(path)
+      .then(d => { setData(d); if (view.tab === "month" && !view.monthKey) prefetchPage("/api/hall?period=all"); })
+      .catch(e => { if (!pageCache.has(path)) setErr(e.status === 401 ? "Log in to visit the Hall of Expressions." : "Couldn't open the Hall. Try again in a moment."); });
   };
-  useEffect(() => { setErr(""); setData(null); setAll(false); load(); }, [view.tab, view.monthKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // the kept copy at once (no empty page), then the fresh one
+  const hallPath = `/api/hall${view.tab === "all" ? "?period=all" : view.monthKey ? `?month=${view.monthKey}` : ""}`;
+  useEffect(() => { setErr(""); setData(view.tab === "archive" ? null : pageCache.get(hallPath) || null); setAll(false); load(); }, [view.tab, view.monthKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   async function hide(id) {
     await fetch(`${API_URL}/api/hall/${id}/hide`, { method: "POST", headers: authHeaders() }).catch(() => { });
     load();
@@ -3264,6 +3283,8 @@ function Lobby() {
   // (Fran, 2026-10-15). The server sends the same session as history.
   const [chatNow, setChatNow] = useState(Date.now());
   useEffect(() => { const iv = setInterval(() => setChatNow(Date.now()), 30000); return () => clearInterval(iv); }, []);
+  // fetch the Sky Leaderboard and the Hall ahead, a moment after the station opens, so they open at once (2026-10-27)
+  useEffect(() => { if (!auth) return; const t = setTimeout(prefetchBoards, 1500); return () => clearTimeout(t); }, [auth]);
   const QUIET_MS = 15 * 60 * 1000;
   const lobbySession = (() => {
     if (messages.length === 0) return [];
@@ -3694,10 +3715,10 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
           {/* (2026-10-22, Damon: the Station Log only as news on the Station Board; Music only on the trains, where the
               songs play — your settings carry over) */}
           {auth && <span data-hint="Sky Leaderboard: the champions of the week, the month and all time" style={{ display: "contents" }}>
-            <button onClick={() => navigate("/leaderboard")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏆 Sky Leaderboard</button></span>}
+            <button onClick={() => navigate("/leaderboard")} onMouseEnter={() => prefetchPage("/api/leaderboard?period=month")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏆 Sky Leaderboard</button></span>}
           {auth && <span data-hint="Station News: what's new on the Acro Express. Comment and react" style={{ display: "contents" }}><StationLogButton /></span>}
           {auth && <span data-hint="Hall of Expressions: the best lines written on the Sky Trains" style={{ display: "contents" }}>
-            <button onClick={() => navigate("/hall")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏛 Hall of Expressions</button></span>}
+            <button onClick={() => navigate("/hall")} onMouseEnter={() => prefetchPage("/api/hall")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏛 Hall of Expressions</button></span>}
           <span data-hint="How to play: the rules, the points and the special directions" style={{ display: "contents" }}><HowToPlay winScore={roomList[0]?.winScore || 30} stations={roomList[0]?.stations || 0} /></span>
           {auth && <span data-hint="Colors: the look of the station and the trains. Only you see it" style={{ display: "contents" }}><ThemePicker /></span>}
           {/* ("All lines running" moved to the Station Board's right end, 2026-10-22: loose text broke the row of buttons) */}
