@@ -5462,6 +5462,8 @@ function Room() {
       setWatchChooser(null);
       setNextGameIn(null); // a round has started — no game-over countdown any more
       setSubmittedIds([]); // nobody has submitted yet in the new round
+      // a new journey: the server forgot the eject votes, so does the page
+      if (Number(roundNumber) === 1) { setKickVotes({}); setMyKicks([]); }
       setVotedIds([]);
       // Show this round's topic next to the acro input.
       // Before, this line cleared the topic — but TopicSet arrives just BEFORE
@@ -5661,7 +5663,8 @@ function Room() {
     onKickVote: useCallback((m) => {
       setKickVotes(prev => {
         const next = { ...prev };
-        if (m.votes > 0) next[String(m.targetId).toLowerCase()] = { votes: m.votes, needed: m.needed }; else delete next[String(m.targetId).toLowerCase()];
+        // at: votes expire on the server after 10 minutes, so the count disappears here then too
+        if (m.votes > 0) next[String(m.targetId).toLowerCase()] = { votes: m.votes, needed: m.needed, at: Date.now() }; else delete next[String(m.targetId).toLowerCase()];
         return next;
       });
       if (sameId(m.voterId, auth?.userId)) {
@@ -6622,7 +6625,7 @@ function Room() {
                       </span>
                     )}
                     {/* Votes to kick this passenger, for everyone to see (the passenger too) */}
-                    {kickVotes[String(p.id).toLowerCase()] && (
+                    {kickVotes[String(p.id).toLowerCase()] && Date.now() - kickVotes[String(p.id).toLowerCase()].at < 600000 && (
                       <span title="Votes to eject" style={{ marginLeft: 6, color: C.brand, fontSize: 12, fontWeight: 700 }}>
                         eject {kickVotes[String(p.id).toLowerCase()].votes}/{kickVotes[String(p.id).toLowerCase()].needed}
                       </span>
