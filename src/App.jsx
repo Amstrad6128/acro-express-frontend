@@ -1512,7 +1512,7 @@ function HowToPlay({ winScore = 30, stations = 0 }) {
                   <li><b style={{ color: C.textPrimary }}>Word Bank</b> (3 letters) — the 2nd and 3rd words use only letters from the 1st. <span style={ex}>P A S → "Pastries Ape Sit"</span></li>
                   <li><b style={{ color: C.textPrimary }}>Word &gt; Chain</b> (3 letters) — each word leads into the next; put &gt; between them. <span style={ex}>F T D → "Fire &gt; Truck &gt; Driver"</span></li>
                   <li><b style={{ color: C.textPrimary }}>Letter Link</b> (3 letters) — each word ends with the next letter. <span style={ex}>P A S → "Papa Always Slept"</span></li>
-                  <li><b style={{ color: C.textPrimary }}>All Aboard</b> (3 letters) — every word uses every letter. <span style={ex}>P A S → "Passed Aspiring Spokesman"</span></li>
+                  <li><b style={{ color: C.textPrimary }}>All Aboard</b> (3 letters) — every word uses every letter, twice if it comes twice. <span style={ex}>D A D → "Dad's Deadly Demand"</span></li>
                   <li><b style={{ color: C.textPrimary }}>A + B = C</b> (3 letters) — the 1st word plus the 2nd makes the 3rd. <span style={ex}>S F S → "Sun + Flower = Sunflower"</span></li>
                   <li><b style={{ color: C.textPrimary }}>A + B = C + D</b> (4 letters) — two plus two. <span style={ex}>"Peanut + Butter = Sticky + Fingers"</span></li>
                   <li><b style={{ color: C.textPrimary }}>Q (one word) and A</b> (5 letters) — a one-word question, then the answer. <span style={ex}>"Why? Because Cats Dance Daily"</span></li>
@@ -2061,7 +2061,7 @@ function specialTopicNote(topic) {
   if (k.startsWith("wordbank")) return 'The 2nd and 3rd words use only letters from the 1st. PAS → "Pastries Ape Sit"';
   if (k.startsWith("word>chain") || k.startsWith("word=>chain") || k.startsWith("wordchain")) return 'Each word leads into the next: put > between them. "Fire > Truck > Driver"';
   if (k.startsWith("letterlink")) return 'Each word ends with the next letter. PAS → "Papa Always Slept"';
-  if (k.startsWith("allaboard")) return 'Every word uses every letter. PAS → "Passed Aspiring Spokesman"';
+  if (k.startsWith("allaboard")) return 'Every word uses every letter, twice if it comes twice. DAD → "Dad\'s Deadly Demand"';   // Damon, 2026-10-27
   if (k.startsWith("a+b=c+d")) return 'Two plus two: "Peanut + Butter = Sticky + Fingers"';
   if (k.startsWith("a+b=c")) return 'The 1st word plus the 2nd makes the 3rd: "Sun + Flower = Sunflower"';
   if (k.startsWith("q(oneword)anda") || k.startsWith("qoneworda")) return 'A one-word question, then the answer: "Why? Because Cats Dance Daily"';
