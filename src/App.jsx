@@ -666,6 +666,7 @@ const CHAT_HELP = [
   "/pc name message → a private message",
   "/mu → music on or off",
   "/eject name → vote someone off the train (on a train)",
+  "/inject name → take that vote back",
   "/? → this list",
 ];
 function chatCommand(text, say, inTrain) {
@@ -691,6 +692,11 @@ function chatCommand(text, say, inTrain) {
   if (c === "eject") {
     if (!inTrain) { say("/eject works on a train: it votes someone off it."); return true; }
     if (!r) { say("Type /eject name to vote someone off the train."); return true; }
+    return false;
+  }
+  if (c === "inject") {
+    if (!inTrain) { say("/inject works on a train: it takes back your vote to eject someone."); return true; }
+    if (!r) { say("Type /inject name to take back your vote to eject them."); return true; }
     return false;
   }
   say("Type /? for a list of commands.");
@@ -1123,6 +1129,21 @@ function PrivateChatPanel({ style = {}, listMaxHeight }) {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, active]);
+  // ...and when the list grows or changes size afterwards (Damon, 2026-10-27: "I have to scroll down one line to see
+  // it"): stay at the newest line, unless the player scrolled up to read
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let atBottom = true;
+    const onScroll = () => { atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24; };
+    const stick = () => { if (atBottom) el.scrollTop = el.scrollHeight; };
+    const ro = new ResizeObserver(stick);
+    const mo = new MutationObserver(stick);
+    ro.observe(el);
+    mo.observe(el, { childList: true, subtree: true, characterData: true });
+    el.addEventListener("scroll", onScroll);
+    return () => { ro.disconnect(); mo.disconnect(); el.removeEventListener("scroll", onScroll); };
+  }, [active]);
   // Put the cursor in the box when the player opens or switches a tab themselves — not when a
   // message arrives (that would take the cursor out of the acro box mid-typing)
   const seenFocus = useRef(pm.focus);
@@ -1535,7 +1556,7 @@ function HowToPlay({ winScore = 30, stations = 0 }) {
               <RulesSection icon="💬" title="Tips">
                 <ul style={rulesList}>
                   <li>Click a name to message that passenger: type and press Enter.</li>
-                  <li>To vote someone off a train, type <b style={{ color: C.textPrimary }}>/eject name</b> in Sky Train Chat.</li>
+                  <li>To vote someone off a train, type <b style={{ color: C.textPrimary }}>/eject name</b> in Sky Train Chat; <b style={{ color: C.textPrimary }}>/inject name</b> takes your vote back.</li>
                   <li>More chat commands: <b style={{ color: C.textPrimary }}>/me</b> waves, <b style={{ color: C.textPrimary }}>/pc name message</b> (private), <b style={{ color: C.textPrimary }}>/mu</b> (music on or off). Type <b style={{ color: C.textPrimary }}>/?</b> for the list.</li>
                   <li><b style={{ color: C.textPrimary }}>Colors</b>: the look of the station. <b style={{ color: C.textPrimary }}>Letters</b>: the font of the Express Server letters (or just click them).</li>
                   <li><b style={{ color: C.textPrimary }}>Music</b>: volume, button sounds, and your song while acros are written. It switches at once.</li>
@@ -5755,10 +5776,10 @@ function Room() {
     return () => clearInterval(iv);
   }, [topicTimer]);
 
-  // Vote to eject (or take the vote back) — only by typing "/eject name" in Sky Train Chat
-  async function voteKick(name) {
+  // Vote to eject ("/eject name") or take the vote back ("/inject name"), typed in Sky Train Chat
+  async function voteKick(name, back = false) {
     try {
-      const r = await kickVote(id, name);
+      const r = await kickVote(id, name, back);
       if (r?.kicked) refreshRoomState();
     } catch (e) {
       postSystemMessage(String(e.message || "").replace(/^\d{3}:\s*/, "") || "Couldn't vote.");
@@ -5771,8 +5792,8 @@ function Room() {
     // Chat commands (/?, /mu, /pc …); only you see their answers
     if (chatCommand(text, postSystemMessage, true)) { setRoomChatInput(""); return; }
     // "/eject name" votes to eject instead of chatting (Damon 2026-10-22: /eject, and no /kick any more)
-    const cmd = text.match(/^\/eject\s+(.+)$/i);
-    if (cmd) { setRoomChatInput(""); voteKick(cmd[1].trim()); return; }
+    const cmd = text.match(/^\/(eject|inject)\s+(.+)$/i);
+    if (cmd) { setRoomChatInput(""); voteKick(cmd[2].trim(), cmd[1].toLowerCase() === "inject"); return; }
     try {
       const conn = connectionRef.current;
       if (conn) {

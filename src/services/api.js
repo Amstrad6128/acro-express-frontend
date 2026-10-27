@@ -153,9 +153,10 @@ export async function startRound(roomId, topic) {
 
 // "GO!" — start the next station now with the topic that was set (it can be changed until then)
 // Vote to kick a passenger (or take the vote back) — the server counts the votes
-export async function kickVote(roomId, target) {
+// back: true = take my vote back (/inject)
+export async function kickVote(roomId, target, back = false) {
   const res = await authFetch(`${API_URL}/api/room/${encodeURIComponent(roomId)}/kick`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target }),
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target, back }),
   });
   return j(res);
 }
