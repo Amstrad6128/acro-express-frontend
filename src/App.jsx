@@ -4431,7 +4431,20 @@ function sameId(a, b) {
   return a.toString().toLowerCase() === b.toString().toLowerCase();
 }
 
-function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer, maxTimer, topic, passengers = [] }) {
+// The voting in the Sky Train Chat (Damon, 2026-10-27: "the voting … should take up the space of chat, temporarily"):
+// true = at the top of the chat window, only as tall as it needs, the chat under it faded until you're done voting
+// (option 3); false = the old window over the page. For now only on the local dev copy (import.meta.env.DEV), so a
+// deploy keeps the old window until Damon has seen it and says so; then this becomes true.
+const VOTE_IN_CHAT = import.meta.env.DEV;
+
+// An acro with each word's first letter picked out, so it's easy to see how the letters were used
+function AcroInitials({ text }) {
+  return text.split(/(\s+)/).map((w, i) => /^\p{L}/u.test(w)
+    ? <span key={i}><b style={{ color: C.brand }}>{w[0]}</b>{w.slice(1)}</span>
+    : <span key={i}>{w}</span>);
+}
+
+function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer, maxTimer, topic, passengers = [], inline = false }) {
   const [submitted, setSubmitted] = useState(false); // true after "I'm done voting" is clicked
   const [selected, setSelected] = useState(null);    // the currently selected entry id
   const [closed, setClosed] = useState(false);
@@ -4478,7 +4491,7 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
     doneVoting(roomId, a.username).catch(() => { });
     setSubmitted(true);
     if (onVoted) onVoted();
-    setClosed(true);
+    if (!inline) setClosed(true);   // inline it stays, locked, until the results
   }
 
   if (closed) return null;
@@ -4493,6 +4506,55 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
     !sameId(e.playerId, auth?.userId) &&
     !(e.playerIds || []).some(pid => sameId(pid, auth?.userId))
   );
+
+  if (inline) {
+    const card = (on, extra = {}) => ({
+      width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: 10, fontFamily: "inherit", fontSize: 16, lineHeight: 1.3,
+      background: on ? `color-mix(in srgb, ${C.brand} 13%, transparent)` : C.bgPanel2,
+      border: `1px solid ${on ? C.brand : C.border}`, color: on ? C.ivory : C.textSecond,
+      cursor: submitted ? "default" : "pointer", opacity: submitted && !on ? 0.55 : 1, transition: "all 0.15s", ...extra,
+    });
+    return (
+      <div style={{ flex: "0 1 auto", minHeight: 0, display: "flex", flexDirection: "column", borderBottom: `1px solid ${C.border}` }}>
+        {/* title and direction on one line */}
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap", padding: "10px 16px 6px" }}>
+          <span style={{ fontSize: 16, fontWeight: 800, color: C.ivory }}>{textPair.title}</span>
+          {topic && <span style={{ ...smallTitle, fontSize: 20, overflowWrap: "anywhere" }}>{topic}</span>}
+        </div>
+        {/* the expressions: as many rows as they need, scrolling inside only when there are very many */}
+        <div style={{ minHeight: 0, overflowY: "auto", padding: "2px 16px 8px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 8 }}>
+          {visibleEntries.length === 0
+            ? <p style={{ gridColumn: "1 / -1", margin: 0, color: C.textMuted, fontSize: 15 }}>No expressions to vote on at this station...</p>
+            : visibleEntries.map(entry => (
+              <button key={entry.id} onClick={() => handleSelect(entry.id)} disabled={submitted} style={card(sameId(selected, entry.id))}>
+                <AcroInitials text={entry.sentence} />
+              </button>
+            ))}
+          {visibleEntries.length > 0 && (
+            <button onClick={handleBlankVote} disabled={submitted}
+              style={card(selected === "blank", { background: selected === "blank" ? `color-mix(in srgb, ${C.brand} 13%, transparent)` : "transparent", border: `1px ${selected === "blank" ? "solid" : "dashed"} ${selected === "blank" ? C.brand : C.border}`, fontStyle: "italic", color: selected === "blank" ? C.ivory : C.textMuted })}>
+              None of the above
+            </button>
+          )}
+        </div>
+        {/* who is done, and Done Voting with its clock; the button keeps its size when it turns into "Voted" */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 16px 10px" }}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexWrap: "wrap", gap: "2px 12px", fontSize: 14 }}>
+            {passengers.length > 0 && <span style={{ color: C.textMuted, fontSize: 13 }}>Done voting:</span>}
+            {passengers.map(p => (
+              <span key={p.id} title={p.done ? "Done voting" : "Still voting"} style={{ display: "inline-flex", alignItems: "center", color: p.done ? C.teal : C.textMuted, fontWeight: p.done ? 700 : 400, whiteSpace: "nowrap" }}>
+                <span style={{ width: 14, flexShrink: 0 }}>{p.done ? "✓" : ""}</span>{p.name}
+              </span>
+            ))}
+          </div>
+          <BtnSecondary onClick={submitted ? undefined : handleDoneVoting} style={{ flexShrink: 0, minWidth: 176, justifyContent: "space-between", display: "inline-flex", alignItems: "center", gap: 12, padding: "4px 10px 4px 16px", opacity: submitted ? 0.7 : 1, cursor: submitted ? "default" : "pointer" }}>
+            {submitted ? "✓ Voted" : "Done Voting"}
+            <span style={{ ...honkTitle, display: "inline-block", width: 48, textAlign: "center", fontSize: 30, lineHeight: 1, fontVariantNumeric: "tabular-nums", color: timer !== null && timer <= 10 ? C.brand : C.teal, fontPalette: timer !== null && timer <= 10 ? "var(--fp-letters)" : "var(--fp-logo)", fontVariationSettings: "'SHLN' 0, 'MORF' 15", visibility: timer !== null ? "visible" : "hidden" }}>{two(timer)}</span>
+          </BtnSecondary>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -5126,6 +5188,7 @@ function Room() {
   // Players who have submitted this round (lower-case ids) — names turn teal in Passengers
   const [submittedIds, setSubmittedIds] = useState([]);
   const [votedIds, setVotedIds] = useState([]);   // clicked "Done Voting" at this station (Zyngacita, 2026-10-26)
+  const [iVoted, setIVoted] = useState(false);    // I clicked "Done Voting" at this station: the chat stops being faded
   const noticeTimerRef = useRef(null);
   // The 3-second room check can't reach the server (also shows the banner)
   const [pollFailing, setPollFailing] = useState(false);
@@ -5281,6 +5344,7 @@ function Room() {
       myDraftRef.current = "";
       lastDraftSentRef.current = "";   // a new station: nothing to send again after a restart yet
       doneVotedRef.current = false;
+      setIVoted(false);
       setAcroError("");
       setMyVote(null); // new round — forget last round's vote
       clearTimeout(topicPromptTimerRef.current); // a round started — no topic prompt pending any more
@@ -5336,6 +5400,7 @@ function Room() {
       setEntries(acroEntries || []);
       setPhase("Voting");
       setVotedIds([]);   // nobody is done voting yet
+      setIVoted(false);
       // Freeze the Passengers scores until the results are revealed
       setFrozenScores(Object.fromEntries(playersRef.current.map(p => [p.id, p.score])));
       // Voting countdown for the progress bar
@@ -5973,6 +6038,11 @@ function Room() {
   const showTopic = !!currentTopic && phase === "Submitting" && !topicRequested;
   // the ✓ in Passengers: who submitted (writing) or who is done voting (voting); none in other phases
   const tickIds = phase === "Submitting" ? submittedIds : phase === "Voting" ? votedIds : null;
+  // the voting in the chat window (VOTE_IN_CHAT), and the chat faded under it until I'm done voting (option 3,
+  // Damon 2026-10-27); my own lines stay bright, so I can see they were sent
+  const votingInChat = VOTE_IN_CHAT && phase === "Voting";
+  const chatFaded = votingInChat && !iVoted && !votedIds.includes(String(auth?.userId || "").toLowerCase());
+  const fade = m => ({ opacity: chatFaded && m.nickname !== auth?.username ? 0.4 : 1, transition: "opacity 0.4s" });
   // Stage sizes — compact versions on short windows. Used both by the elements and by the
   // stage height formula below, so the formula always matches what is drawn.
   // Compact (Sandy, 2026-10-15: use the space above the letters and in the acro box for more chat lines).
@@ -6039,8 +6109,8 @@ function Room() {
         </div>
       )}
 
-      {/* Voting overlay */}
-      {phase === "Voting" && (
+      {/* Voting overlay (only when the voting isn't in the chat window, VOTE_IN_CHAT) */}
+      {phase === "Voting" && !VOTE_IN_CHAT && (
         <VotingScreen roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId} onVoted={() => { doneVotedRef.current = true; }} onVoteCast={setMyVote} timer={timer} maxTimer={maxTimer} topic={currentTopic}
           passengers={players.filter(p => p.isConnected !== false).map(p => ({ id: p.id, name: p.nickname, done: votedIds.includes(String(p.id).toLowerCase()) }))} />)}
 
@@ -6406,25 +6476,30 @@ function Room() {
 
         {/* Room chat */}
         {/* Stacked (narrow): a fixed 360px so the messages and the input are always visible */}
-        <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 0, height: isNarrow ? 360 : undefined }}>
+        <Panel style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: isNarrow ? 360 : 0, height: isNarrow && !votingInChat ? 360 : undefined }}>
           <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}` }}>
             <h2 style={{ margin: 0, fontSize: 14, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Sky Train Chat</h2>   {/* was "Train Chat" (Damon, 2026-10-18) */}
           </div>
-          <div ref={chatListRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+          {votingInChat && (
+            <VotingScreen inline roomId={id} entries={entries.length > 0 ? entries : (data.entries || [])} myPlayerId={auth?.userId}
+              onVoted={() => { doneVotedRef.current = true; setIVoted(true); }} onVoteCast={setMyVote} timer={timer} maxTimer={maxTimer} topic={currentTopic}
+              passengers={players.filter(p => p.isConnected !== false).map(p => ({ id: p.id, name: p.nickname, done: votedIds.includes(String(p.id).toLowerCase()) }))} />
+          )}
+          <div ref={chatListRef} style={{ flex: 1, minHeight: votingInChat ? 72 : 0, overflowY: "auto", padding: "8px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
             {roomMessages.length === 0 ? (
               <p style={{ color: C.textMuted, fontSize: 15, margin: 0 }}>No messages yet...</p>
             ) : (
               roomMessages.map((m, i) => (
                 m.system ? (
-                  <div key={i} style={{ fontSize: isShort ? 13 : 14, lineHeight: 1.35, color: C.textMuted, fontStyle: "italic", textAlign: "center", padding: "1px 0" }}>{m.message}</div>
+                  <div key={i} style={{ fontSize: isShort ? 13 : 14, lineHeight: 1.35, color: C.textMuted, fontStyle: "italic", textAlign: "center", padding: "1px 0", ...fade(m) }}>{m.message}</div>
                 ) : (
                   meAction(m.message) != null ? (
                     // "/me waves" → "* Sandy waves"
-                    <div key={i} style={{ fontSize: isShort ? 14 : 15, lineHeight: 1.35, fontStyle: "italic", color: C.textSecond }}>
+                    <div key={i} style={{ fontSize: isShort ? 14 : 15, lineHeight: 1.35, fontStyle: "italic", color: C.textSecond, ...fade(m) }}>
                       * <NameLink gold name={m.nickname} style={{ color: C.teal, fontWeight: 600 }} /> {meAction(m.message)}
                     </div>
                   ) : (
-                  <div key={i} style={{ fontSize: isShort ? 14 : 15, lineHeight: 1.35 }}>
+                  <div key={i} style={{ fontSize: isShort ? 14 : 15, lineHeight: 1.35, ...fade(m) }}>
                     <NameLink gold name={m.nickname} style={{ color: C.teal, fontWeight: 600 }} /><span style={{ color: C.teal, fontWeight: 600 }}>: </span>
                     <span style={{ color: C.textSecond }}>{m.message}</span>
                   </div>
