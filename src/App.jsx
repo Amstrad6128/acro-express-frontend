@@ -1401,6 +1401,39 @@ function RulesSection({ icon, title, children }) {
 const ex = { color: C.teal, fontStyle: "italic" };      // examples
 const rulesList = { margin: "4px 0 0", paddingLeft: 20, listStyle: "disc" };   // bullets (the page resets lists)
 
+// The Sky Rank ladder (Damon, 2026-10-27): every rank, its Sky Miles and its line, from the server (api/ranks, the ladder
+// lives in Utils/Ranks.cs). mine = the viewer's own rank, highlighted. Loaded once per visit.
+let ranksCache = null;
+function SkyRankLadder({ mine }) {
+  const [ranks, setRanks] = useState(ranksCache);
+  useEffect(() => {
+    if (ranksCache) return;
+    fetch(`${API_URL}/api/ranks`).then(r => r.ok ? r.json() : null).then(d => { if (d) { ranksCache = d; setRanks(d); } }).catch(() => { });
+  }, []);
+  if (!ranks) return <div style={{ fontSize: 14, color: C.textMuted }}>Loading…</div>;
+  return (
+    <div>
+      <div style={{ fontSize: 14, color: C.textSecond, marginBottom: 8 }}>
+        <b style={{ color: C.textPrimary }}>Sky Miles:</b> every point you win at a station with 3 or more passengers. The more you ride, the higher you climb.
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {ranks.map(r => {
+          const me = r.name === mine;
+          return (
+            <div key={r.name} style={{ display: "grid", gridTemplateColumns: "64px minmax(0, 1fr)", columnGap: 10, alignItems: "baseline", padding: "4px 8px", borderRadius: 6, background: me ? `color-mix(in srgb, ${C.teal} 14%, transparent)` : "transparent" }}>
+              <span style={{ textAlign: "right", fontSize: 13, color: C.textMuted, fontVariantNumeric: "tabular-nums" }}>{r.from.toLocaleString()}</span>
+              <span style={{ fontSize: 14, minWidth: 0 }}>
+                <b style={{ color: me ? C.teal : C.textPrimary }}>{r.name}</b>
+                <span style={{ color: C.textSecond }}> · {r.line}</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // stations > 0: a journey of that many stations, the highest score wins; 0: the first to winScore (GameFormat on the server)
 function HowToPlay({ winScore = 30, stations = 0 }) {
   const [open, setOpen] = useState(false);
@@ -1490,6 +1523,9 @@ function HowToPlay({ winScore = 30, stations = 0 }) {
               </RulesSection>
               <RulesSection icon="🏁" title="Final Stop">
                 {stations > 0 ? `After station ${stations}, the highest score wins the journey; a tie at the top is a shared win.` : `When someone reaches ${winScore}, the highest score wins the journey.`} After a 30-second break the next journey starts by itself.
+              </RulesSection>
+              <RulesSection icon="🎖" title="Sky Ranks">
+                <SkyRankLadder />
               </RulesSection>
               <RulesSection icon="🚂" title="When we play">
                 Every day the regulars ride <b style={{ color: C.textPrimary }}>The Continental</b> at <b style={{ color: C.textPrimary }}>{scheduledTrain("continental", Date.now(), []).local}</b> and the <b style={{ color: C.textPrimary }}>Daily Express</b> at <b style={{ color: C.textPrimary }}>{nightExpress(Date.now(), []).local}</b>, your time: that's when the trains are fullest. You can start or join a train any other time too.
@@ -3070,6 +3106,7 @@ function PassengerPage() {
   const [err, setErr] = useState("");
   const [q, setQ] = useState("");
   const [found, setFound] = useState([]);
+  const [ladderOpen, setLadderOpen] = useState(false);   // the whole Sky Rank ladder, under the rank
   useEffect(() => {
     setP(null); setErr("");
     if (!getAuth()?.token) { setErr("Log in at the Grand Sky Station to see Sky Passports."); return; }
@@ -3115,7 +3152,11 @@ function PassengerPage() {
                   in the server's Utils/Ranks) */}
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
-                  <span style={{ fontSize: 15 }}><b style={{ color: C.teal }}>{p.level}</b></span>
+                  {/* a click opens the whole ladder below, this rank highlighted (2026-10-27) */}
+                  <button onClick={() => setLadderOpen(o => !o)} aria-expanded={ladderOpen} data-hint="See all the Sky Ranks"
+                    style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 15, color: C.teal }}>
+                    <b>{p.level}</b> <span style={{ fontSize: 12, color: C.textMuted }}>{ladderOpen ? "▲" : "▼"}</span>
+                  </button>
                   <span style={{ fontSize: 14, color: C.textSecond, fontVariantNumeric: "tabular-nums" }}>{(p.skyMiles ?? 0).toLocaleString()} Sky Miles</span>
                 </div>
                 <div style={{ height: 8, borderRadius: 4, background: C.bgApp }}>
@@ -3124,6 +3165,7 @@ function PassengerPage() {
                 <div style={{ fontSize: 13, color: C.textMuted, marginTop: 4 }}>
                   {p.nextLevel ? `${(p.milesToNext ?? 0).toLocaleString()} Sky Miles to ${p.nextLevel}` : "The top of the ladder: a Legend of the Line"}
                 </div>
+                {ladderOpen && <div style={{ marginTop: 10 }}><SkyRankLadder mine={p.level} /></div>}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(88px, 1fr))", gap: 8 }}>
                 <PassStat n={p.journeys} label="Journeys" />
