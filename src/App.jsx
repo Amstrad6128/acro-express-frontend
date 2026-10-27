@@ -1616,7 +1616,7 @@ function LogEntryCard({ e, isAdmin, loggedIn, onRemoved }) {
     if (r.ok) { const d = await r.json(); setComments(cs => cs.map(c => c.id === cid ? { ...c, hidden: d.hidden } : c)); setCount(n => n + (d.hidden ? -1 : 1)); }
   };
   const remove = async () => {
-    if (!window.confirm(`Remove "${e.title}" from the Station Log?`)) return;
+    if (!window.confirm(`Remove "${e.title}" from Station News?`)) return;
     const r = await fetch(`${API_URL}/api/log/${e.id}`, { method: "DELETE", headers: authHeaders() });
     if (r.ok) onRemoved();
   };
@@ -1692,7 +1692,7 @@ function StationLog() {
       setData(d);
       const newest = d.entries?.[0];
       if (newest) { try { localStorage.setItem(LOG_SEEN_KEY, String(new Date(newest.createdAtUtc).getTime())); } catch { } }
-    } catch { setErr("Couldn't load the Station Log. Try again in a moment."); }
+    } catch { setErr("Couldn't load Station News. Try again in a moment."); }
   };
   useEffect(() => { load(); }, []);
   const post = async () => {
@@ -1707,7 +1707,7 @@ function StationLog() {
       <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: 40, ...honkTitle }}>Station Log</h1>   {/* Honk, the size of the logo */}
+            <h1 style={{ margin: 0, fontSize: 40, ...honkTitle }}>Station News</h1>   {/* Honk, the size of the logo. Was "Station Log" (Damon, 2026-10-27) */}
             <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>What's new on the Acro Express, and what we fixed. Comment and react — we read everything. On the rails since 16 August 2025.</p>
           </div>
           <BtnSecondary onClick={() => navigate("/")}>← Grand Sky Station</BtnSecondary>
@@ -1725,7 +1725,7 @@ function StationLog() {
             <input id="logTitle" value={title} onChange={ev => setTitle(ev.target.value)} maxLength={120} placeholder="Title, e.g. Tonight's fixes" style={field} />
             <textarea id="logBody" value={body} onChange={ev => setBody(ev.target.value)} rows={6} placeholder={"What's new?\n- Lines starting with a dash become bullet points"} style={{ ...field, resize: "vertical" }} />
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Btn onClick={post}>Post to the Station Log</Btn>
+              <Btn onClick={post}>Post to Station News</Btn>
               {formErr && <span style={{ color: C.brand, fontSize: 14 }}>{formErr}</span>}
             </div>
           </Panel>
@@ -1772,7 +1772,7 @@ function PaletteStats() {
             <h1 style={{ margin: 0, fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand }}>Palette stats</h1>
             <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>Stations played with each Colors palette (one per player per station), other players only: your own picks are left out. Only you see this page.</p>
           </div>
-          <BtnSecondary onClick={() => navigate("/log")}>← Station Log</BtnSecondary>
+          <BtnSecondary onClick={() => navigate("/log")}>← Station News</BtnSecondary>
         </div>
         {/* The period */}
         <div style={{ display: "flex", gap: 8 }}>
@@ -1905,7 +1905,7 @@ function NumbersPage() {
             <h1 style={{ margin: 0, fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand }}>Numbers</h1>
             <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>How the Acro Express is growing. Home time, weeks from Monday. You are left out of the player numbers. Only you see this page.</p>
           </div>
-          <BtnSecondary onClick={() => navigate("/log")}>← Station Log</BtnSecondary>
+          <BtnSecondary onClick={() => navigate("/log")}>← Station News</BtnSecondary>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {[4, 8, 12].map(w => (
@@ -2345,7 +2345,7 @@ function HouseRules() {
       </RulesSection>
       <RulesSection icon="✍️" title="Your acros">
         Your acros are yours. By playing, you let Acro Express show them in the game: in the results, on your
-        Sky Passport, in the Station Log, and in future features such as a Hall of Fame.
+        Sky Passport, in Station News, and in future features such as a Hall of Fame.
       </RulesSection>
       <RulesSection icon="™️" title="The name and the look">
         Acro Express, its logo, pictures, music and code belong to Acro Express. Acro Express is an independent
@@ -2357,7 +2357,7 @@ function HouseRules() {
       </RulesSection>
       <RulesSection icon="✉️" title="Questions">
         Send a private message to {ADMIN_NAME} in the game. If we change these rules, the date at the top changes
-        and we mention it in the Station Log.
+        and we mention it in Station News.
       </RulesSection>
     </LegalPage>
   );
@@ -2370,7 +2370,7 @@ function Privacy() {
         <ul style={rulesList}>
           <li><b style={{ color: C.textPrimary }}>Your Sky Passport:</b> your passenger name and your password, stored scrambled (hashed) so nobody can read it, not even us.</li>
           <li><b style={{ color: C.textPrimary }}>Your game:</b> your acros, votes, points and stations, for your Sky Passport stats; acros that weren't accepted, to improve the rules; which colours you play with; the time zone your computer's clock is set to (like "Europe/London", never your exact location), to plan game nights at good times.</li>
-          <li><b style={{ color: C.textPrimary }}>Your messages:</b> see "Chats" below; Station Log comments and reactions.</li>
+          <li><b style={{ color: C.textPrimary }}>Your messages:</b> see "Chats" below; Station News comments and reactions.</li>
           <li><b style={{ color: C.textPrimary }}>Your login:</b> a login code (stored scrambled) that keeps you signed in for 30 days.</li>
         </ul>
         We don't ask for your real name, email, age or location.
@@ -2747,7 +2747,8 @@ function HallOfExpressions() {
   );
 }
 
-// "Station Log" button in the lobby header, with NEW when there's an entry this browser hasn't seen
+// "📰 News" button in the lobby header (Station News), with a dot when there's a post this browser hasn't seen. The dot
+// sits on the corner, so the button keeps its size (nothing moves when it appears)
 function StationLogButton() {
   const navigate = useNavigate();
   const [hasNew, setHasNew] = useState(false);
@@ -2758,9 +2759,10 @@ function StationLogButton() {
     }).catch(() => { });
   }, []);
   return (
-    <button onClick={() => navigate("/log")}
-      style={{ background: C.bgPanel2, border: `1px solid ${hasNew ? C.teal : C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>
-      Station Log{hasNew && <span style={{ marginLeft: 6, background: C.teal, color: C.bgApp, fontSize: 11, fontWeight: 800, borderRadius: 999, padding: "1px 6px" }}>NEW</span>}
+    <button onClick={() => navigate("/log")} aria-label={hasNew ? "Station News: something new" : "Station News"}
+      style={{ position: "relative", background: C.bgPanel2, border: `1px solid ${hasNew ? C.teal : C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>
+      📰 News
+      {hasNew && <span aria-hidden style={{ position: "absolute", top: -4, right: -4, width: 10, height: 10, borderRadius: "50%", background: C.teal, boxShadow: `0 0 0 2px ${C.bgApp}` }} />}
     </button>
   );
 }
@@ -3536,7 +3538,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
         : `Next: ${dailyNow.name} at ${dailyNow.local} your time · ${dailyNow.mins < 0 ? untilText(dailyNow.mins) : "now"}`,
       title: "Our daily trains",
       detail: <>The Continental at <b style={{ color: C.textPrimary }}>{scheduledTrain("continental", Date.now(), []).local}</b> and the Daily Express at <b style={{ color: C.textPrimary }}>{nightExpress(Date.now(), []).local}</b>, every day, with the regulars. Hop on!</> },
-    ...(latestLog ? [{ key: "log", icon: "📰", text: `Station Log: ${latestLog.title}`, title: latestLog.title,
+    ...(latestLog ? [{ key: "log", icon: "📰", text: `Station News: ${latestLog.title}`, title: latestLog.title,
       // the post itself: its "- " lines as a list
       detail: <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {String(latestLog.body || "").split(/\r?\n/).filter(l => l.trim()).slice(0, 3).map((l, k) => l.startsWith("- ")
@@ -3690,6 +3692,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
               songs play — your settings carry over) */}
           {auth && <span data-hint="Sky Leaderboard: the champions of the week, the month and all time" style={{ display: "contents" }}>
             <button onClick={() => navigate("/leaderboard")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏆 Sky Leaderboard</button></span>}
+          {auth && <span data-hint="Station News: what's new on the Acro Express. Comment and react" style={{ display: "contents" }}><StationLogButton /></span>}
           {auth && <span data-hint="Hall of Expressions: the best lines written on the Sky Trains" style={{ display: "contents" }}>
             <button onClick={() => navigate("/hall")} style={{ background: C.bgPanel2, border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, cursor: "pointer", fontSize: 14, fontFamily: "inherit", padding: "6px 12px", whiteSpace: "nowrap" }}>🏛 Hall of Expressions</button></span>}
           <span data-hint="How to play: the rules, the points and the special directions" style={{ display: "contents" }}><HowToPlay winScore={roomList[0]?.winScore || 30} stations={roomList[0]?.stations || 0} /></span>
