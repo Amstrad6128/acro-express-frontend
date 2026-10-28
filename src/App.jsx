@@ -4600,7 +4600,6 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
     // this station, once, so nothing changes while voting
     const long = board || visibleEntries.some(e => (e.sentence || "").length > 32);
     const rowsInColumn = Math.ceil((visibleEntries.length + 1) / 2);   // two columns: 1–8 on the left, 9–16 on the right
-    const num = i => board && <span style={{ display: "inline-block", width: 26, color: C.textMuted, fontVariantNumeric: "tabular-nums" }}>{i}</span>;
     const card = (on, extra = {}) => ({
       width: "100%", textAlign: "left", padding: board ? `${fit.p}px 12px` : long ? "4px 12px" : "9px 12px", borderRadius: 10, fontFamily: "inherit", fontSize: board ? fit.f : long ? 15 : 16, lineHeight: 1.3,
       background: on ? `color-mix(in srgb, ${C.brand} 13%, transparent)` : C.bgPanel2,
@@ -4619,15 +4618,15 @@ function VotingScreen({ roomId, entries, myPlayerId, onVoted, onVoteCast, timer,
         <div ref={listRef} style={{ minHeight: 0, overflowY: "auto", padding: board ? "6px 16px 0" : "2px 16px 8px", display: "grid", gridTemplateColumns: board ? `repeat(${fit.cols}, minmax(0, 1fr))` : long ? "repeat(auto-fill, minmax(min(420px, 100%), 1fr))" : "repeat(auto-fill, minmax(230px, 1fr))", gap: board ? `${fit.g}px 10px` : long ? "4px 8px" : 8, alignContent: "start", ...(board ? { flex: 1 } : {}), ...(board && fit.cols === 2 ? { gridAutoFlow: "column", gridTemplateRows: `repeat(${rowsInColumn}, auto)` } : {}) }}>
           {visibleEntries.length === 0
             ? <p style={{ gridColumn: "1 / -1", margin: 0, color: C.textMuted, fontSize: 15 }}>No expressions to vote on at this station...</p>
-            : visibleEntries.map((entry, i) => (
+            : visibleEntries.map(entry => (
               <button key={entry.id} onClick={() => handleSelect(entry.id)} disabled={submitted} style={card(sameId(selected, entry.id))}>
-                {num(i + 1)}<AcroInitials text={entry.sentence} />
+                <AcroInitials text={entry.sentence} />
               </button>
             ))}
           {visibleEntries.length > 0 && (
             <button onClick={handleBlankVote} disabled={submitted}
               style={card(selected === "blank", { background: selected === "blank" ? `color-mix(in srgb, ${C.brand} 13%, transparent)` : "transparent", border: `1px ${selected === "blank" ? "solid" : "dashed"} ${selected === "blank" ? C.brand : C.border}`, fontStyle: "italic", color: selected === "blank" ? C.ivory : C.textMuted })}>
-              {num(visibleEntries.length + 1)}None of the above
+              None of the above
             </button>
           )}
         </div>
