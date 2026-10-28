@@ -332,11 +332,14 @@ const EXTRA_FONTS = {
   // 2026-10-24 (Damon): Goldman Bold replaces Bricolage Grotesque. Capitals 59, digits 59 (×1.29 / ×1.22 would match),
   // but it is wide: 1.15 keeps a 7-letter station from getting much wider than Bowlby's
   goldman: { fam: "'Goldman'", lf: 1.15, tf: 1.15, w: 700 },
-  // 2026-10-24 (Damon): Michroma replaces Dela Gothic One. Capitals 75, digits 77 — but 35% wider than Bowlby, so its
-  // letters are a little smaller (0.9) to keep a 7-letter station about as wide
-  michroma: { fam: "'Michroma'", lf: 0.9, tf: 0.94, w: 400 },
+  // 2026-10-28 (Damon): Days One, Rubik Vinyl and Changa ExtraBold replace Michroma. Measured at 100 px against Bowlby's
+  // capitals (74) and Segoe UI's digits (71): Days One capitals 70 but 7% wider than Bowlby (1.03, not the full 1.06);
+  // Rubik Vinyl capitals 77, digits 77; Changa capitals 63, digits 64 and narrow
+  daysone: { fam: "'Days One'", lf: 1.03, tf: 1.0, w: 400 },
+  rubikvinyl: { fam: "'Rubik Vinyl'", lf: 0.96, tf: 0.92, w: 400 },
+  changa: { fam: "'Changa'", lf: 1.17, tf: 1.11, w: 800 },
 };
-const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", trueno: "Trueno", nunito: "Nunito", righteous: "Righteous", goldman: "Goldman", michroma: "Michroma" };   // key → name shown in the menu
+const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", trueno: "Trueno", nunito: "Nunito", righteous: "Righteous", goldman: "Goldman", daysone: "Days One", rubikvinyl: "Rubik Vinyl", changa: "Changa" };   // key → name shown in the menu
 // No choice yet (2026-10-22, Damon: "I think Honk"): brand-new players get Honk; someone who has logged in here before
 // keeps Bowlby, the old default, so a regular's letters don't suddenly change. (A saved choice that no longer exists,
 // like "pixel" or "titan", goes back to Bowlby.)
@@ -812,7 +815,9 @@ function LetterFontPicker() {
                     nunito: { fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.brand },
                     righteous: { fontFamily: "'Righteous', sans-serif", fontSize: 18, color: C.brand },
                     goldman: { fontFamily: "'Goldman', sans-serif", fontWeight: 700, fontSize: 20, color: C.brand },
-                    michroma: { fontFamily: "'Michroma', sans-serif", fontSize: 15, color: C.brand },
+                    daysone: { fontFamily: "'Days One', sans-serif", fontSize: 17, color: C.brand },
+                    rubikvinyl: { fontFamily: "'Rubik Vinyl', sans-serif", fontSize: 18, color: C.brand },
+                    changa: { fontFamily: "'Changa', sans-serif", fontWeight: 800, fontSize: 20, color: C.brand },
                   }[key]}>A X P</span>
                   <span style={{ fontSize: 13, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</span>
                 </button>

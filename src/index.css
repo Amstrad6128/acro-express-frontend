@@ -72,11 +72,24 @@
   font-display: block;
 }
 
-/* Michroma: a choice for the Express Server letters (2026-10-24, Damon, replacing Dela Gothic One). SIL Open Font License, Google Fonts */
+/* Days One, Rubik Vinyl and Changa ExtraBold: choices for the big letters (2026-10-28, Damon, replacing Michroma).
+   SIL Open Font License, Google Fonts (Latin) */
 @font-face {
-  font-family: 'Michroma';
-  src: url('/fonts/michroma-regular.ttf') format('truetype');
+  font-family: 'Days One';
+  src: url('/fonts/days-one-latin.woff2') format('woff2');
   font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Rubik Vinyl';
+  src: url('/fonts/rubik-vinyl-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Changa';
+  src: url('/fonts/changa-800-latin.woff2') format('woff2');
+  font-weight: 800;
   font-display: block;
 }
 
