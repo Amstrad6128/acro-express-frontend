@@ -4501,7 +4501,7 @@ function leaveChatLayout() {
 // two columns, then 15 px, then 14 px (the floor; below it only the list scrolls). Again only when the window changes size,
 // so nothing moves while people read.
 const VOTE_FIT = [{ cols: 1, f: 16, p: 6, g: 6 }, { cols: 2, f: 16, p: 6, g: 6 }, { cols: 1, f: 15, p: 4, g: 4 }, { cols: 2, f: 15, p: 4, g: 4 }, { cols: 1, f: 14, p: 3, g: 3 }, { cols: 2, f: 14, p: 3, g: 3 }];
-const RESULT_FIT = [{ cols: 1, f: 15 }, { cols: 2, f: 15 }, { cols: 1, f: 14 }, { cols: 2, f: 14 }];
+const RESULT_FIT = [{ cols: 1, f: 15 }, { cols: 1, f: 14 }, { cols: 2, f: 14 }];   // one wide table first (GPT, 2026-10-28)   // one wide table first (GPT, 2026-10-28)
 // the step that fits: moves on while the list overflows (two columns only from 640 px wide); back to the first on resize
 function useFitStep(on, ref, ladder) {
   const [step, setStep] = useState(0);
@@ -5018,6 +5018,24 @@ function StationCheer({ round, names, streak = 1, wow = false }) {
   );
 }
 
+// The winner explained in words (AcroChallenge: "The high scorer was … who received 3 votes …"); under the results, or on
+// the stage next to the cheer when the results are on the Expression Board
+function stationSummary(winners, details) {
+  if (!winners.length || !details) return null;
+  const w = winners[0];
+  const n = details.winnerVotes || 0;
+  const speedForWinner = details.speedBonus && winners.some(x => x.name === details.speedBonus);
+  const parts = [`${n} vote${n === 1 ? "" : "s"}`];
+  if (details.letterBonus) parts.push(`${details.letterBonus} letter bonus`);
+  if (speedForWinner) parts.push("1 speed bonus");
+  const who = winners.map(x => x.name).join(" and ");
+  return <>
+    <b style={{ color: C.textPrimary }}>{who}</b> won{winners.length > 1 ? " (same acro)" : ""} with {n} vote{n === 1 ? "" : "s"}: {parts.join(" + ")} = <b style={{ color: C.textPrimary }}>{w.score} points</b>.
+    {details.speedBonus && !speedForWinner && <> Speed bonus +1: <b style={{ color: C.textPrimary }}>{details.speedBonus}</b>.</>}
+    {details.wordBonus?.length > 0 && <> 📖 Word of the week +1: <b style={{ color: C.textPrimary }}>{details.wordBonus.join(", ")}</b>.</>}
+  </>;
+}
+
 function ResultsScreen({ scores, winningAcro, entries, players, round, topic, onClose, myVote, votes, myName, details, letters, inline = false, narrow = false, board = false }) {
   const boardRef = useRef(null);                      // the Expression Board (RESULT_FIT)
   const fit = useFitStep(board, boardRef, RESULT_FIT);
@@ -5026,31 +5044,19 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
   const votedWinner = new Set(details?.votedWinner || []);
   const iVoted = !!myVote;
 
-  // The winner explained in words (AcroChallenge: "The high scorer was … who received 3 votes …")
-  let summary = null;
-  if (winners.length > 0 && details) {
-    const w = winners[0];
-    const n = details.winnerVotes || 0;
-    const speedForWinner = details.speedBonus && winners.some(x => x.name === details.speedBonus);
-    const parts = [`${n} vote${n === 1 ? "" : "s"}`];
-    if (details.letterBonus) parts.push(`${details.letterBonus} letter bonus`);
-    if (speedForWinner) parts.push("1 speed bonus");
-    const who = winners.map(x => x.name).join(" and ");
-    summary = <>
-      <b style={{ color: C.textPrimary }}>{who}</b> won{winners.length > 1 ? " (same acro)" : ""} with {n} vote{n === 1 ? "" : "s"}: {parts.join(" + ")} = <b style={{ color: C.textPrimary }}>{w.score} points</b>.
-      {details.speedBonus && !speedForWinner && <> Speed bonus +1: <b style={{ color: C.textPrimary }}>{details.speedBonus}</b>.</>}
-      {details.wordBonus?.length > 0 && <> 📖 Word of the week +1: <b style={{ color: C.textPrimary }}>{details.wordBonus.join(", ")}</b>.</>}
-    </>;
-  }
+  const summary = stationSummary(winners, details);
 
   const cell = { padding: "3px 10px", lineHeight: 1.25, borderBottom: `1px solid ${C.border}`, textAlign: "left" };   // compact rows (AcroChallenge): 14 fit
   const Wrap = inline ? "div" : Panel;
   if (inline) cell.padding = "2px 10px";   // in the chat window: 16 rows fit on Fran's screen
+  // the Expression Board: one line per player, no padding and no lines (every other row faintly tinted instead), 17 px
+  // lines at 14 px (GPT, 2026-10-28: 16 × 17 px fit the smallest laptop's 286 px)
+  if (board) Object.assign(cell, { padding: "0 10px", lineHeight: fit.f >= 15 ? "18px" : "17px", borderBottom: "none" });
   const youVotedLine = `2px solid ${C.teal}`;
   return (
     // Its width comes from the train page: lined up with the panels below (Damon, 2026-10-24; before: at most 860 px, centred).
     // inline: at the top of the Sky Train Chat (VOTE_IN_CHAT), as tall as it needs, scrolling inside only if it must
-    <Wrap ref={board ? boardRef : undefined} style={board ? { flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 16px", borderBottom: `1px solid ${C.border}`, fontSize: fit.f } : inline ? { flex: "0 1 auto", minHeight: 0, overflowY: "auto", padding: "8px 16px", borderBottom: `1px solid ${C.border}` } : { padding: "10px 14px", boxSizing: "border-box" }}>
+    <Wrap ref={board ? boardRef : undefined} style={board ? { flex: 1, minHeight: 0, overflowY: "auto", padding: "3px 16px", borderBottom: `1px solid ${C.border}`, fontSize: fit.f } : inline ? { flex: "0 1 auto", minHeight: 0, overflowY: "auto", padding: "8px 16px", borderBottom: `1px solid ${C.border}` } : { padding: "10px 14px", boxSizing: "border-box" }}>
       {/* the title and the legend: not on the Expression Board (the stage shows the cheer and who chooses next; the marks
           explain themselves on hover), its height goes to the rows */}
       {!board && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: inline ? 0 : 4 }}>
@@ -5106,11 +5112,12 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
             </tr>
           </thead>}
           <tbody>
-            {part.map(([name, score]) => {
+            {part.map(([name, score], rowIndex) => {
               const isWinner = winners.some(w => w.name === name);
               // The acro I voted for: a teal OUTLINE around the row + a "your vote" tag (Acrophobia's box)
               const isMyVote = iVoted && entryByNickname[name] === myVote;
-              const edge = isMyVote ? youVotedLine : undefined;
+              // (on the board the outline is drawn on the row instead: borders would make it 2 px taller)
+              const edge = isMyVote && !board ? youVotedLine : undefined;
               const td = (extra, first, last) => ({
                 ...cell, ...extra,
                 borderTop: edge || "none", borderBottom: edge || cell.borderBottom,
@@ -5118,13 +5125,15 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
               });
               return (
                 <tr key={name} style={{
-                  // The winner: a warm row with a bar on the left (AcroChallenge's trophy row) — never teal
-                  background: isWinner ? `color-mix(in srgb, ${C.brand} 22%, transparent)` : "transparent",
+                  // The winner: a warm row with a bar on the left (AcroChallenge's trophy row) — never teal. On the board,
+                  // every other row faintly tinted (no lines between rows)
+                  background: isWinner ? `color-mix(in srgb, ${C.brand} 22%, transparent)` : board && rowIndex % 2 ? `color-mix(in srgb, ${C.textPrimary} 5%, transparent)` : "transparent",
                   boxShadow: isWinner ? `inset 4px 0 0 ${C.brand}` : "none",
+                  ...(board && isMyVote ? { outline: youVotedLine, outlineOffset: -2 } : {}),
                 }}>
                   <td style={td({ color: isWinner ? C.textPrimary : C.textSecond, fontWeight: isWinner ? 700 : 400, whiteSpace: "nowrap" }, true, false)}>
                     {/* One fixed slot before the name: 🏆 winner, ✓ voted for the winner (+1) */}
-                    <span style={{ display: "inline-block", width: 22, textAlign: "center", fontSize: 13, lineHeight: 1 }}
+                    <span style={{ display: "inline-block", width: 22, textAlign: "center", fontSize: board ? 12 : 13, lineHeight: board ? cell.lineHeight : 1, verticalAlign: board ? "top" : undefined }}
                       title={isWinner ? "Station winner" : votedWinner.has(name) ? "Voted for the winner (+1)" : undefined}>
                       {isWinner ? "🏆" : votedWinner.has(name) ? <span style={{ color: C.success, fontWeight: 800 }}>✓</span> : ""}
                     </span>
@@ -5133,7 +5142,7 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
                   {board ? (
                     // the board: points first, the votes after them, one cell
                     <td style={td({ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" })}>
-                      <b style={{ color: isWinner ? C.brand : C.teal, fontFamily: NUM_FONT }}>{score}</b> <span style={{ color: C.textMuted }}>pts{votes ? ` · ${votes[name] ?? 0} vote${(votes[name] ?? 0) === 1 ? "" : "s"}` : ""}</span>
+                      <b style={{ color: isWinner ? C.brand : C.teal }}>{score}</b> <span style={{ color: C.textMuted }}>pts{votes ? ` · ${votes[name] ?? 0} vote${(votes[name] ?? 0) === 1 ? "" : "s"}` : ""}</span>
                     </td>
                   ) : <>
                   {votes && <td style={td({ textAlign: "center", color: isWinner ? C.textPrimary : C.textSecond, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" })}>{votes[name] ?? 0}</td>}
@@ -5158,7 +5167,7 @@ function ResultsScreen({ scores, winningAcro, entries, players, round, topic, on
         <p style={{ margin: "8px 0 0", color: C.textMuted, fontSize: 14 }}>No points were awarded at this station.</p>
       ) : (
         <>
-          {summary && <p style={{ margin: "4px 0 0", color: C.textSecond, fontSize: 14 }}>{summary}</p>}
+          {summary && !board && <p style={{ margin: "4px 0 0", color: C.textSecond, fontSize: 14 }}>{summary}</p>}
         </>
       )}
     </Wrap>
@@ -6374,8 +6383,15 @@ function Room() {
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px 48px", flexWrap: "wrap" }}>
               {(() => {
                 const names = stationResults(scores, winningAcro, entries, players).winners.map(w => w.name);
+                const summary = stationSummary(stationResults(scores, winningAcro, entries, players).winners, resultDetails);
                 const wow = names.some(n => (resultDetails?.wordBonus || []).some(b => String(b).toLowerCase() === n.toLowerCase()));
-                return <StationCheer key={currentRound} round={currentRound} streak={winStreak} names={names} wow={wow} />;
+                // the summary under the cheer: on the stage, so the board has its height for the rows (2026-10-28)
+                return (
+                  <div style={{ textAlign: "center", maxWidth: 560 }}>
+                    <StationCheer key={currentRound} round={currentRound} streak={winStreak} names={names} wow={wow} />
+                    {summary && <div style={{ fontSize: 14, color: C.textSecond, marginTop: -2 }}>{summary}</div>}
+                  </div>
+                );
               })()}
               {watchChooser && !watchChooser.first && (
                 <div style={{ textAlign: "center", fontSize: 15, color: C.textMuted }}>
