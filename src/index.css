@@ -206,6 +206,9 @@ body {
 /* The direction desk's picture fades in when the desk appears (Damon, 2026-10-24: no departure slide yet) */
 @keyframes acroFadeIn { from { opacity: 0; } to { opacity: 1; } }
 .acro-fade-in { animation: acroFadeIn 0.9s ease-out; }
+/* the Expression Board and the passenger list coming back: a short, calm fade (2026-10-28) */
+.acro-board-in { animation: acroFadeIn 0.25s ease-out; }
+@media (prefers-reduced-motion: reduce) { .acro-board-in { animation: none; } }
 /* Highball! departure (2026-10-24, GPT's spec): over the 5 s countdown the picture slips left, slowly at first and then
    faster (about 12 px, 40 px, then --depart in all), and fades out from about the halfway point */
 @keyframes acroDepartMove {
