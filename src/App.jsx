@@ -203,7 +203,9 @@ function loadThemeKey() {
     // Hour): brand-new visitors get Golden Hour; someone who has logged in here before keeps Midnight, the old default,
     // so a regular's screen doesn't suddenly change. Remembered, so it stays put afterwards.
     if (!k) {
-      k = localStorage.getItem("acro.auth") ? "midnight" : "goldenhour";
+      // phones: Neon (Damon, 2026-10-30)
+      const phone = typeof window !== "undefined" && window.matchMedia?.("(max-width: 640px)").matches;
+      k = phone ? "neon" : localStorage.getItem("acro.auth") ? "midnight" : "goldenhour";
       try { localStorage.setItem("acro.theme", k); } catch { /* private mode */ }
     }
     if (k === "lamplight") k = "nightfall";   // the green palette's old name — keep the player's choice
@@ -3647,7 +3649,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
   // ── The Departures board's rows (Damon, 2026-10-26): one line each, the same columns for every train ─────────
   // platform (plain letters, no box) · the train (icon, name, a short note) · the departure time in its own box ·
   // aboard · status · the button. A row: { key, code, name, note, time, aboard, status, action, lit, hint }
-  const rowGrid = { display: "grid", gridTemplateColumns: phone ? "40px minmax(0, 1fr) auto" : boardCols, gap: 12, alignItems: "center", height: phone ? undefined : 40, minHeight: phone ? 42 : undefined, boxSizing: "border-box", padding: phone ? "6px 12px" : "0 14px", borderBottom: `1px solid ${C.border}` };
+  const rowGrid = { display: "grid", gridTemplateColumns: phone ? "40px minmax(0, 1fr)" : boardCols, gap: phone ? "4px 12px" : 12, alignItems: "center", height: phone ? undefined : 40, minHeight: phone ? 42 : undefined, boxSizing: "border-box", padding: phone ? "6px 12px" : "0 14px", borderBottom: `1px solid ${C.border}` };
   const nextRow = { background: "color-mix(in srgb, var(--c-gold) 9%, transparent)", boxShadow: "inset 3px 0 0 var(--c-gold)" };
   const codeStyle = free => ({ ...smallTitle, fontSize: 28, lineHeight: 1, color: free ? C.textMuted : C.teal });
   // the time: its own box with only the time in it, digits that don't jump; the day just before the box, outside it,
@@ -3680,7 +3682,9 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
       {/* the next train: its platform code in gold (with the gold edge and "Next · in …"); no tag (Damon, 2026-10-26) */}
       <span style={{ ...codeStyle(false), ...(r.next ? { color: "var(--c-gold)", fontPalette: "var(--fp-gold)" } : {}) }}>{r.code}</span>
       <span style={{ minWidth: 0 }}>{trainCell(r)}</span>
-      {phone ? <span style={{ display: "flex", gap: 8, alignItems: "center" }}>{r.time}{r.action}</span> : <>
+      {/* phones: the time and the button on a line of their own, under the train (2026-10-30: in one line the name vanished
+          and the button was cut off) */}
+      {phone ? <span style={{ gridColumn: "2", display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>{r.time}{r.action}</span> : <>
         <span>{r.time}</span>
         <span style={{ fontSize: 14, color: C.textSecond, display: "inline-flex", alignItems: "center", gap: 5 }}>{r.aboard != null && <><Icon name="users" size={15} /> {r.aboard}</>}</span>
         <span>{r.status && <StatusPill {...r.status} />}</span>
@@ -3946,10 +3950,10 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
           <Panel style={{ flexShrink: 0, padding: "12px 14px" }}>
             {/* Title only: starting a train happens in the board itself, on the first free platform (Damon:
                 "New Sky Train and Start one should be one thing") */}
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8, flexWrap: phone ? "wrap" : undefined }}>
               <Icon name="train" size={30} color={C.teal} />
               {/* the line beside the title, not under it (Damon, 2026-10-26: "shouldn't take up two lines") */}
-              <div style={{ display: "flex", alignItems: "baseline", gap: "4px 14px", flexWrap: "wrap", minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "4px 14px", flexWrap: "wrap", minWidth: 0, flex: phone ? "1 1 0" : undefined }}>
                 <h2 style={boxTitle}>Departures</h2>
                 {liveTrain ? (
                   // who is playing where, with the way in (2026-10-25)
@@ -3961,7 +3965,8 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                 ) : <div style={{ color: C.textSecond, fontSize: 14 }}>{roomList.length === 0 ? "Are you ready to play? Start a Sky Train!" : "Pick a train and hop on, or start your own."}</div>}
               </div>
               {/* on the right: schedule a game, and start one now (the "free platform" row is gone: vertical space, Damon 2026-10-26) */}
-              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+              {/* phones: a row of their own under the title (2026-10-30: they overlapped the line beside the title) */}
+              <div style={{ marginLeft: phone ? 0 : "auto", display: "flex", alignItems: "center", gap: 14, flexShrink: 0, ...(phone ? { width: "100%", justifyContent: "space-between" } : {}) }}>
                 {auth && sched.canSchedule && !sched.hasOne && !schedForm && (
                   <button onClick={() => { setSchedForm({ id: null, day: 0, time: "" }); setSchedErr(""); }} data-hint="Schedule a game for later: it shows here for everyone, in their own time"
                     style={{ background: "none", border: "none", padding: 0, color: C.teal, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>📅 Schedule a game</button>
@@ -4040,7 +4045,7 @@ const TRAIN_NAMES = ["The Zephyr", "The Starlight", "The Comet", "The Grand Limi
                       {!phone && <span><SplitFlap flipKey={g.key} bg={C.bgPanel} height={30}>{g.time}</SplitFlap></span>}
                       {!phone && <span />}
                       {!phone && <span style={{ fontSize: 13, color: C.textMuted }}>{rest.length > 1 ? `${i + 1} of ${rest.length}` : ""}</span>}
-                      <span style={{ fontSize: 13, color: C.textSecond, textAlign: "right", whiteSpace: "nowrap" }}>{laterOpen ? "close ▲" : "see all ▼"}</span>
+                      <span style={{ fontSize: 13, color: C.textSecond, textAlign: "right", whiteSpace: "nowrap", gridColumn: phone ? "2" : undefined }}>{laterOpen ? "close ▲" : "see all ▼"}</span>
                     </div>
                     {laterOpen && rest.map(departureRow).map(boardRow)}
                   </>
