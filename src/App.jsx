@@ -6059,6 +6059,18 @@ function Room() {
       // ...and while voting, who is done voting
       if (data?.phase === "Voting" && Array.isArray(data?.votedPlayerIds))
         setVotedIds(data.votedPlayerIds.map(x => String(x).toLowerCase()));
+      // the results, for a page reloaded while they show (2026-10-30: they used to vanish)
+      const lr = data?.lastResults;
+      if (data?.phase === "Ended" && lr && phaseRef.current !== "Results" && phaseRef.current !== "Tallying") {
+        setEntries(lr.entries || []);
+        setScores(lr.scores || {});
+        setRoundVotes(lr.votes || null);
+        setResultDetails(lr.details || null);
+        setWinningAcro(lr.winningAcro || null);
+        setResultsClosed(false);
+        setFrozenScores(null);
+        setPhase("Results");
+      }
 
       setPhase(prev => {
         // "GameOver" is kept too — otherwise the poll replaced it within 3s and the winner panel vanished
