@@ -329,7 +329,6 @@ applyTheme(loadThemeKey());   // before the first render, so the page never flas
 const EXTRA_FONTS = {
   trueno: { fam: "'Trueno'", lf: 1.07, tf: 0.97, w: 400 },        // capitals 71, digits 74
   nunito: { fam: "'Nunito'", lf: 1.055, tf: 0.99, w: 800 },       // capitals 72, digits 73
-  righteous: { fam: "'Righteous'", lf: 1.07, tf: 0.96, w: 400 },  // capitals 71, digits 75
   // 2026-10-22 (Damon: "Direction is Barrio, but it's not the one. Add Bricolage Grotesque and Dela Gothic One")
   // 2026-10-24 (Damon): Goldman Bold replaces Bricolage Grotesque. Capitals 59, digits 59 (×1.29 / ×1.22 would match),
   // but it is wide: 1.15 keeps a 7-letter station from getting much wider than Bowlby's
@@ -338,10 +337,13 @@ const EXTRA_FONTS = {
   // capitals (74) and Segoe UI's digits (71): Days One capitals 70 but 7% wider than Bowlby (1.03, not the full 1.06);
   // Rubik Vinyl capitals 77, digits 77; Changa capitals 63, digits 64 and narrow
   daysone: { fam: "'Days One'", lf: 1.03, tf: 1.0, w: 400 },
-  rubikvinyl: { fam: "'Rubik Vinyl'", lf: 0.96, tf: 0.92, w: 400 },
+  // 2026-10-30 (Damon): Righteous and Rubik Vinyl removed; Bumbazo and Porkh added (his "Cory fonts"; Bumbazo's file
+  // rebuilt with opentype.js, Chrome refused the original). Bumbazo is drawn big: capitals 108, digits 110; Porkh 78, 78
+  bumbazo: { fam: "'Bumbazo'", lf: 0.69, tf: 0.65, w: 400 },
+  porkh: { fam: "'Porkh'", lf: 0.95, tf: 0.91, w: 400 },
   changa: { fam: "'Changa'", lf: 1.17, tf: 1.11, w: 800 },
 };
-const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", trueno: "Trueno", nunito: "Nunito", righteous: "Righteous", goldman: "Goldman", daysone: "Days One", rubikvinyl: "Rubik Vinyl", changa: "Changa" };   // key → name shown in the menu
+const LETTER_FONTS = { bowlby: "Bowlby", honk: "Honk", trueno: "Trueno", nunito: "Nunito", goldman: "Goldman", daysone: "Days One", changa: "Changa", bumbazo: "Bumbazo", porkh: "Porkh" };   // key → name shown in the menu
 // No choice yet (2026-10-22, Damon: "I think Honk"): brand-new players get Honk; someone who has logged in here before
 // keeps Bowlby, the old default, so a regular's letters don't suddenly change. (A saved choice that no longer exists,
 // like "pixel" or "titan", goes back to Bowlby.)
@@ -358,6 +360,7 @@ function loadLetterFont() {
 }
 function applyLetterFont(key) {
   const root = document.documentElement.style;
+  setTimeout(() => window.dispatchEvent(new Event("acro-letterfont")), 0);   // the train page reports it (font stats)
   if (key === "honk") {
     root.setProperty("--lf-family", "'Honk', 'Bowlby One SC', serif");
     root.setProperty("--lf-shadow", "none");
@@ -815,10 +818,10 @@ function LetterFontPicker() {
                     bowlby: { fontFamily: "'Bowlby One SC', serif", fontSize: 18, color: C.brand },
                     trueno: { fontFamily: "'Trueno', sans-serif", fontSize: 18, color: C.brand },
                     nunito: { fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: 18, color: C.brand },
-                    righteous: { fontFamily: "'Righteous', sans-serif", fontSize: 18, color: C.brand },
                     goldman: { fontFamily: "'Goldman', sans-serif", fontWeight: 700, fontSize: 20, color: C.brand },
                     daysone: { fontFamily: "'Days One', sans-serif", fontSize: 17, color: C.brand },
-                    rubikvinyl: { fontFamily: "'Rubik Vinyl', sans-serif", fontSize: 18, color: C.brand },
+                    bumbazo: { fontFamily: "'Bumbazo', sans-serif", fontSize: 13, color: C.brand },
+                    porkh: { fontFamily: "'Porkh', sans-serif", fontSize: 18, color: C.brand },
                     changa: { fontFamily: "'Changa', sans-serif", fontWeight: 800, fontSize: 20, color: C.brand },
                   }[key]}>A X P</span>
                   <span style={{ fontSize: 13, fontWeight: active ? 700 : 400 }}>{name}{active ? " ✓" : ""}</span>
@@ -1750,6 +1753,7 @@ function StationLog() {
               <div style={{ display: "flex", gap: 8 }}>
                 <BtnSecondary onClick={() => navigate("/admin/numbers")}>Numbers</BtnSecondary>
                 <BtnSecondary onClick={() => navigate("/admin/palettes")}>Palette stats</BtnSecondary>
+                <BtnSecondary onClick={() => navigate("/admin/fonts")}>Font stats</BtnSecondary>
               </div>
             </div>
             <input id="logTitle" value={title} onChange={ev => setTitle(ev.target.value)} maxLength={120} placeholder="Title, e.g. Tonight's fixes" style={field} />
@@ -1846,6 +1850,81 @@ function PaletteStats() {
             {data.unknown > 0 && (
               <div style={{ color: C.textMuted, fontSize: 13 }}>{data.unknown} stations in this period have no palette recorded (played before 18 Oct 2026, or from a page that hadn't reloaded yet).</div>
             )}
+          </Panel>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Font stats (admin only, Damon 2026-10-30): how many stations were played with each big-letters font, by whom, like the
+// palette stats. Recorded from 2026-10-30. (api/admin/font-stats)
+function FontStats() {
+  const navigate = useNavigate();
+  const [days, setDays] = useState(30);
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    setData(null); setErr("");
+    fetch(`${API_URL}/api/admin/font-stats?days=${days}`, { headers: authHeaders() })
+      .then(async r => {
+        if (r.status === 403) throw new Error("This page is for the admin only.");
+        if (!r.ok) throw new Error("Couldn't load the stats. Try again in a moment.");
+        setData(await r.json());
+      })
+      .catch(e => setErr(e.message));
+  }, [days]);
+  const total = data?.fonts?.reduce((sum, t) => sum + t.stations, 0) || 0;
+  // fonts nobody used in the period still get a row (with 0)
+  const rows = data ? [
+    ...data.fonts,
+    ...Object.keys(LETTER_FONTS).filter(k => !data.fonts.some(t => t.font === k)).map(k => ({ font: k, stations: 0, players: 0, names: [], lastUsedUtc: null })),
+  ] : [];
+  const famOf = k => (k === "honk" ? "'Honk'" : k === "bowlby" ? "'Bowlby One SC'" : EXTRA_FONTS[k]?.fam) || "inherit";
+  return (
+    <div style={{ minHeight: "100vh", color: C.textPrimary, padding: "24px 16px 48px", boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h1 style={{ margin: 0, fontFamily: "'Nunito', sans-serif", fontSize: 30, fontWeight: 800, color: C.brand }}>Font stats</h1>
+            <p style={{ margin: "4px 0 0", color: "var(--c-bgText)", fontSize: 15 }}>Stations played with each Letters font (one per player per station), other players only. Recorded from 30 Oct 2026. Only you see this page.</p>
+          </div>
+          <BtnSecondary onClick={() => navigate("/log")}>← Station News</BtnSecondary>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[7, 30, 365].map(d => (
+            <button key={d} onClick={() => setDays(d)}
+              style={{ background: d === days ? C.brand : C.bgPanel, color: d === days ? C.onBrand : C.textPrimary, border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 12px", fontFamily: "inherit", fontSize: 14, cursor: "pointer" }}>
+              {d === 365 ? "Last year" : `Last ${d} days`}
+            </button>
+          ))}
+        </div>
+        {err && <p style={{ color: C.brand }}>{err}</p>}
+        {!data && !err && <p style={{ color: "var(--c-bgText)" }}>Loading…</p>}
+        {data && (
+          <Panel style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+            {rows.map(t => {
+              const share = total ? Math.round(t.stations / total * 100) : 0;
+              return (
+                <div key={t.font}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontFamily: famOf(t.font), color: C.brand, fontSize: 18, width: 60, flexShrink: 0 }}>A X P</span>
+                    <span style={{ flex: 1, fontWeight: 700 }}>{LETTER_FONTS[t.font] || `${t.font} (removed)`}</span>
+                    <span style={{ color: C.textSecond, fontSize: 14 }}>{t.stations} stations · {t.players} {t.players === 1 ? "player" : "players"} · {share}%</span>
+                  </div>
+                  <div style={{ height: 8, borderRadius: 4, background: C.bgApp, margin: "6px 0 4px" }}>
+                    <div style={{ width: `${share}%`, height: "100%", borderRadius: 4, background: C.teal }} />
+                  </div>
+                  {t.names.length > 0 && (
+                    <div style={{ color: C.textMuted, fontSize: 13 }}>
+                      {t.names.map(n => `${n.name} (${n.stations})`).join(", ")}
+                      {t.lastUsedUtc && ` · last used ${new Date(t.lastUsedUtc).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}`}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {data.unknown > 0 && <div style={{ color: C.textMuted, fontSize: 13 }}>{data.unknown} stations in this period have no font recorded (played before 30 Oct 2026).</div>}
           </Panel>
         )}
       </div>
@@ -6455,7 +6534,7 @@ function Room() {
           {phase === "Results" && !resultsClosed && !topicRequested && !watchChooser?.first && !VOTE_IN_CHAT && (
             // lined up with the panels below: from the Sky Train Chat's left edge to the right edge (Damon's markup, 2026-10-24),
             // using the same columns as those panels
-            <div style={{ display: "grid", gap: 16, gridTemplateColumns: isNarrow ? "1fr" : (pm.active ? "minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.4fr)" : "1fr 3fr") }}>
+            <div style={{ display: "grid", gap: 16, gridTemplateColumns: isNarrow ? "1fr" : (pm.active ? "minmax(170px, 210px) minmax(0, 2fr) minmax(0, 1.4fr)" : "minmax(170px, 210px) minmax(0, 1fr)") }}>
             {/* the station winner, left of the results and centred on them (Damon, 2026-10-24) */}
             <div style={{ gridColumn: "1", alignSelf: "center", minWidth: 0 }}>
               {(() => {
@@ -6690,7 +6769,7 @@ function Room() {
         display: "grid",
         gridTemplateRows: isNarrow ? undefined : "minmax(0, 1fr)",
         gridAutoRows: isNarrow ? "auto" : undefined,
-        gridTemplateColumns: isNarrow ? "1fr" : boardWide ? (pm.active ? "minmax(0, 3fr) minmax(0, 1.4fr)" : "minmax(0, 1fr)") : (pm.active ? "minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.4fr)" : "1fr 3fr"),
+        gridTemplateColumns: isNarrow ? "1fr" : boardWide ? (pm.active ? "minmax(0, 3fr) minmax(0, 1.4fr)" : "minmax(0, 1fr)") : (pm.active ? "minmax(170px, 210px) minmax(0, 2fr) minmax(0, 1.4fr)" : "minmax(170px, 210px) minmax(0, 1fr)"),
         gap: 16
       }}>
 
@@ -6728,7 +6807,7 @@ function Room() {
                     {tickIds?.includes(String(p.id).toLowerCase()) ? "✓" : ""}
                   </span>
                   {/* Submitted this round (while writing) / done voting (while voting): name in teal */}
-                  <span style={{ color: p.isConnected === false ? C.textMuted : (tickIds?.includes(String(p.id).toLowerCase()) ? C.teal : C.textSecond), fontWeight: tickIds?.includes(String(p.id).toLowerCase()) ? 700 : 400, opacity: p.isConnected === false ? 0.6 : 1 }}>
+                  <span style={{ color: p.isConnected === false ? C.textMuted : (tickIds?.includes(String(p.id).toLowerCase()) ? C.teal : C.textSecond), fontWeight: tickIds?.includes(String(p.id).toLowerCase()) ? 700 : 400, opacity: p.isConnected === false ? 0.6 : 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <span>{p.nickname}</span>
                     {/* Window closed / connection lost — removed after about 10 seconds */}
                     {p.isConnected === false && <span style={{ marginLeft: 4, fontStyle: "italic" }}>(away)</span>}
@@ -6745,7 +6824,7 @@ function Room() {
                     )}
                   </span>
                   </span>
-                  <span style={{ color: C.teal, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums" }}>{shownScore(p)}</span>
+                  <span style={{ color: C.teal, fontWeight: 700, fontFamily: NUM_FONT, fontVariantNumeric: "tabular-nums", flexShrink: 0, marginLeft: 8 }}>{shownScore(p)}</span>
                 </li>
               ))}
             </ul>
@@ -6869,6 +6948,7 @@ export default function App() {
       <Route path="/" element={<Lobby />} />
       <Route path="/log" element={<StationLog />} />
       <Route path="/admin/palettes" element={<PaletteStats />} />
+      <Route path="/admin/fonts" element={<FontStats />} />
       <Route path="/admin/numbers" element={<NumbersPage />} />
       <Route path="/leaderboard" element={<SkyLeaderboard />} />
       <Route path="/hall" element={<HallOfExpressions />} />

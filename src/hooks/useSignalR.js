@@ -72,6 +72,10 @@ export function useSignalR(roomId, handlers = {}) {
       let theme = "midnight";                                               // the default palette
       try { theme = localStorage.getItem("acro.theme") || "midnight"; } catch { /* private mode */ }
       connection.invoke("SetTheme", theme).catch(() => { });               // never stops the game if it fails
+      // ...and the big letters' font, for the admin's font stats (2026-10-30)
+      let font = "bowlby";
+      try { font = localStorage.getItem("acro.letterFont") || "bowlby"; } catch { /* private mode */ }
+      connection.invoke("SetLetterFont", font).catch(() => { });
       // ...and the computer's time zone (e.g. "Europe/London"), for the admin's Numbers page (2026-10-21)
       let zone = "";
       try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { /* very old browser */ }
@@ -79,6 +83,7 @@ export function useSignalR(roomId, handlers = {}) {
     };
     const onThemeChange = () => { if (connection.state === signalR.HubConnectionState.Connected) sendTheme(); };
     window.addEventListener("acro-theme", onThemeChange);
+    window.addEventListener("acro-letterfont", onThemeChange);             // a new letters font: report it too
     connection.__onThemeChange = onThemeChange;                            // removed again in disconnect()
 
     // Tells the page whether the live connection works ("connected") or not ("reconnecting"),
@@ -147,7 +152,7 @@ export function useSignalR(roomId, handlers = {}) {
     const conn = connectionRef.current;
     if (!conn) return;
     conn.__stopped = true;   // we're closing it on purpose — don't reconnect
-    if (conn.__onThemeChange) window.removeEventListener("acro-theme", conn.__onThemeChange);   // no more palette reports
+    if (conn.__onThemeChange) { window.removeEventListener("acro-theme", conn.__onThemeChange); window.removeEventListener("acro-letterfont", conn.__onThemeChange); }   // no more palette reports
     try {
       await conn.invoke("LeaveRoom", roomId);
       await conn.stop();

@@ -80,9 +80,16 @@
   font-weight: 400;
   font-display: block;
 }
+/* Bumbazo and Porkh (2026-10-30, Damon, from his "Cory fonts"; Rubik Vinyl and Righteous removed) */
 @font-face {
-  font-family: 'Rubik Vinyl';
-  src: url('/fonts/rubik-vinyl-latin.woff2') format('woff2');
+  font-family: 'Bumbazo';
+  src: url('/fonts/bumbazo.otf') format('opentype');
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Porkh';
+  src: url('/fonts/porkh.ttf') format('truetype');
   font-weight: 400;
   font-display: block;
 }
@@ -123,16 +130,8 @@
 
 /* Choices for the big letters and the timer, besides Bowlby and Honk. Trueno SemiBold (2026-10-22, replacing
    Titan One, which Damon didn't like): SIL Open Font License (Julieta Ulanovsky, a Montserrat fork), Damon's own
-   copy, served as OpenType. Righteous (2026-10-22, replacing Russo One — "Russo and Trueno too similar"): SIL Open
-   Font License, Google Fonts, Basic Latin only. Nunito ExtraBold is the 800 weight of the Nunito above. Anything a
+   copy, served as OpenType. (Righteous was here 2026-10-22 to 2026-10-30.) Nunito ExtraBold is the 800 weight of the Nunito above. Anything a
    font lacks falls back to Bowlby. */
-@font-face {
-  font-family: 'Righteous';
-  src: url('/fonts/righteous-v18-latin.woff2') format('woff2');
-  font-weight: 400;
-  font-display: block;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
 
 @font-face {
   font-family: 'Trueno';
